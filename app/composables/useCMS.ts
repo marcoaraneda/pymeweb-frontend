@@ -1,6 +1,6 @@
 import { useRuntimeConfig } from "nuxt/app";
-import { useAuthStore } from "../stores/auth";
-import { useTenantStore } from "../stores/tenant";
+import { useAuthStore } from "../../stores/auth";
+import { useTenantStore } from "../../stores/tenant";
 
 export const useCMS = () => {
   const config = useRuntimeConfig();

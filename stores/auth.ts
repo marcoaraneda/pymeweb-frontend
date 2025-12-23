@@ -1,3 +1,4 @@
+import { navigateTo, useCookie, useRuntimeConfig } from 'nuxt/app'
 import { defineStore } from 'pinia'
 
 export const useAuthStore = defineStore('auth', {

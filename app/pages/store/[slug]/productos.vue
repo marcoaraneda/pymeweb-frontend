@@ -6,6 +6,7 @@
     
     <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div v-for="prod in tenantStore.productos" :key="prod.id" class="border p-4 rounded shadow">
+        <img v-if="prod.images?.length" :src="`http://127.0.0.1:8000${prod.images[0].image}`" class="w-full h-48 object-cover mb-2 rounded">
         <h2 class="font-bold text-lg">{{ prod.name }}</h2>
         <p class="text-gray-600">{{ prod.description }}</p>
         <p class="text-blue-600 font-bold mt-2">${{ prod.price }}</p>
