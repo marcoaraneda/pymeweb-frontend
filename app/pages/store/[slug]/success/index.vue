@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-[70vh] flex items-center justify-center">
+  <div class="min-h-[70vh] flex items-center justify-center bg-slate-100">
     <div class="bg-white p-10 rounded-2xl shadow-xl max-w-md text-center">
 
       <div class="text-green-500 text-6xl mb-6">
@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
+import { useRoute } from '#app'
 
 const route = useRoute()
 const slug = route.params.slug as string
