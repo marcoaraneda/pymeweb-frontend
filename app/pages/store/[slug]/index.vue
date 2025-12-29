@@ -2,7 +2,6 @@
   <div>
     <h1 class="text-3xl font-bold mb-6">
       Bienvenido a {{ tenantStore.data?.name }}
-
     </h1>
 
     <NuxtLink
@@ -15,8 +14,17 @@
 </template>
 
 <script setup lang="ts">
+import { useRoute } from 'vue-router'
 import { useTenantStore } from '../../../../stores/tenant'
 
+const route = useRoute()
+const slug = route.params.slug as string
+
 const tenantStore = useTenantStore()
-const slug = tenantStore.slug
+
+// (opcional pero recomendado)
+onMounted(() => {
+  tenantStore.setSlug(slug)
+  tenantStore.fetchTienda()
+})
 </script>
