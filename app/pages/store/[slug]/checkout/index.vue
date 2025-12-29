@@ -9,7 +9,7 @@
       Tu carrito está vacío.
     </div>
 
-    <!-- Formulario -->
+    <!-- Checkout -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-8">
 
       <!-- DATOS CLIENTE -->
@@ -22,28 +22,28 @@
           v-model="form.name"
           type="text"
           placeholder="Nombre completo"
-          class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+          class="input"
         />
 
         <input
           v-model="form.email"
           type="email"
           placeholder="Correo electrónico"
-          class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+          class="input"
         />
 
         <input
           v-model="form.phone"
           type="text"
           placeholder="Teléfono"
-          class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+          class="input"
         />
 
         <textarea
           v-model="form.address"
           placeholder="Dirección de despacho"
-          class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
           rows="3"
+          class="input"
         />
       </div>
 
@@ -58,9 +58,7 @@
           :key="item.id"
           class="flex justify-between text-sm"
         >
-          <span>
-            {{ item.name }} x {{ item.quantity }}
-          </span>
+          <span>{{ item.name }} x {{ item.quantity }}</span>
           <span class="font-medium">
             ${{ item.price * item.quantity }}
           </span>
@@ -86,12 +84,16 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useCartStore } from '../../../../../stores/cart'
+import { useTenantStore } from '../../../../../stores/tenant'
+
+const route = useRoute()
+const router = useRouter()
+const slug = route.params.slug as string
 
 const cart = useCartStore()
-const router = useRouter()
-const route = useRoute()
+const tenantStore = useTenantStore()
 
 const form = reactive({
   name: '',
@@ -100,14 +102,50 @@ const form = reactive({
   address: ''
 })
 
-const confirmOrder = () => {
+const confirmOrder = async () => {
   if (!form.name || !form.email) {
-    alert('Completa los datos requeridos')
+    alert('Completa nombre y correo')
     return
   }
 
-  cart.clearCart()
+  try {
+    await $fetch('http://127.0.0.1:8000/api/orders/', {
+      method: 'POST',
+      body: {
+        store: tenantStore.data.id,
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+        total: cart.totalPrice,
+        items: cart.items.map(item => ({
+          product: item.id,
+          quantity: item.quantity,
+          price: item.price
+        }))
+      }
+    })
 
-  router.push(`/store/${route.params.slug}/success`)
+    cart.clearCart()
+    router.push(`/store/${slug}/success`)
+  } catch (error) {
+    console.error(error)
+    alert('Error al crear el pedido')
+  }
 }
 </script>
+
+<style scoped>
+.input {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+</style>
