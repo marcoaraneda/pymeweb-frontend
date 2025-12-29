@@ -24,6 +24,7 @@
 
 <script setup lang="ts">
 import { useCartStore } from '../../../../../stores/cart'
+import { useProducts } from '~~/composables/useProducts'
 
 const route = useRoute()
 const { getProductBySlug } = useProducts()
