@@ -1,45 +1,57 @@
 <template>
-  <div v-if="tenantStore.data">
-    <header class="p-6 shadow-sm border-b bg-white">
-      <h1 class="text-2xl font-bold">
-        {{ tenantStore.data.name }}
-      </h1>
-    </header>
+  <div>
+    <h1 class="text-3xl font-bold mb-8 text-blue-700">
+      Productos
+    </h1>
 
-    <main class="container mx-auto py-10">
-      <section class="bg-gray-50 rounded-3xl p-12 text-center mb-10">
-        <h2 class="text-5xl font-extrabold mb-4">
-          Bienvenidos
-        </h2>
-        <p class="text-gray-600 text-lg">
-          Explora nuestro catálogo exclusivo.
-        </p>
-      </section>
-
-      <NuxtLink
-        :to="`/store/${tenantStore.slug}/productos`"
-        class="bg-black text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-800"
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div
+        v-for="product in productos"
+        :key="product.id"
+        class="bg-white rounded-xl shadow p-4"
       >
-        Ver Productos
-      </NuxtLink>
-    </main>
-  </div>
+        <img
+          v-if="product.image"
+          :src="product.image"
+          class="w-full h-40 object-cover rounded-lg mb-4"
+        />
 
-  <div v-else class="h-screen flex items-center justify-center">
-    <p>
-      {{ tenantStore.loading ? 'Cargando tienda...' : 'No se encontró la tienda' }}
-    </p>
+        <h2 class="font-bold text-blue-800">
+          {{ product.name }}
+        </h2>
+
+        <p class="text-gray-600 mb-2">
+          ${{ product.price }}
+        </p>
+
+        <button
+          @click="addToCart(product)"
+          class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
+        >
+          Agregar al carrito
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
-<script setup>
-const route = useRoute()
-const tenantStore = useTenantStore()
+<script setup lang="ts">
+import { storeToRefs } from 'pinia'
+import { useTenantStore } from '../../../../../stores/tenant'
+import { useCartStore } from '../../../../../stores/cart'
 
-onMounted(async () => {
-  if (route.params.slug) {
-    tenantStore.setSlug(route.params.slug)
-    await tenantStore.fetchTienda()
-  }
-})
+const tenant = useTenantStore()
+const cart = useCartStore()
+
+const { productos } = storeToRefs(tenant)
+
+function addToCart(product: any) {
+  cart.addProduct({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    slug: product.slug,
+    image: product.image
+  })
+}
 </script>
