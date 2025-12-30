@@ -18,33 +18,10 @@
           Datos del cliente
         </h2>
 
-        <input
-          v-model="form.name"
-          type="text"
-          placeholder="Nombre completo"
-          class="input"
-        />
-
-        <input
-          v-model="form.email"
-          type="email"
-          placeholder="Correo electrónico"
-          class="input"
-        />
-
-        <input
-          v-model="form.phone"
-          type="text"
-          placeholder="Teléfono"
-          class="input"
-        />
-
-        <textarea
-          v-model="form.address"
-          placeholder="Dirección de despacho"
-          rows="3"
-          class="input"
-        />
+        <input v-model="form.name" type="text" placeholder="Nombre completo" class="input" />
+        <input v-model="form.email" type="email" placeholder="Correo electrónico" class="input" />
+        <input v-model="form.phone" type="text" placeholder="Teléfono" class="input" />
+        <textarea v-model="form.address" placeholder="Dirección de despacho" rows="3" class="input" />
       </div>
 
       <!-- RESUMEN -->
@@ -83,17 +60,17 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useCartStore } from '../../../../../stores/cart'
-import { useTenantStore } from '../../../../../stores/tenant'
-
-const route = useRoute()
-const router = useRouter()
-const slug = route.params.slug as string
+import { useCartStore } from '~~/stores/cart'
+import { useTenantStore } from '~~/stores/tenant'
 
 const cart = useCartStore()
 const tenantStore = useTenantStore()
+const route = useRoute()
+const router = useRouter()
+
+const slug = route.params.slug as string
 
 const form = reactive({
   name: '',
@@ -102,14 +79,22 @@ const form = reactive({
   address: ''
 })
 
+onMounted(async () => {
+  tenantStore.setSlug(slug)
+  if (!tenantStore.data) {
+    await tenantStore.fetchTienda()
+  }
+})
+
 const confirmOrder = async () => {
-  if (!form.name || !form.email) {
-    alert('Completa nombre y correo')
+  if (!tenantStore.data) {
+    alert('Error: tienda no cargada')
     return
   }
 
   try {
-    await $fetch('http://127.0.0.1:8000/api/orders/', {
+    // ✅ GUARDAMOS RESPUESTA
+    const response: any = await $fetch('http://127.0.0.1:8000/api/orders/', {
       method: 'POST',
       body: {
         store: tenantStore.data.id,
@@ -127,10 +112,13 @@ const confirmOrder = async () => {
     })
 
     cart.clearCart()
-    router.push(`/store/${slug}/success`)
-  } catch (error) {
-    console.error(error)
+
+    // ✅ REDIRECCIÓN CORRECTA
+    router.push(`/store/${slug}/success/${response.id}`)
+
+  } catch (e) {
     alert('Error al crear el pedido')
+    console.error(e)
   }
 }
 </script>
