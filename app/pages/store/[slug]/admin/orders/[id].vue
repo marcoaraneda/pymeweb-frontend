@@ -2,7 +2,7 @@
   <div class="max-w-4xl mx-auto space-y-6">
 
     <NuxtLink
-      :to="`/store/${route.params.slug}/admin/orders`"
+      :to="`/store/${slug}/admin/orders`"
       class="text-blue-600 hover:underline"
     >
       ← Volver a pedidos
@@ -14,28 +14,33 @@
 
     <div v-else-if="order" class="bg-white p-6 rounded-xl shadow space-y-6">
 
-      <!-- Datos cliente -->
+      <!-- CLIENTE -->
       <div>
-        <h2 class="text-xl font-bold text-blue-600 mb-2">
+        <h2 class="text-2xl font-bold text-blue-600 mb-2">
           Pedido #{{ order.id }}
         </h2>
+
         <p><b>Cliente:</b> {{ order.name }}</p>
         <p><b>Email:</b> {{ order.email }}</p>
         <p><b>Teléfono:</b> {{ order.phone }}</p>
         <p><b>Dirección:</b> {{ order.address }}</p>
       </div>
 
-      <!-- Estado -->
+      <!-- ESTADO -->
       <div>
-        <span
-          class="px-3 py-1 rounded-full text-sm font-semibold"
-          :class="statusClass(order.status)"
+        <label class="font-semibold mr-2">Estado:</label>
+        <select
+          v-model="order.status"
+          @change="updateStatus"
+          class="border rounded px-3 py-1"
         >
-          {{ order.status }}
-        </span>
+          <option value="pending">Pendiente</option>
+          <option value="paid">Pagado</option>
+          <option value="shipped">Enviado</option>
+        </select>
       </div>
 
-      <!-- Items -->
+      <!-- PRODUCTOS -->
       <div>
         <h3 class="font-semibold mb-2">Productos</h3>
 
@@ -65,14 +70,11 @@
         </table>
       </div>
 
-      <!-- Total -->
+      <!-- TOTAL -->
       <div class="text-right text-lg font-bold">
         Total: ${{ order.total }}
       </div>
-    </div>
 
-    <div v-else class="text-red-500">
-      Pedido no encontrado
     </div>
   </div>
 </template>
@@ -100,25 +102,31 @@ interface Order {
 }
 
 const route = useRoute()
+const slug = route.params.slug as string
+const orderId = route.params.id as string
+
 const order = ref<Order | null>(null)
 const loading = ref(true)
-
-const statusClass = (status: string) => {
-  if (status === 'pending') return 'bg-yellow-100 text-yellow-700'
-  if (status === 'paid') return 'bg-blue-100 text-blue-700'
-  if (status === 'shipped') return 'bg-green-100 text-green-700'
-  return 'bg-gray-100 text-gray-600'
-}
 
 onMounted(async () => {
   try {
     order.value = await $fetch<Order>(
-      `http://127.0.0.1:8000/api/orders/${route.params.id}/`
+      `http://127.0.0.1:8000/api/orders/${orderId}/`
     )
-  } catch {
-    order.value = null
   } finally {
     loading.value = false
   }
 })
+
+const updateStatus = async () => {
+  if (!order.value) return
+
+  await $fetch(
+    `http://127.0.0.1:8000/api/orders/${order.value.id}/`,
+    {
+      method: 'PATCH',
+      body: { status: order.value.status }
+    }
+  )
+}
 </script>
