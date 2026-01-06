@@ -1,22 +1,32 @@
-import { useRuntimeConfig } from "nuxt/app"
-import { useTenantStore } from "../stores/tenant"
+import { useRuntimeConfig } from 'nuxt/app'
+import { useTenantStore } from '../stores/tenant'
 
 export const useProducts = () => {
   const config = useRuntimeConfig()
   const tenantStore = useTenantStore()
 
-  const getProducts = async (params = {}) => {
-    // Filtramos siempre por la tienda actual según el slug de la URL [cite: 72, 75]
-    return await $fetch(`${config.public.apiBase}/catalog/products/`, {
-      params: { store_slug: tenantStore.slug, ...params }
-    })
+  const getProducts = async () => {
+    if (!tenantStore.slug) {
+      throw new Error('Tenant slug no definido')
+    }
+
+    return await $fetch(
+      `${config.public.apiBase}/store/${tenantStore.slug}/catalogo/products/`
+    )
   }
 
   const getProductBySlug = async (productSlug: string) => {
-    return await $fetch(`${config.public.apiBase}/catalog/products/${productSlug}/`, {
-      params: { store_slug: tenantStore.slug }
-    })
+    if (!tenantStore.slug) {
+      throw new Error('Tenant slug no definido')
+    }
+
+    return await $fetch(
+      `${config.public.apiBase}/store/${tenantStore.slug}/catalogo/products/${productSlug}/`
+    )
   }
 
-  return { getProducts, getProductBySlug }
+  return {
+    getProducts,
+    getProductBySlug
+  }
 }

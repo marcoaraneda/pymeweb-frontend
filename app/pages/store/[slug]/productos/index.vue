@@ -9,7 +9,7 @@
     </div>
 
     <div
-      v-else-if="tenantStore.productos.length > 0"
+      v-else-if="tenantStore.productos.length"
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
     >
       <div
@@ -19,9 +19,9 @@
       >
         <!-- Imagen -->
         <img
-          v-if="product.images?.length"
-          :src="`http://127.0.0.1:8000${product.images[0].image}`"
-          class="w-full h-48 object-cover rounded-t-xl"
+        v-if="product.images?.length"
+        :src="imageUrl(product.images[0].image)"
+        class="w-full h-48 object-cover border-2 border-red-500"
         />
 
         <div class="p-4">
@@ -41,10 +41,10 @@
           </NuxtLink>
 
           <button
-          @click="cart.addProduct(product)"
-          class="mt-2 w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-500"
+            @click="cart.addProduct(product)"
+            class="mt-2 w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-500"
           >
-          Agregar al carrito
+            Agregar al carrito
           </button>
         </div>
       </div>
@@ -58,13 +58,17 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
+import { onMounted } from 'vue'
 import { useTenantStore } from '../../../../../stores/tenant'
 import { useCartStore } from '../../../../../stores/cart'
-const cart = useCartStore()
+import { useImages } from '../../../../../composables/useImages'
+
 const route = useRoute()
 const slug = route.params.slug as string
 
 const tenantStore = useTenantStore()
+const cart = useCartStore()
+const { imageUrl } = useImages()
 
 onMounted(async () => {
   tenantStore.setSlug(slug)

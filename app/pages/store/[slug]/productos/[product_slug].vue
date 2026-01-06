@@ -1,13 +1,17 @@
 <template>
-  <div v-if="product" class="grid md:grid-cols-2 gap-10">
+  <div v-if="product" class="max-w-5xl mx-auto grid md:grid-cols-2 gap-10">
+    <!-- Imagen -->
     <img
       v-if="product.images?.length"
-      :src="`http://127.0.0.1:8000${product.images[0].image}`"
+      :src="imageUrl(product.images[0].image)"
       class="rounded-xl shadow"
     />
 
     <div>
-      <h1 class="text-4xl font-bold mb-4">{{ product.name }}</h1>
+      <h1 class="text-4xl font-bold mb-4">
+        {{ product.name }}
+      </h1>
+
       <p class="text-2xl text-blue-600 font-semibold mb-4">
         ${{ product.price }}
       </p>
@@ -20,21 +24,33 @@
       </button>
     </div>
   </div>
+
+  <div v-else class="text-gray-500 text-center py-20">
+    Producto no encontrado
+  </div>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { useProducts } from '../../../../../composables/useProducts'
 import { useCartStore } from '../../../../../stores/cart'
-import { useProducts } from '~~/composables/useProducts'
+import { useImages } from '../../../../../composables/useImages'
 
 const route = useRoute()
-const { getProductBySlug } = useProducts()
 const cart = useCartStore()
+const { getProductBySlug } = useProducts()
+const { imageUrl } = useImages()
 
 const product = ref<any>(null)
 
 onMounted(async () => {
-  product.value = await getProductBySlug(
-    route.params.product_slug as string
-  )
+  try {
+    product.value = await getProductBySlug(
+      route.params.product_slug as string
+    )
+  } catch (e) {
+    console.error('Error cargando producto', e)
+  }
 })
 </script>
