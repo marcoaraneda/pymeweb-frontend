@@ -1,132 +1,78 @@
 <template>
-  <div class="max-w-4xl mx-auto space-y-6">
-
+  <div class="max-w-4xl mx-auto py-10">
     <NuxtLink
       :to="`/store/${slug}/admin/orders`"
-      class="text-blue-600 hover:underline"
+      class="text-blue-600 hover:underline mb-6 inline-block"
     >
-      ← Volver a pedidos
+      ← Volver
     </NuxtLink>
+
+    <h1 class="text-3xl font-bold mb-6">
+      Pedido #{{ order?.id }}
+    </h1>
 
     <div v-if="loading" class="text-gray-500">
       Cargando pedido...
     </div>
 
-    <div v-else-if="order" class="bg-white p-6 rounded-xl shadow space-y-6">
+    <div v-else-if="!order" class="text-red-500">
+      Pedido no encontrado
+    </div>
 
-      <!-- CLIENTE -->
+    <div v-else class="bg-white p-6 rounded-xl shadow space-y-6">
+
       <div>
-        <h2 class="text-2xl font-bold text-blue-600 mb-2">
-          Pedido #{{ order.id }}
-        </h2>
-
-        <p><b>Cliente:</b> {{ order.name }}</p>
-        <p><b>Email:</b> {{ order.email }}</p>
-        <p><b>Teléfono:</b> {{ order.phone }}</p>
-        <p><b>Dirección:</b> {{ order.address }}</p>
+        <p><strong>Cliente:</strong> {{ order.name }}</p>
+        <p><strong>Email:</strong> {{ order.email }}</p>
+        <p><strong>Teléfono:</strong> {{ order.phone }}</p>
+        <p><strong>Dirección:</strong> {{ order.address }}</p>
       </div>
 
-      <!-- ESTADO -->
+      <hr />
+
       <div>
-        <label class="font-semibold mr-2">Estado:</label>
-        <select
-          v-model="order.status"
-          @change="updateStatus"
-          class="border rounded px-3 py-1"
+        <h2 class="font-semibold mb-2">Productos</h2>
+
+        <div
+          v-for="item in order.items"
+          :key="item.id"
+          class="flex justify-between text-sm py-1"
         >
-          <option value="pending">Pendiente</option>
-          <option value="paid">Pagado</option>
-          <option value="shipped">Enviado</option>
-        </select>
+          <span>{{ item.product_name }} x {{ item.quantity }}</span>
+          <span>${{ item.price * item.quantity }}</span>
+        </div>
       </div>
 
-      <!-- PRODUCTOS -->
-      <div>
-        <h3 class="font-semibold mb-2">Productos</h3>
+      <hr />
 
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b">
-              <th class="text-left py-2">Producto</th>
-              <th>Cantidad</th>
-              <th>Precio</th>
-              <th>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="item in order.items"
-              :key="item.id"
-              class="border-b"
-            >
-              <td>{{ item.product_name }}</td>
-              <td class="text-center">{{ item.quantity }}</td>
-              <td class="text-center">${{ item.price }}</td>
-              <td class="text-right">
-                ${{ item.quantity * Number(item.price) }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="flex justify-between text-xl font-bold">
+        <span>Total</span>
+        <span>${{ order.total }}</span>
       </div>
-
-      <!-- TOTAL -->
-      <div class="text-right text-lg font-bold">
-        Total: ${{ order.total }}
-      </div>
-
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-
-interface OrderItem {
-  id: number
-  product_name: string
-  quantity: number
-  price: string
-}
-
-interface Order {
-  id: number
-  name: string
-  email: string
-  phone: string
-  address: string
-  total: string
-  status: string
-  items: OrderItem[]
-}
+import { useRoute } from '#app'
 
 const route = useRoute()
 const slug = route.params.slug as string
-const orderId = route.params.id as string
+const id = route.params.id as string
 
-const order = ref<Order | null>(null)
+const order = ref<any>(null)
 const loading = ref(true)
 
 onMounted(async () => {
   try {
-    order.value = await $fetch<Order>(
-      `http://127.0.0.1:8000/api/orders/${orderId}/`
+    order.value = await $fetch(
+      `http://127.0.0.1:8000/api/orders/${id}/`
     )
+  } catch (e) {
+    console.error(e)
   } finally {
     loading.value = false
   }
 })
-
-const updateStatus = async () => {
-  if (!order.value) return
-
-  await $fetch(
-    `http://127.0.0.1:8000/api/orders/${order.value.id}/`,
-    {
-      method: 'PATCH',
-      body: { status: order.value.status }
-    }
-  )
-}
 </script>

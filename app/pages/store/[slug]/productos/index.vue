@@ -19,9 +19,9 @@
       >
         <!-- Imagen -->
         <img
-        v-if="product.images?.length"
-        :src="imageUrl(product.images[0].image)"
-        class="w-full h-48 object-cover border-2 border-red-500"
+        :src="getProductImage(product)"
+        :alt="product.name"
+        class="w-full h-48 object-cover rounded-t-xl"
         />
 
         <div class="p-4">
@@ -68,7 +68,7 @@ const slug = route.params.slug as string
 
 const tenantStore = useTenantStore()
 const cart = useCartStore()
-const { imageUrl } = useImages()
+const { getProductImage } = useImages()
 
 onMounted(async () => {
   tenantStore.setSlug(slug)

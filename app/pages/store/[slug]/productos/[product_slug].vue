@@ -2,9 +2,9 @@
   <div v-if="product" class="max-w-5xl mx-auto grid md:grid-cols-2 gap-10">
     <!-- Imagen -->
     <img
-      v-if="product.images?.length"
-      :src="imageUrl(product.images[0].image)"
-      class="rounded-xl shadow"
+    :src="getProductImage(product)"
+    :alt="product.name"
+    class="w-full max-h-[400px] object-contain"
     />
 
     <div>
@@ -40,7 +40,7 @@ import { useImages } from '../../../../../composables/useImages'
 const route = useRoute()
 const cart = useCartStore()
 const { getProductBySlug } = useProducts()
-const { imageUrl } = useImages()
+const { getProductImage } = useImages()
 
 const product = ref<any>(null)
 

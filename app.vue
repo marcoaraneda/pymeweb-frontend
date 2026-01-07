@@ -5,11 +5,12 @@
 </template>
 
 <script setup lang="ts">
-import { useCartStore } from '@/stores/cart'
+import { onMounted } from 'vue';
+import { useCartStore } from './stores/cart'
 
 const cart = useCartStore()
 
 onMounted(() => {
-  cart.load()
+  cart.loadFromStorage()
 })
 </script>

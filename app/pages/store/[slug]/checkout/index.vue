@@ -1,6 +1,6 @@
 <template>
-  <div class="max-w-3xl mx-auto">
-    <h1 class="text-3xl font-bold mb-8 text-blue-700">
+  <div class="max-w-4xl mx-auto px-4 py-10">
+    <h1 class="text-3xl font-bold text-blue-700 mb-8">
       Checkout
     </h1>
 
@@ -18,10 +18,33 @@
           Datos del cliente
         </h2>
 
-        <input v-model="form.name" type="text" placeholder="Nombre completo" class="input" />
-        <input v-model="form.email" type="email" placeholder="Correo electrónico" class="input" />
-        <input v-model="form.phone" type="text" placeholder="Teléfono" class="input" />
-        <textarea v-model="form.address" placeholder="Dirección de despacho" rows="3" class="input" />
+        <input
+          v-model="form.name"
+          type="text"
+          placeholder="Nombre completo"
+          class="input"
+        />
+
+        <input
+          v-model="form.email"
+          type="email"
+          placeholder="Correo electrónico"
+          class="input"
+        />
+
+        <input
+          v-model="form.phone"
+          type="text"
+          placeholder="Teléfono"
+          class="input"
+        />
+
+        <textarea
+          v-model="form.address"
+          placeholder="Dirección"
+          rows="3"
+          class="input"
+        />
       </div>
 
       <!-- RESUMEN -->
@@ -36,9 +59,7 @@
           class="flex justify-between text-sm"
         >
           <span>{{ item.name }} x {{ item.quantity }}</span>
-          <span class="font-medium">
-            ${{ item.price * item.quantity }}
-          </span>
+          <span>${{ item.price * item.quantity }}</span>
         </div>
 
         <hr />
@@ -49,18 +70,20 @@
         </div>
 
         <button
+          :disabled="loading"
           @click="confirmOrder"
-          class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-500 transition"
+          class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-500 disabled:opacity-50"
         >
-          Confirmar pedido
+          {{ loading ? 'Procesando...' : 'Confirmar pedido' }}
         </button>
       </div>
+
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCartStore } from '~~/stores/cart'
 import { useTenantStore } from '~~/stores/tenant'
@@ -71,6 +94,7 @@ const route = useRoute()
 const router = useRouter()
 
 const slug = route.params.slug as string
+const loading = ref(false)
 
 const form = reactive({
   name: '',
@@ -81,6 +105,7 @@ const form = reactive({
 
 onMounted(async () => {
   tenantStore.setSlug(slug)
+
   if (!tenantStore.data) {
     await tenantStore.fetchTienda()
   }
@@ -88,37 +113,48 @@ onMounted(async () => {
 
 const confirmOrder = async () => {
   if (!tenantStore.data) {
-    alert('Error: tienda no cargada')
+    alert('Tienda no cargada')
     return
   }
 
+  if (cart.items.length === 0) {
+    alert('El carrito está vacío')
+    return
+  }
+
+  loading.value = true
+
   try {
-    // ✅ GUARDAMOS RESPUESTA
-    const response: any = await $fetch('http://127.0.0.1:8000/api/orders/', {
-      method: 'POST',
-      body: {
-        store: tenantStore.data.id,
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
-        address: form.address,
-        total: cart.totalPrice,
-        items: cart.items.map(item => ({
-          product: item.id,
-          quantity: item.quantity,
-          price: item.price
-        }))
+    const response = await $fetch<{ id: number }>(
+      'http://127.0.0.1:8000/api/orders/',
+      {
+        method: 'POST',
+        body: {
+          store: tenantStore.data.id,
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          address: form.address,
+          total: cart.totalPrice,
+          items: cart.items.map(item => ({
+            product: item.id,
+            quantity: item.quantity,
+            price: item.price
+          }))
+        }
       }
-    })
+    )
 
     cart.clearCart()
 
-    // ✅ REDIRECCIÓN CORRECTA
+    // ✅ REDIRECCIÓN CORRECTA CON ID
     router.push(`/store/${slug}/success/${response.id}`)
 
-  } catch (e) {
+  } catch (error) {
+    console.error('Error al crear el pedido', error)
     alert('Error al crear el pedido')
-    console.error(e)
+  } finally {
+    loading.value = false
   }
 }
 </script>
@@ -128,12 +164,11 @@ const confirmOrder = async () => {
   width: 100%;
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
-  padding: 0.5rem 1rem;
-  outline: none;
+  padding: 0.6rem 1rem;
 }
 
 .input:focus {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  outline: none;
 }
 </style>

@@ -1,7 +1,6 @@
 <template>
-  <div class="max-w-5xl mx-auto">
-
-    <h1 class="text-3xl font-bold mb-6 text-blue-700">
+  <div class="max-w-6xl mx-auto py-10">
+    <h1 class="text-3xl font-bold text-blue-700 mb-8">
       Pedidos
     </h1>
 
@@ -9,14 +8,22 @@
       Cargando pedidos...
     </div>
 
-    <table v-else class="w-full bg-white shadow rounded-xl">
-      <thead class="border-b">
+    <div v-else-if="orders.length === 0" class="text-gray-500">
+      No hay pedidos aún.
+    </div>
+
+    <table
+      v-else
+      class="w-full bg-white rounded-xl shadow overflow-hidden"
+    >
+      <thead class="bg-slate-100 text-left text-sm">
         <tr>
-          <th>ID</th>
-          <th>Cliente</th>
-          <th>Total</th>
-          <th>Estado</th>
-          <th></th>
+          <th class="p-4">ID</th>
+          <th class="p-4">Cliente</th>
+          <th class="p-4">Total</th>
+          <th class="p-4">Estado</th>
+          <th class="p-4">Fecha</th>
+          <th class="p-4"></th>
         </tr>
       </thead>
 
@@ -24,20 +31,18 @@
         <tr
           v-for="order in orders"
           :key="order.id"
-          class="border-b text-sm"
+          class="border-t text-sm"
         >
-          <td>#{{ order.id }}</td>
-          <td>{{ order.name }}</td>
-          <td>${{ order.total }}</td>
-          <td>
-            <span
-              class="px-2 py-1 rounded-full text-xs"
-              :class="statusClass(order.status)"
-            >
+          <td class="p-4 font-medium">#{{ order.id }}</td>
+          <td class="p-4">{{ order.name }}</td>
+          <td class="p-4">${{ order.total }}</td>
+          <td class="p-4">
+            <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">
               {{ order.status }}
             </span>
           </td>
-          <td>
+          <td class="p-4">{{ formatDate(order.created_at) }}</td>
+          <td class="p-4 text-right">
             <NuxtLink
               :to="`/store/${slug}/admin/orders/${order.id}`"
               class="text-blue-600 hover:underline"
@@ -48,44 +53,40 @@
         </tr>
       </tbody>
     </table>
-
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { useTenantStore } from '~~/stores/tenant'
+import { useRoute } from '#app'
 
 interface Order {
   id: number
   name: string
   total: number
   status: string
+  created_at: string
 }
 
 const route = useRoute()
 const slug = route.params.slug as string
-const tenant = useTenantStore()
 
 const orders = ref<Order[]>([])
 const loading = ref(true)
 
 onMounted(async () => {
-  tenant.setSlug(slug)
-  await tenant.fetchTienda()
-
-  const response = await $fetch<Order[]>(
-    `http://127.0.0.1:8000/api/orders/?store=${tenant.data.id}`
-  )
-  orders.value = response
-  loading.value = false
+  try {
+    orders.value = await $fetch(
+      'http://127.0.0.1:8000/api/orders/',
+      { params: { store: slug } }
+    )
+  } catch (e) {
+    console.error(e)
+  } finally {
+    loading.value = false
+  }
 })
 
-const statusClass = (status: string) => {
-  if (status === 'pending') return 'bg-yellow-100 text-yellow-700'
-  if (status === 'paid') return 'bg-blue-100 text-blue-700'
-  if (status === 'shipped') return 'bg-green-100 text-green-700'
-  return 'bg-gray-100'
-}
+const formatDate = (date: string) =>
+  new Date(date).toLocaleDateString()
 </script>
