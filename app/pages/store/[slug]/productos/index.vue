@@ -59,9 +59,9 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import { onMounted } from 'vue'
-import { useTenantStore } from '../../../../../stores/tenant'
-import { useCartStore } from '../../../../../stores/cart'
-import { useImages } from '../../../../../composables/useImages'
+import { useTenantStore } from '~~/stores/tenant'
+import { useCartStore } from '~~/stores/cart'
+import { useImages } from '~~/composables/useImages'
 
 const route = useRoute()
 const slug = route.params.slug as string

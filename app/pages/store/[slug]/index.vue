@@ -15,7 +15,7 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { useTenantStore } from '../../../../stores/tenant'
+import { useTenantStore } from '~~/stores/tenant'
 
 const route = useRoute()
 const slug = route.params.slug as string

@@ -34,8 +34,8 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { useTenantStore } from '../../stores/tenant'
-import { useCartStore } from '../../stores/cart'
+import { useTenantStore } from '~~/stores/tenant'
+import { useCartStore } from '~~/stores/cart'
 
 const route = useRoute()
 const slug = route.params.slug as string
