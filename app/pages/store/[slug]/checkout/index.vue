@@ -148,7 +148,7 @@ const confirmOrder = async () => {
     cart.clearCart()
 
     // ✅ REDIRECCIÓN CORRECTA CON ID
-    router.push(`/store/${slug}/success/${response.id}`)
+    router.push(`/store/${slug}/success?order=${response.id}`)
 
   } catch (error) {
     console.error('Error al crear el pedido', error)
