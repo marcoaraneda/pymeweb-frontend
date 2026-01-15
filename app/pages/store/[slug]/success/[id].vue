@@ -5,22 +5,18 @@
       ¡Pedido confirmado! 🎉
     </h1>
 
-    <!-- Cargando -->
     <div v-if="loading" class="text-gray-500">
       Cargando pedido...
     </div>
 
-    <!-- Error -->
     <div v-else-if="!order" class="text-red-500">
       No se pudo cargar el pedido.
     </div>
 
-    <!-- Pedido -->
     <div v-else class="bg-white rounded-xl shadow p-6 space-y-6">
 
       <div>
         <p><strong>Pedido Nº:</strong> {{ order.id }}</p>
-        <p><strong>Estado:</strong> {{ order.status }}</p>
         <p><strong>Fecha:</strong> {{ formatDate(order.created_at) }}</p>
       </div>
 
@@ -60,12 +56,12 @@
         <span>${{ order.total }}</span>
       </div>
 
-      <router-link
+      <NuxtLink
         :to="`/store/${slug}`"
-        class="block text-center bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-500 transition"
+        class="block text-center bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-500"
       >
         Volver a la tienda
-      </router-link>
+      </NuxtLink>
 
     </div>
   </div>
@@ -75,47 +71,25 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
-interface OrderItem {
-  id: number
-  product: number
-  product_name: string
-  quantity: number
-  price: number
-}
-
-interface Order {
-  id: number
-  name: string
-  email: string
-  phone: string
-  address: string
-  total: number
-  status: string
-  created_at: string
-  items: OrderItem[]
-}
-
 const route = useRoute()
 const slug = route.params.slug as string
 const orderId = route.params.id as string
 
-const order = ref<Order | null>(null)
+const order = ref<any>(null)
 const loading = ref(true)
 
 onMounted(async () => {
   try {
-    const response = await $fetch<Order>(
+    order.value = await $fetch(
       `http://127.0.0.1:8000/api/orders/${orderId}/`
     )
-    order.value = response
   } catch (e) {
-    console.error('Error cargando pedido', e)
+    console.error(e)
   } finally {
     loading.value = false
   }
 })
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleString()
-}
+const formatDate = (date: string) =>
+  new Date(date).toLocaleString()
 </script>

@@ -1,15 +1,22 @@
 <template>
   <div class="max-w-4xl mx-auto px-4 py-10">
+
+    <!-- TÍTULO -->
     <h1 class="text-3xl font-bold text-blue-700 mb-8">
       Checkout
     </h1>
 
-    <!-- Carrito vacío -->
-    <div v-if="cart.items.length === 0" class="text-gray-500">
+    <!-- CARGANDO -->
+    <div v-if="loadingPage" class="text-gray-500">
+      Cargando checkout...
+    </div>
+
+    <!-- CARRITO VACÍO -->
+    <div v-else-if="cart.items.length === 0" class="text-gray-500">
       Tu carrito está vacío.
     </div>
 
-    <!-- Checkout -->
+    <!-- CHECKOUT -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-8">
 
       <!-- DATOS CLIENTE -->
@@ -70,11 +77,11 @@
         </div>
 
         <button
-          :disabled="loading"
+          :disabled="loadingOrder"
           @click="confirmOrder"
           class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-500 disabled:opacity-50"
         >
-          {{ loading ? 'Procesando...' : 'Confirmar pedido' }}
+          {{ loadingOrder ? 'Procesando...' : 'Confirmar pedido' }}
         </button>
       </div>
 
@@ -83,18 +90,25 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCartStore } from '~~/stores/cart'
 import { useTenantStore } from '~~/stores/tenant'
 
+// Stores
 const cart = useCartStore()
 const tenantStore = useTenantStore()
+
+// Router
 const route = useRoute()
 const router = useRouter()
 
-const slug = route.params.slug as string
-const loading = ref(false)
+// 🔒 SLUG SEGURO (CAUSA DE TU BUG)
+const slug = computed(() => route.params.slug as string | undefined)
+
+// State
+const loadingPage = ref(true)
+const loadingOrder = ref(false)
 
 const form = reactive({
   name: '',
@@ -103,15 +117,32 @@ const form = reactive({
   address: ''
 })
 
+// 🔹 CARGA INICIAL SEGURA
 onMounted(async () => {
-  tenantStore.setSlug(slug)
+  if (!slug.value) {
+    console.error('Slug no encontrado')
+    router.push('/')
+    return
+  }
 
-  if (!tenantStore.data) {
-    await tenantStore.fetchTienda()
+  try {
+    tenantStore.setSlug(slug.value)
+
+    if (!tenantStore.data) {
+      await tenantStore.fetchTienda()
+    }
+  } catch (e) {
+    console.error('Error cargando tienda', e)
+    router.push('/')
+  } finally {
+    loadingPage.value = false
   }
 })
 
+// 🔹 CONFIRMAR PEDIDO (NO SE TOCA EL PAYLOAD)
 const confirmOrder = async () => {
+  if (!slug.value) return
+
   if (!tenantStore.data) {
     alert('Tienda no cargada')
     return
@@ -122,7 +153,7 @@ const confirmOrder = async () => {
     return
   }
 
-  loading.value = true
+  loadingOrder.value = true
 
   try {
     const response = await $fetch<{ id: number }>(
@@ -145,16 +176,18 @@ const confirmOrder = async () => {
       }
     )
 
+    const orderId = response.id
+
     cart.clearCart()
 
-    // ✅ REDIRECCIÓN CORRECTA CON ID
-    router.push(`/store/${slug}/success?order=${response.id}`)
+    // ✅ REDIRECCIÓN CORRECTA
+    router.push(`/store/${slug.value}/success/${orderId}`)
 
-  } catch (error) {
-    console.error('Error al crear el pedido', error)
+  } catch (e) {
+    console.error('Error al crear pedido', e)
     alert('Error al crear el pedido')
   } finally {
-    loading.value = false
+    loadingOrder.value = false
   }
 }
 </script>
