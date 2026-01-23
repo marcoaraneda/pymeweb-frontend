@@ -1,76 +1,84 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8 text-blue-700">
-      Productos
-    </h1>
-
-    <div v-if="tenantStore.loading" class="text-gray-500">
-      Cargando productos...
-    </div>
-
-    <div
-      v-else-if="tenantStore.productos.length"
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
-    >
-      <div
-        v-for="product in tenantStore.productos"
-        :key="product.id"
-        class="bg-white rounded-xl shadow hover:shadow-lg transition border"
-      >
-        <!-- Imagen -->
-        <img
-        :src="getProductImage(product)"
-        :alt="product.name"
-        class="w-full h-48 object-cover rounded-t-xl"
-        />
-
-        <div class="p-4">
-          <h2 class="font-bold text-lg text-gray-800">
-            {{ product.name }}
-          </h2>
-
-          <p class="text-blue-600 font-semibold mt-2">
-            ${{ product.price }}
-          </p>
-
-          <NuxtLink
-            :to="`/store/${slug}/productos/${product.slug}`"
-            class="mt-4 block text-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-500"
-          >
-            Ver detalle
-          </NuxtLink>
-
-          <button
-            @click="cart.addProduct(product)"
-            class="mt-2 w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-500"
-          >
-            Agregar al carrito
-          </button>
+  <div class="bg-slate-50 px-4 py-10">
+    <div class="mx-auto max-w-6xl space-y-6">
+      <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Catálogo</p>
+          <h1 class="text-3xl font-bold text-slate-900">Todos los productos</h1>
+          <p class="text-slate-600">Explora y añade al carrito con un clic.</p>
         </div>
+        <NuxtLink :to="`/store/${slug}/carrito`" class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow" :style="accentStyle">
+          Ver carrito
+        </NuxtLink>
       </div>
-    </div>
 
-    <div v-else class="text-gray-500">
-      No hay productos para esta tienda.
+      <div v-if="tenantStore.loading" class="text-slate-500">Cargando productos...</div>
+      <div v-else-if="!tenantStore.productos.length" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
+        No hay productos para esta tienda todavía.
+      </div>
+      <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <article
+          v-for="product in tenantStore.productos"
+          :key="product.id"
+          class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+        >
+          <div class="h-44 w-full overflow-hidden bg-slate-100">
+            <img :src="getProductImage(product)" :alt="product.name" class="h-full w-full object-cover" />
+          </div>
+          <div class="p-4 space-y-2">
+            <p class="text-xs uppercase text-slate-500">{{ product.category?.name || 'General' }}</p>
+            <h2 class="text-lg font-semibold text-slate-900 group-hover:text-slate-700">{{ product.name }}</h2>
+            <p class="text-sm text-slate-600 line-clamp-2">{{ product.description }}</p>
+            <div class="flex items-center justify-between pt-2">
+              <p class="text-base font-bold" :style="{ color: accentColor }">${{ product.price }}</p>
+              <div class="flex gap-2">
+                <NuxtLink
+                  :to="`/store/${slug}/productos/${product.slug}`"
+                  class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900"
+                >
+                  Ver
+                </NuxtLink>
+                <button
+                  class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
+                  :style="accentStyle"
+                  @click="cart.addProduct(product)"
+                >
+                  Agregar
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { onMounted } from 'vue'
-import { useTenantStore } from '~~/stores/tenant'
-import { useCartStore } from '~~/stores/cart'
-import { useImages } from '~~/composables/useImages'
+import { definePageMeta } from '#imports'
+import { useTenantStore } from '~/stores/tenant'
+import { useCartStore } from '~/stores/cart'
+import { useImages } from '~/composables/useImages'
+import { useThemeStore } from '~/stores/theme'
+
+definePageMeta({ layout: 'store' })
 
 const route = useRoute()
 const slug = route.params.slug as string
 
 const tenantStore = useTenantStore()
 const cart = useCartStore()
+const theme = useThemeStore()
 const { getProductImage } = useImages()
 
+const accentColor = computed(() => theme.accent || '#2563eb')
+const accentStyle = computed(() => ({ backgroundColor: accentColor.value, color: '#fff' }))
+
 onMounted(async () => {
+  theme.loadFromStorage()
+  theme.applyStoreTheme(slug)
   tenantStore.setSlug(slug)
   await tenantStore.fetchProductos()
 })

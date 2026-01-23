@@ -1,102 +1,299 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="relative isolate overflow-hidden">
+    <div class="pointer-events-none absolute inset-0 opacity-60" aria-hidden="true">
+      <div class="absolute -left-16 top-10 h-56 w-56 rounded-full bg-gradient-to-r from-[var(--gradient-from,#111827)] to-[var(--gradient-to,#0b2358)] blur-3xl" />
+      <div class="absolute -right-20 bottom-10 h-72 w-72 rounded-full bg-gradient-to-r from-[var(--gradient-from,#111827)] to-[var(--gradient-to,#0b2358)] blur-3xl" />
+    </div>
 
-    <!-- HERO -->
-    <section class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-      <div class="max-w-6xl mx-auto px-6 py-20 text-center">
-        <h1 class="text-4xl md:text-5xl font-extrabold mb-4">
-          Pymeweb
-        </h1>
-        <p class="text-lg md:text-xl opacity-90 max-w-2xl mx-auto">
-          Gestión digital para PYMEs. Explora nuestras tiendas y comienza a vender online hoy.
-        </p>
-      </div>
-    </section>
+    <section
+      class="relative z-10 bg-slate-950 text-white"
+      :style="heroStyle"
+    >
+      <div class="max-w-6xl mx-auto px-6 py-16 lg:py-24 grid lg:grid-cols-[1.1fr,0.9fr] gap-12 items-center">
+        <div>
+          <p class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.2em]">
+            Gestiona y personaliza
+          </p>
+          <h1 class="mt-6 text-4xl md:text-5xl font-extrabold leading-tight">
+            Tu ecosistema de tiendas, con el estilo que necesitas
+          </h1>
+          <p class="mt-4 text-lg text-white/80 max-w-2xl">
+            Inicia sesión, consulta tus tiendas, explora todas las disponibles y ajusta los colores para que tu marca se sienta en casa.
+          </p>
 
-    <!-- CONTENIDO -->
-    <section class="max-w-6xl mx-auto px-6 py-16">
-
-      <h2 class="text-2xl font-bold text-gray-800 mb-8">
-        🏪 Tiendas disponibles
-      </h2>
-
-      <!-- LOADING -->
-      <div v-if="loading" class="text-gray-500">
-        Cargando tiendas...
-      </div>
-
-      <!-- ERROR -->
-      <div v-else-if="error" class="text-red-500">
-        Error al cargar tiendas
-      </div>
-
-      <!-- LISTADO -->
-      <div
-        v-else
-        class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8"
-      >
-        <div
-          v-for="store in stores"
-          :key="store.id"
-          class="bg-white rounded-2xl shadow hover:shadow-lg transition overflow-hidden"
-        >
-          <!-- Imagen fake -->
-          <div class="h-36 bg-gradient-to-br from-blue-100 to-indigo-200 flex items-center justify-center">
-            <span class="text-4xl">🏪</span>
-          </div>
-
-          <div class="p-6 space-y-3">
-            <h3 class="text-lg font-semibold text-gray-800 capitalize">
-              {{ store.name }}
-            </h3>
-
-            <p class="text-sm text-gray-500">
-              Tienda activa y disponible
-            </p>
-
+          <div class="mt-8 flex flex-wrap gap-3">
             <NuxtLink
-              :to="`/store/${store.slug}`"
-              class="inline-block w-full text-center bg-blue-600 text-white py-2 rounded-xl font-semibold hover:bg-blue-500 transition"
+              v-if="!auth.isAuthenticated"
+              to="/login"
+              class="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5"
+              :style="{ backgroundColor: theme.accent, color: '#fff' }"
             >
-              Entrar a la tienda
+              Iniciar sesión
+              <span aria-hidden="true">→</span>
             </NuxtLink>
+            <a
+              v-else
+              href="#crear-tienda"
+              class="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5"
+              :style="{ backgroundColor: theme.accent, color: '#fff' }"
+            >
+              Crear tienda
+              <span aria-hidden="true">★</span>
+            </a>
+            <a
+              href="#tiendas"
+              class="inline-flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 font-semibold text-white hover:border-white/40 hover:bg-white/5 transition"
+            >
+              Ver tiendas
+            </a>
           </div>
         </div>
-      </div>
 
+        <div class="relative">
+          <div class="relative">
+            <div class="absolute -inset-8 rounded-3xl bg-white/5 blur-2xl" />
+            <div class="relative rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+              <div class="flex items-center justify-between text-sm text-white/80">
+                <span>Panel de tiendas</span>
+                <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs">
+                  Sincronizado
+                  <span class="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+                </span>
+              </div>
+
+              <div v-if="auth.isAuthenticated" class="mt-4 space-y-3">
+                <div
+                  v-for="s in storesMine.slice(0, 3)"
+                  :key="s.slug"
+                  class="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3"
+                >
+                  <div>
+                    <p class="text-sm text-white/70">{{ s.slug }}</p>
+                    <p class="text-base font-semibold">{{ s.name }}</p>
+                  </div>
+                  <span class="rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">Activa</span>
+                </div>
+                <p class="text-xs text-white/60">Vista previa de tus tiendas. Ajusta colores dentro de cada tienda.</p>
+              </div>
+
+              <div v-else class="mt-4 space-y-3 text-white/80">
+                <p class="text-sm">Explora las tiendas disponibles y compra sin registrar.</p>
+                <p class="text-xs text-white/60">Inicia sesión para administrar tus propias tiendas.</p>
+              </div>
+            </div>
+          </div>
     </section>
 
-    <!-- FOOTER -->
-    <footer class="border-t bg-white">
-      <div class="max-w-6xl mx-auto px-6 py-6 text-center text-sm text-gray-500">
-        © {{ new Date().getFullYear() }} Pymeweb — Gestión Digital para PYMEs
+      <section id="tiendas" class="relative z-10 max-w-6xl mx-auto px-6 py-14 space-y-10">
+        <div class="grid gap-8 lg:grid-cols-[1.1fr,0.9fr]">
+          <div v-if="auth.isAuthenticated" class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Mis tiendas</p>
+                <h3 class="text-xl font-semibold text-slate-900">Creadas o administradas por ti</h3>
+              </div>
+              <a
+                href="#crear-tienda"
+                class="text-sm font-semibold text-slate-600 underline decoration-dashed"
+              >
+                Crear tienda
+              </a>
+            </div>
+
+            <div class="space-y-4">
+              <div
+                id="crear-tienda"
+                class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div class="flex flex-col gap-3 sm:flex-row">
+                  <input
+                    v-model="newStoreName"
+                    type="text"
+                    placeholder="Nombre de tu nueva tienda"
+                    class="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-slate-800 shadow-inner focus:border-slate-400 focus:outline-none"
+                  />
+                  <button
+                    class="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-white shadow-lg shadow-black/10 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    :style="{ backgroundColor: theme.accent }"
+                    :disabled="creating || !newStoreName.trim()"
+                    @click="createStore"
+                  >
+                    {{ creating ? 'Creando…' : 'Crear tienda' }}
+                  </button>
+                </div>
+                <p v-if="createError" class="mt-2 text-sm text-red-600">{{ createError }}</p>
+                <p v-else-if="createMessage" class="mt-2 text-sm text-green-600">{{ createMessage }}</p>
+              </div>
+
+              <div v-if="loadingMine" class="text-slate-500">Cargando tus tiendas...</div>
+              <div v-else-if="storesMine.length === 0" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
+                No tienes tiendas asociadas aún. Crea una o solicita acceso.
+              </div>
+              <div v-else class="grid gap-4 sm:grid-cols-2">
+                <StoreCard v-for="store in storesMine" :key="store.slug" :store="store" :accent="theme.accent" />
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Todas las tiendas</p>
+                <h3 class="text-xl font-semibold text-slate-900">Explora el marketplace</h3>
+              </div>
+              <input
+                v-model="filterQuery"
+                type="text"
+                placeholder="Buscar tienda..."
+                class="hidden w-56 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none sm:block"
+              />
+            </div>
+
+            <div class="sm:hidden">
+              <input
+                v-model="filterQuery"
+                type="text"
+                placeholder="Buscar tienda..."
+                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
+              />
+            </div>
+
+            <div v-if="loadingAll" class="text-slate-500">Cargando tiendas...</div>
+            <div v-else-if="error" class="text-red-500">{{ error }}</div>
+            <div v-else-if="filteredStoresAll.length === 0" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
+              No hay tiendas que coincidan con tu búsqueda.
+            </div>
+            <div v-else class="grid gap-4 sm:grid-cols-2">
+              <StoreCard v-for="store in filteredStoresAll" :key="store.slug" :store="store" :accent="theme.accent" />
+            </div>
+          </div>
+        </div>
+      </section>
+        </div>
+      </div>
+    </section>
+
+    <footer class="relative z-10 border-t bg-white/80 backdrop-blur">
+      <div class="max-w-6xl mx-auto px-6 py-6 text-center text-sm text-slate-500">
+        © {{ new Date().getFullYear() }} Pymeweb — Gestiona y personaliza tus tiendas
       </div>
     </footer>
-
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRuntimeConfig, navigateTo } from 'nuxt/app'
+import StoreCard from '~/components/StoreCard.vue'
+import { useAuthStore } from '~/stores/auth'
+import { useThemeStore } from '~/stores/theme'
 
-interface Store {
-  id: number
-  name: string
-  slug: string
+type Store = { id: number; name: string; slug: string }
+
+const config = useRuntimeConfig()
+const auth = useAuthStore()
+const theme = useThemeStore()
+
+const storesAll = ref<Store[]>([])
+const storesMine = ref<Store[]>([])
+const loadingAll = ref(true)
+const loadingMine = ref(false)
+const error = ref('')
+const newStoreName = ref('')
+const creating = ref(false)
+const createError = ref('')
+const createMessage = ref('')
+
+const palette = ['#2563eb', '#16a34a', '#f59e0b', '#e11d48', '#7c3aed']
+const gradients = [
+  { from: '#0f172a', to: '#0b2358' },
+  { from: '#0b3b2e', to: '#0f766e' },
+  { from: '#2b0b3f', to: '#7c3aed' },
+  { from: '#3b0a1a', to: '#e11d48' },
+]
+
+const storesPreview = computed(() => storesAll.value.slice(0, 3))
+const heroStyle = computed(() => ({
+  backgroundImage: `linear-gradient(120deg, ${theme.gradientFrom}, ${theme.gradientTo})`,
+}))
+
+const setAccent = (color: string) => {
+  theme.setAccent(color)
 }
 
-const stores = ref<Store[]>([])
-const loading = ref(true)
-const error = ref(false)
+const setGradient = (from: string, to: string) => {
+  theme.setGradient(from, to)
+}
 
-onMounted(async () => {
+const fetchAllStores = async () => {
+  loadingAll.value = true
+  error.value = ''
   try {
-    stores.value = await $fetch<Store[]>('http://127.0.0.1:8000/api/stores/')
+    storesAll.value = await $fetch<Store[]>(`${config.public.apiBase}/stores/`)
   } catch (err) {
     console.error(err)
-    error.value = true
+    error.value = 'Error al cargar las tiendas'
   } finally {
-    loading.value = false
+    loadingAll.value = false
   }
+}
+
+const fetchMyStores = async () => {
+  if (!auth.token) return
+  loadingMine.value = true
+  try {
+    storesMine.value = await auth.fetchMyStores()
+  } finally {
+    loadingMine.value = false
+  }
+}
+
+const createStore = async () => {
+  if (!auth.token) {
+    await navigateTo('/login')
+    return
+  }
+  if (!newStoreName.value.trim()) {
+    createError.value = 'Escribe el nombre de tu tienda'
+    return
+  }
+
+  createError.value = ''
+  createMessage.value = ''
+  creating.value = true
+  try {
+    await $fetch<Store>(`${config.public.apiBase}/stores/`, {
+      method: 'POST',
+      body: { name: newStoreName.value },
+      headers: { Authorization: `Bearer ${auth.token}` },
+    })
+    createMessage.value = 'Tienda creada correctamente'
+    newStoreName.value = ''
+    await Promise.all([fetchAllStores(), fetchMyStores()])
+  } catch (err: any) {
+    createError.value = err?.response?._data?.detail || 'No pudimos crear la tienda'
+  } finally {
+    creating.value = false
+  }
+}
+
+onMounted(async () => {
+  theme.loadFromStorage()
+  await fetchAllStores()
+  if (auth.token) {
+    await fetchMyStores()
+  }
+  theme.applyTheme()
 })
+
+watch(
+  () => auth.token,
+  async (token) => {
+    if (token) {
+      await fetchMyStores()
+    } else {
+      storesMine.value = []
+    }
+  }
+)
 </script>

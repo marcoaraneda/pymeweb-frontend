@@ -1,6 +1,6 @@
 import { useRuntimeConfig } from "nuxt/app"
-import { useAuthStore } from "../../stores/auth"
-import { useTenantStore } from "../../stores/tenant"
+import { useAuthStore } from "~/stores/auth"
+import { useTenantStore } from "~/stores/tenant"
 
 export const useInventory = () => {
   const config = useRuntimeConfig()
@@ -27,11 +27,10 @@ export const useInventory = () => {
         body: { ...payload, store_id: tenant.data.id }
       })
     } catch (error: any) {
-  // Verificamos si el error tiene un mensaje de respuesta del servidor (Django)
-  const errorMessage = error.response?._data?.detail || "Error al obtener inventario";
-  console.error(errorMessage);
-  throw new Error(errorMessage);
-}
+      const errorMessage = error.response?._data?.detail || "Error al obtener inventario"
+      console.error(errorMessage)
+      throw new Error(errorMessage)
+    }
   }
 
   return { getStock, updateStock }

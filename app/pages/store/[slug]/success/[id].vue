@@ -71,25 +71,53 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
+interface OrderItem {
+  id: number
+  product: number
+  product_name: string
+  quantity: number
+  price: number
+}
+
+interface Order {
+  id: number
+  name: string
+  email: string
+  phone: string
+  address: string
+  total: number
+  status: string
+  created_at: string
+  items: OrderItem[]
+}
+
 const route = useRoute()
 const slug = route.params.slug as string
-const orderId = route.params.id as string
+const orderId = route.params.id as string | undefined
 
-const order = ref<any>(null)
+const order = ref<Order | null>(null)
 const loading = ref(true)
 
 onMounted(async () => {
+  if (!orderId) {
+    loading.value = false
+    return
+  }
+
   try {
-    order.value = await $fetch(
+    const response = await $fetch<Order>(
       `http://127.0.0.1:8000/api/orders/${orderId}/`
     )
+    order.value = response
   } catch (e) {
-    console.error(e)
+    console.error('Error cargando pedido', e)
   } finally {
     loading.value = false
   }
 })
 
-const formatDate = (date: string) =>
-  new Date(date).toLocaleString()
+const formatDate = (date: string) => {
+  return new Date(date).toLocaleString()
+}
 </script>
+

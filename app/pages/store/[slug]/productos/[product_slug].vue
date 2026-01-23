@@ -33,9 +33,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useProducts } from '~~/composables/useProducts'
-import { useCartStore } from '~~/stores/cart'
-import { useImages } from '~~/composables/useImages'
+import { useProducts } from '~/composables/useProducts'
+import { useCartStore } from '~/stores/cart'
+import { useImages } from '~/composables/useImages'
 
 const route = useRoute()
 const cart = useCartStore()

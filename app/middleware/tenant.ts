@@ -1,5 +1,5 @@
 import { defineNuxtRouteMiddleware } from "nuxt/app"
-import { useTenantStore } from "../stores/tenant"
+import { useTenantStore } from "~/stores/tenant"
 import type { Pinia } from 'pinia' // Importa el tipo
 
 export default defineNuxtRouteMiddleware((to) => {

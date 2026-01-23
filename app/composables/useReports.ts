@@ -1,6 +1,6 @@
 import { useRuntimeConfig } from "nuxt/app";
-import { useTenantStore } from "../stores/tenant";
-import { useAuthStore } from "../stores/auth";
+import { useTenantStore } from "~/stores/tenant";
+import { useAuthStore } from "~/stores/auth";
 
 export const useReports = () => {
   const config = useRuntimeConfig();

@@ -25,33 +25,10 @@
           Datos del cliente
         </h2>
 
-        <input
-          v-model="form.name"
-          type="text"
-          placeholder="Nombre completo"
-          class="input"
-        />
-
-        <input
-          v-model="form.email"
-          type="email"
-          placeholder="Correo electrónico"
-          class="input"
-        />
-
-        <input
-          v-model="form.phone"
-          type="text"
-          placeholder="Teléfono"
-          class="input"
-        />
-
-        <textarea
-          v-model="form.address"
-          placeholder="Dirección"
-          rows="3"
-          class="input"
-        />
+        <input v-model="form.name" type="text" placeholder="Nombre completo" class="input" />
+        <input v-model="form.email" type="email" placeholder="Correo electrónico" class="input" />
+        <input v-model="form.phone" type="text" placeholder="Teléfono" class="input" />
+        <textarea v-model="form.address" placeholder="Dirección" rows="3" class="input" />
       </div>
 
       <!-- RESUMEN -->
@@ -81,7 +58,7 @@
           @click="confirmOrder"
           class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-500 disabled:opacity-50"
         >
-          {{ loadingOrder ? 'Procesando...' : 'Confirmar pedido' }}
+          {{ loadingOrder ? 'Redirigiendo a Webpay...' : 'Pagar con Webpay' }}
         </button>
       </div>
 
@@ -91,25 +68,23 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useCartStore } from '~~/stores/cart'
-import { useTenantStore } from '~~/stores/tenant'
+import { useRoute } from 'vue-router'
+import { useCartStore } from '~/stores/cart'
+import { useTenantStore } from '~/stores/tenant'
 
-// Stores
+/* STORES */
 const cart = useCartStore()
 const tenantStore = useTenantStore()
 
-// Router
+/* ROUTE */
 const route = useRoute()
-const router = useRouter()
+const slug = computed(() => route.params.slug as string)
 
-// 🔒 SLUG SEGURO (CAUSA DE TU BUG)
-const slug = computed(() => route.params.slug as string | undefined)
-
-// State
+/* STATE */
 const loadingPage = ref(true)
 const loadingOrder = ref(false)
 
+/* FORM */
 const form = reactive({
   name: '',
   email: '',
@@ -117,46 +92,29 @@ const form = reactive({
   address: ''
 })
 
-// 🔹 CARGA INICIAL SEGURA
+/* LOAD STORE */
 onMounted(async () => {
-  if (!slug.value) {
-    console.error('Slug no encontrado')
-    router.push('/')
-    return
-  }
-
   try {
     tenantStore.setSlug(slug.value)
-
     if (!tenantStore.data) {
       await tenantStore.fetchTienda()
     }
   } catch (e) {
     console.error('Error cargando tienda', e)
-    router.push('/')
   } finally {
     loadingPage.value = false
   }
 })
 
-// 🔹 CONFIRMAR PEDIDO (NO SE TOCA EL PAYLOAD)
+/* CONFIRMAR + WEBPAY */
 const confirmOrder = async () => {
-  if (!slug.value) return
-
-  if (!tenantStore.data) {
-    alert('Tienda no cargada')
-    return
-  }
-
-  if (cart.items.length === 0) {
-    alert('El carrito está vacío')
-    return
-  }
+  if (!tenantStore.data || cart.items.length === 0) return
 
   loadingOrder.value = true
 
   try {
-    const response = await $fetch<{ id: number }>(
+    /* 1️⃣ CREAR PEDIDO */
+    const order = await $fetch<{ id: number }>(
       'http://127.0.0.1:8000/api/orders/',
       {
         method: 'POST',
@@ -176,17 +134,35 @@ const confirmOrder = async () => {
       }
     )
 
-    const orderId = response.id
+    /* 2️⃣ INICIAR WEBPAY */
+    const payment = await $fetch<{ url: string; token: string }>(
+      'http://127.0.0.1:8000/api/payments/webpay/init/',
+      {
+        method: 'POST',
+        body: {
+          order_id: order.id
+        }
+      }
+    )
 
-    cart.clearCart()
+    /* 3️⃣ FORM POST REAL (OBLIGATORIO) */
+    const formWebpay = document.createElement('form')
+    formWebpay.method = 'POST'
+    formWebpay.action = payment.url
 
-    // ✅ REDIRECCIÓN CORRECTA
-    router.push(`/store/${slug.value}/success/${orderId}`)
+    const input = document.createElement('input')
+    input.type = 'hidden'
+    input.name = 'token_ws'
+    input.value = payment.token
+
+    formWebpay.appendChild(input)
+    document.body.appendChild(formWebpay)
+
+    formWebpay.submit()
 
   } catch (e) {
-    console.error('Error al crear pedido', e)
-    alert('Error al crear el pedido')
-  } finally {
+    console.error('Error en checkout', e)
+    alert('Error al iniciar el pago')
     loadingOrder.value = false
   }
 }
@@ -199,7 +175,6 @@ const confirmOrder = async () => {
   border-radius: 0.5rem;
   padding: 0.6rem 1rem;
 }
-
 .input:focus {
   border-color: #3b82f6;
   outline: none;

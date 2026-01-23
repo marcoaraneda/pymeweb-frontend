@@ -1,5 +1,5 @@
 import { useRuntimeConfig } from 'nuxt/app'
-import { useTenantStore } from '../stores/tenant'
+import { useTenantStore } from '~/stores/tenant'
 
 export const useProducts = () => {
   const config = useRuntimeConfig()

@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { useTenantStore } from '~~/stores/tenant'
+import { useTenantStore } from '~/stores/tenant'
 const slug = useTenantStore().slug
 </script>
 
