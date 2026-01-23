@@ -38,7 +38,8 @@
           <div class="flex flex-wrap gap-2 text-sm text-white/75">
             <span class="rounded-full border border-white/15 px-3 py-1">Pago seguro</span>
             <span class="rounded-full border border-white/15 px-3 py-1">Envíos rápidos</span>
-            <span v-if="tenantStore.categories.length" class="rounded-full border border-white/15 px-3 py-1">{{ tenantStore.categories.length }} categorías</span>
+              <span v-if="tenantStore.categories.length" class="rounded-full border border-white/15 px-3 py-1">{{ tenantStore.categories.length }} categorías</span>
+              <span v-for="cat in tenantStore.categories" :key="cat.slug || cat" class="rounded-full border border-slate-200 px-3 py-1 text-slate-700">{{ cat.name || cat }}</span>
           </div>
         </div>
 
@@ -210,18 +211,32 @@
           <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Catálogo completo</p>
           <h2 class="text-2xl font-semibold text-slate-900">Explora todos los productos</h2>
         </div>
-        <div v-if="tenantStore.categories.length" class="flex flex-wrap gap-2 text-sm">
-          <span v-for="cat in tenantStore.categories" :key="cat" class="rounded-full border border-slate-200 px-3 py-1 text-slate-700">{{ cat }}</span>
+        <div class="flex flex-wrap gap-3 text-sm">
+          <select
+            v-model="catalogCategory"
+            class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
+          >
+            <option value="">Todas las categorías</option>
+            <option v-for="cat in catalogCategories" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+          <select
+            v-model="catalogSort"
+            class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
+          >
+            <option value="">Ordenar por precio</option>
+            <option value="asc">Menor a mayor</option>
+            <option value="desc">Mayor a menor</option>
+          </select>
         </div>
       </div>
 
       <div v-if="tenantStore.loading" class="mt-6 text-slate-500">Cargando productos...</div>
-      <div v-else-if="!tenantStore.productos.length" class="mt-6 rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
+      <div v-else-if="!filteredCatalog.length" class="mt-6 rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
         Aún no hay productos cargados en esta tienda.
       </div>
       <div v-else class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <article
-          v-for="product in tenantStore.productos"
+          v-for="product in filteredCatalog"
           :key="product.id"
           class="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
         >
@@ -324,23 +339,58 @@ const gradients = [
 const accentColor = computed(() => theme.accent || '#2563eb')
 const accentStyle = computed(() => ({ backgroundColor: accentColor.value, color: '#fff' }))
 const canEditTheme = computed(() => {
-  const membership = (auth.user as any)?.memberships || []
+  const membershipRaw = (auth.user as any)?.memberships
+  const membership = Array.isArray(membershipRaw) ? membershipRaw : []
   const ownsStore = membership.some((m: any) => {
-    const roles = (m.roles || []).map((r: string) => r?.toLowerCase?.())
-    return m?.store?.slug?.toString().toLowerCase() === slug.value?.toString().toLowerCase() &&
-      roles.some((r: string) => ['admin', 'owner', 'manager'].includes(r))
+    const rolesRaw = m?.roles
+    const roles = Array.isArray(rolesRaw) ? rolesRaw : []
+    const storeSlug = m?.store?.slug
+    const current = slug.value
+    return storeSlug?.toString().toLowerCase() === current?.toString().toLowerCase() &&
+      roles.map((r: string) => r?.toLowerCase?.()).some((r: string) => ['admin', 'owner', 'manager'].includes(r))
   })
   return Boolean((auth.user as any)?.is_staff || ownsStore)
 })
+
+const safeProducts = computed(() => Array.isArray(tenantStore.productos) ? tenantStore.productos : [])
+
 const featuredProducts = computed(() => {
-  const all = tenantStore.productos || []
-  const weekly = all.filter((p: any) => p.product_of_week)
+  const all = safeProducts.value
+  const weekly = all.filter((p: any) => p?.product_of_week)
   if (weekly.length) return weekly
-  const highlighted = all.filter((p: any) => p.is_featured)
+  const highlighted = all.filter((p: any) => p?.is_featured)
   if (highlighted.length) return highlighted
   return all.slice(0, 3)
 })
-const previewProducts = computed(() => (tenantStore.productos || []).slice(0, 4))
+
+const previewProducts = computed(() => safeProducts.value.slice(0, 4))
+
+const catalogCategories = computed(() => {
+  const names = new Set<string>()
+  safeProducts.value.forEach((p: any) => {
+    const name = p?.category?.name || p?.category
+    if (name) names.add(name)
+  })
+  return Array.from(names).sort((a, b) => a.localeCompare(b))
+})
+
+const catalogCategory = ref('')
+const catalogSort = ref('')
+
+const filteredCatalog = computed(() => {
+  let data = safeProducts.value
+  if (catalogCategory.value) {
+    data = data.filter((p: any) => (p?.category?.name || p?.category) === catalogCategory.value)
+  }
+  if (catalogSort.value) {
+    data = [...data].sort((a: any, b: any) => {
+      const pa = Number(a?.offer_price || a?.price || 0)
+      const pb = Number(b?.offer_price || b?.price || 0)
+      return catalogSort.value === 'asc' ? pa - pb : pb - pa
+    })
+  }
+  return data
+})
 
 const setAccent = (color: string) => theme.setStoreTheme(slug.value, { accent: color })
 const setGradient = (from: string, to: string) => theme.setStoreTheme(slug.value, { gradientFrom: from, gradientTo: to })

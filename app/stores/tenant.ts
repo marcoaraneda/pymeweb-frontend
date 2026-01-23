@@ -34,7 +34,8 @@ export const useTenantStore = defineStore('tenant', {
         const search = new URLSearchParams(params as any).toString()
         const url = `${config.public.apiBase}/store/${this.slug}/catalogo/products/${search ? `?${search}` : ''}`
         const response = await $fetch(url)
-        this.productos = response as any[]
+        // Algunas respuestas vienen paginadas { results: [...], count, next, previous }
+        this.productos = Array.isArray(response) ? response : ((response as any)?.results || [])
         this.categories = Array.from(
           new Map(
             (this.productos || [])

@@ -43,12 +43,29 @@
           <h2 class="text-2xl font-semibold text-slate-900">Productos publicados</h2>
           <p class="text-slate-600">Compra directo en la tienda donde se publicó.</p>
         </div>
-        <input
-          v-model="productSearch"
-          type="text"
-          placeholder="Buscar producto..."
-          class="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none md:w-72"
-        />
+        <div class="flex flex-wrap gap-3">
+          <select
+            v-model="categoryFilter"
+            class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
+          >
+            <option value="">Todas las categorías</option>
+            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+          <select
+            v-model="sortOrder"
+            class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
+          >
+            <option value="">Ordenar por precio</option>
+            <option value="asc">Menor a mayor</option>
+            <option value="desc">Mayor a menor</option>
+          </select>
+          <input
+            v-model="productSearch"
+            type="text"
+            placeholder="Buscar producto..."
+            class="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none md:w-64"
+          />
+        </div>
       </div>
 
       <div v-if="loadingProducts" class="text-slate-500">Cargando productos...</div>
@@ -118,11 +135,35 @@ const products = ref<any[]>([])
 const loadingProducts = ref(true)
 const productsError = ref('')
 const productSearch = ref('')
+const categoryFilter = ref('')
+const sortOrder = ref('')
+
+const categories = computed(() => {
+  const names = new Set<string>()
+  products.value.forEach((p) => {
+    const name = p.category?.name
+    if (name) names.add(name)
+  })
+  return Array.from(names).sort((a, b) => a.localeCompare(b))
+})
 
 const filteredProducts = computed(() => {
   const term = productSearch.value.trim().toLowerCase()
-  if (!term) return products.value
-  return products.value.filter((p) => p.name.toLowerCase().includes(term) || p.store?.slug?.toLowerCase()?.includes(term))
+  let data = products.value
+  if (term) {
+    data = data.filter((p) => p.name.toLowerCase().includes(term) || p.store?.slug?.toLowerCase()?.includes(term))
+  }
+  if (categoryFilter.value) {
+    data = data.filter((p) => p.category?.name === categoryFilter.value)
+  }
+  if (sortOrder.value) {
+    data = [...data].sort((a: any, b: any) => {
+      const pa = Number(a.offer_price || a.price || 0)
+      const pb = Number(b.offer_price || b.price || 0)
+      return sortOrder.value === 'asc' ? pa - pb : pb - pa
+    })
+  }
+  return data
 })
 
 const productsPreview = computed(() => filteredProducts.value.slice(0, 4))

@@ -155,6 +155,7 @@
                 placeholder="Buscar tienda..."
                 class="hidden w-56 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none sm:block"
               />
+              </div>
             </div>
 
             <div class="sm:hidden">
