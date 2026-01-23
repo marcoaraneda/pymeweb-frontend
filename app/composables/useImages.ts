@@ -10,7 +10,7 @@ export const useImages = () => {
     }
 
     // Imagen por defecto si el producto no tiene imágenes
-    return "/img/placeholder-product.png"
+    return 'https://via.placeholder.com/640x480.png?text=Producto'
   }
 
   /**

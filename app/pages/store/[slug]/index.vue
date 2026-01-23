@@ -5,7 +5,20 @@
       <div class="relative mx-auto flex max-w-6xl flex-col gap-10 px-6 py-16 lg:flex-row lg:items-center lg:py-20">
         <div class="space-y-5 lg:w-1/2">
           <p class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.25em]">Tienda oficial</p>
-          <h1 class="text-4xl font-bold leading-tight md:text-5xl">{{ tenantStore.data?.name || 'Tu tienda online' }}</h1>
+          <div class="flex items-center gap-3">
+            <h1 class="text-4xl font-bold leading-tight md:text-5xl">{{ tenantStore.data?.name || 'Tu tienda online' }}</h1>
+            <button
+              v-if="canEditTheme"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:-translate-y-0.5 hover:border-white/40 hover:bg-white/20"
+              title="Editar tienda"
+              @click="showStoreForm = true"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5">
+                <path d="M13.586 3.586a2 2 0 0 1 2.828 2.828l-8.5 8.5a2 2 0 0 1-.878.512l-3.12.89a.5.5 0 0 1-.62-.62l.89-3.12a2 2 0 0 1 .512-.878l8.5-8.5Z" />
+                <path d="M12.5 4.75 15.25 7.5" />
+              </svg>
+            </button>
+          </div>
           <p class="max-w-2xl text-lg text-white/80">
             Explora un catálogo curado con envíos rápidos y una experiencia pensada para conversión. Personaliza el acento visual para alinear la tienda a tu marca.
           </p>
@@ -46,7 +59,71 @@
       </div>
     </section>
 
-    <section class="mx-auto max-w-6xl px-6 py-10" id="personaliza">
+    <section v-if="canEditTheme && showStoreForm" class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/70 px-4 py-10" id="brand">
+      <div class="relative w-full max-w-4xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <button
+          class="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100"
+          @click="showStoreForm = false"
+          aria-label="Cerrar edición"
+        >
+          ×
+        </button>
+
+        <div class="space-y-4">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Datos de la tienda</p>
+              <h2 class="text-xl font-semibold text-slate-900">Nombre, slug y logo</h2>
+              <p class="text-slate-600">Se guardan en el servidor para esta tienda.</p>
+            </div>
+            <div v-if="updateMessage" class="text-sm" :class="updateStatus === 'error' ? 'text-red-600' : 'text-emerald-600'">{{ updateMessage }}</div>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="space-y-2">
+              <label class="text-sm text-slate-600">Nombre de la tienda</label>
+              <input v-model="storeForm.name" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm text-slate-600">Slug (se usa en la URL)</label>
+              <input v-model="storeForm.slug" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+              <p class="text-xs text-slate-500">Ejemplo: /store/{{ storeForm.slug || 'mitienda' }}</p>
+            </div>
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Descripción</label>
+              <textarea v-model="storeForm.description" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"></textarea>
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm text-slate-600">Email de contacto</label>
+              <input v-model="storeForm.email" type="email" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm text-slate-600">Teléfono</label>
+              <input v-model="storeForm.phone" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Logo (URL)</label>
+              <input v-model="storeForm.logo_url" type="url" placeholder="https://..." class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+              <p class="text-xs text-slate-500">Al guardar, el header usará esta imagen.</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <button
+              class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
+              :style="accentStyle"
+              :disabled="updatingStore"
+              @click="saveStore"
+            >
+              {{ updatingStore ? 'Guardando...' : 'Guardar cambios de tienda' }}
+            </button>
+            <p class="text-sm text-slate-600">Cambiar el slug redirige a la nueva URL.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section v-if="canEditTheme" class="mx-auto max-w-6xl px-6 py-10" id="personaliza">
       <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -92,16 +169,34 @@
         <article
           v-for="product in featuredProducts"
           :key="product.id"
-          class="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+          class="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
         >
-          <div class="h-40 bg-slate-100" />
-          <div class="p-4 space-y-2">
+          <div class="h-40 w-full overflow-hidden rounded-t-2xl bg-slate-100">
+            <img :src="getProductImage(product)" :alt="product.name" class="h-full w-full object-cover" />
+          </div>
+          <div class="flex flex-1 flex-col p-4 space-y-3">
             <p class="text-xs uppercase text-slate-500">{{ product.category?.name || 'General' }}</p>
-            <h3 class="text-lg font-semibold text-slate-900 group-hover:text-slate-700">{{ product.name }}</h3>
-            <p class="text-base font-bold" :style="{ color: accentColor }">${{ product.price }}</p>
-            <div class="flex gap-2">
-              <NuxtLink :to="`/store/${slug}/productos/${product.slug}`" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Ver detalle</NuxtLink>
-              <button class="text-sm font-semibold text-slate-700 hover:text-slate-900" @click="cart.addProduct(product)">Agregar</button>
+            <h3 class="text-lg font-semibold text-slate-900 group-hover:text-slate-700 line-clamp-1">{{ product.name }}</h3>
+            <p class="text-sm text-slate-600 line-clamp-2">{{ product.description }}</p>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
+              <span v-else-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta</span>
+              <span v-if="product.is_marketplace" class="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-800">Marketplace</span>
+            </div>
+
+            <p class="text-base font-bold" :style="{ color: accentColor }">
+              <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
+              ${{ product.offer_price || product.price }}
+            </p>
+
+            <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
+              <button class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow" :style="accentStyle" @click="cart.addProduct(product)">
+                Agregar
+              </button>
+              <NuxtLink :to="`/store/${slug}/productos/${product.slug}`" class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900">
+                Ver detalle
+              </NuxtLink>
             </div>
           </div>
         </article>
@@ -128,32 +223,41 @@
         <article
           v-for="product in tenantStore.productos"
           :key="product.id"
-          class="group rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+          class="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
         >
           <div class="h-44 w-full overflow-hidden rounded-t-2xl bg-slate-100">
             <img :src="getProductImage(product)" :alt="product.name" class="h-full w-full object-cover" />
           </div>
-          <div class="p-4 space-y-2">
+          <div class="flex flex-1 flex-col p-4 space-y-3">
             <p class="text-xs uppercase text-slate-500">{{ product.category?.name || 'General' }}</p>
-            <h3 class="text-lg font-semibold text-slate-900 group-hover:text-slate-700">{{ product.name }}</h3>
+            <h3 class="text-lg font-semibold text-slate-900 group-hover:text-slate-700 line-clamp-1">{{ product.name }}</h3>
             <p class="text-sm text-slate-600 line-clamp-2">{{ product.description }}</p>
-            <div class="flex items-center justify-between pt-2">
-              <p class="text-base font-bold" :style="{ color: accentColor }">${{ product.price }}</p>
-              <div class="flex gap-2">
-                <NuxtLink
-                  :to="`/store/${slug}/productos/${product.slug}`"
-                  class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900"
-                >
-                  Ver
-                </NuxtLink>
-                <button
-                  class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
-                  :style="accentStyle"
-                  @click="cart.addProduct(product)"
-                >
-                  Agregar
-                </button>
-              </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
+              <span v-else-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta</span>
+              <span v-if="product.is_marketplace" class="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-800">Marketplace</span>
+            </div>
+
+            <p class="text-base font-bold" :style="{ color: accentColor }">
+              <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
+              ${{ product.offer_price || product.price }}
+            </p>
+
+            <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
+              <button
+                class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
+                :style="accentStyle"
+                @click="cart.addProduct(product)"
+              >
+                Agregar
+              </button>
+              <NuxtLink
+                :to="`/store/${slug}/productos/${product.slug}`"
+                class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900"
+              >
+                Ver
+              </NuxtLink>
             </div>
           </div>
         </article>
@@ -163,23 +267,34 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { definePageMeta } from '#imports'
+import { useRuntimeConfig } from 'nuxt/app'
 import { useTenantStore } from '~/stores/tenant'
 import { useCartStore } from '~/stores/cart'
 import { useThemeStore } from '~/stores/theme'
 import { useImages } from '~/composables/useImages'
+import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({ layout: 'store' })
 
 const route = useRoute()
-const slug = route.params.slug as string
+const router = useRouter()
+const slug = computed(() => route.params.slug as string)
 
 const tenantStore = useTenantStore()
 const cart = useCartStore()
 const theme = useThemeStore()
+const auth = useAuthStore()
 const { getProductImage } = useImages()
+const config = useRuntimeConfig()
+
+const storeForm = reactive({ name: '', slug: '', logo_url: '', description: '', email: '', phone: '' })
+const showStoreForm = ref(false)
+const updatingStore = ref(false)
+const updateMessage = ref('')
+const updateStatus = ref<'ok' | 'error'>('ok')
 
 const palette = ['#2563eb', '#16a34a', '#f59e0b', '#e11d48', '#7c3aed']
 const gradients = [
@@ -191,25 +306,111 @@ const gradients = [
 
 const accentColor = computed(() => theme.accent || '#2563eb')
 const accentStyle = computed(() => ({ backgroundColor: accentColor.value, color: '#fff' }))
+const canEditTheme = computed(() => {
+  const membership = (auth.user as any)?.memberships || []
+  const ownsStore = membership.some((m: any) => {
+    const roles = (m.roles || []).map((r: string) => r?.toLowerCase?.())
+    return m?.store?.slug === slug.value && roles.some((r: string) => ['admin', 'owner', 'manager'].includes(r))
+  })
+  return Boolean((auth.user as any)?.is_staff || ownsStore)
+})
 const featuredProducts = computed(() => {
   const all = tenantStore.productos || []
-  const featured = all.filter((p: any) => p.is_featured)
-  if (featured.length) return featured
+  const weekly = all.filter((p: any) => p.product_of_week)
+  if (weekly.length) return weekly
+  const highlighted = all.filter((p: any) => p.is_featured)
+  if (highlighted.length) return highlighted
   return all.slice(0, 3)
 })
 const previewProducts = computed(() => (tenantStore.productos || []).slice(0, 4))
 
-const setAccent = (color: string) => theme.setStoreTheme(slug, { accent: color })
-const setGradient = (from: string, to: string) => theme.setStoreTheme(slug, { gradientFrom: from, gradientTo: to })
+const setAccent = (color: string) => theme.setStoreTheme(slug.value, { accent: color })
+const setGradient = (from: string, to: string) => theme.setStoreTheme(slug.value, { gradientFrom: from, gradientTo: to })
 
 const loadData = async () => {
-  tenantStore.setSlug(slug)
+  tenantStore.setSlug(slug.value)
   await Promise.all([tenantStore.fetchTienda(), tenantStore.fetchProductos()])
 }
 
+const hydrateForm = () => {
+  const data = tenantStore.data || {}
+  storeForm.name = data.name || ''
+  storeForm.slug = data.slug || slug.value || ''
+  storeForm.logo_url = data.logo_url || data.logo || ''
+  storeForm.description = data.description || ''
+  storeForm.email = data.email || ''
+  storeForm.phone = data.phone || ''
+}
+
+const saveStore = async () => {
+  if (!canEditTheme.value) return
+  updatingStore.value = true
+  updateMessage.value = ''
+  const previousSlug = slug.value
+  try {
+    const payload: any = {
+      name: storeForm.name,
+      slug: storeForm.slug,
+      logo_url: storeForm.logo_url,
+      description: storeForm.description,
+      email: storeForm.email,
+      phone: storeForm.phone,
+    }
+
+    const updated = await $fetch(`${config.public.apiBase}/stores/${previousSlug}/`, {
+      method: 'PATCH',
+      body: payload,
+      headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+    })
+
+    tenantStore.data = updated
+    const nextSlug = updated.slug || storeForm.slug || previousSlug
+
+    if (nextSlug !== previousSlug) {
+      theme.renameStoreTheme(previousSlug, nextSlug)
+      tenantStore.setSlug(nextSlug)
+      await router.replace(`/store/${nextSlug}`)
+    } else {
+      tenantStore.setSlug(previousSlug)
+    }
+
+    await tenantStore.fetchTienda()
+    hydrateForm()
+    theme.applyStoreTheme(tenantStore.slug || nextSlug)
+    updateStatus.value = 'ok'
+    updateMessage.value = 'Cambios guardados'
+    showStoreForm.value = false
+  } catch (error: any) {
+    updateStatus.value = 'error'
+    updateMessage.value = error?.response?._data || 'No pudimos guardar la tienda'
+  } finally {
+    updatingStore.value = false
+  }
+}
+
 onMounted(async () => {
+  auth.restoreFromCookies()
+  if (auth.token && !auth.user) {
+    await auth.fetchProfile()
+  }
   theme.loadFromStorage()
-  theme.applyStoreTheme(slug)
+  theme.applyStoreTheme(slug.value)
   await loadData()
+  hydrateForm()
 })
+
+watch(
+  () => slug.value,
+  async () => {
+    theme.applyStoreTheme(slug.value)
+    await loadData()
+    hydrateForm()
+  }
+)
+
+watch(
+  () => tenantStore.data,
+  () => hydrateForm(),
+  { immediate: true }
+)
 </script>

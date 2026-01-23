@@ -8,7 +8,7 @@ export const useTenantStore = defineStore('tenant', {
     productos: [] as any[], // Nueva variable para el catálogo
     loading: false,
     slug: '',
-    categories: [] as string[],
+    categories: [] as { name: string; slug: string }[],
   }),
   actions: {
     setSlug(slug: string) {
@@ -26,21 +26,41 @@ export const useTenantStore = defineStore('tenant', {
         theme.applyStoreTheme(this.slug)
       } catch (error) { console.error("Error tienda:", error) }
     },
-    async fetchProductos() {
+    async fetchProductos(params: Record<string, any> = {}) {
       if (!this.slug) return
       this.loading = true
       try {
         const config = useRuntimeConfig()
-        // Esta URL coincide con tu ProductListAPIView
-        const response = await $fetch(`${config.public.apiBase}/store/${this.slug}/catalogo/productos/`)
+        const search = new URLSearchParams(params as any).toString()
+        const url = `${config.public.apiBase}/store/${this.slug}/catalogo/products/${search ? `?${search}` : ''}`
+        const response = await $fetch(url)
         this.productos = response as any[]
-        this.categories = Array.from(new Set((this.productos || []).map((p: any) => p?.category?.name).filter(Boolean)))
+        this.categories = Array.from(
+          new Map(
+            (this.productos || [])
+              .map((p: any) => p?.category)
+              .filter((c: any) => c && (c.slug || c.name))
+              .map((c: any) => [c.slug || c.name, { name: c.name || c.slug, slug: c.slug || c.name }])
+          ).values()
+        )
       } catch (error) {
         console.error("Error catálogo:", error)
         this.productos = []
         this.categories = []
       } finally {
         this.loading = false
+      }
+    },
+
+    async fetchCategories() {
+      if (!this.slug) return
+      try {
+        const config = useRuntimeConfig()
+        const url = `${config.public.apiBase}/store/${this.slug}/catalogo/categories/`
+        const response = await $fetch<{ name: string; slug: string }[]>(url)
+        this.categories = response
+      } catch (error) {
+        console.error('Error categorías:', error)
       }
     }
   }

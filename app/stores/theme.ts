@@ -3,12 +3,18 @@ import { defineStore } from 'pinia'
 type ThemeValues = { accent: string; gradientFrom: string; gradientTo: string }
 
 const STORAGE_KEY = 'theme-preferences-v1'
+const DEFAULT_ACCENT = '#2563eb'
+const DEFAULT_GRADIENT_FROM = '#111827'
+const DEFAULT_GRADIENT_TO = '#0b2358'
 
 export const useThemeStore = defineStore('theme', {
   state: () => ({
-    accent: '#2563eb',
-    gradientFrom: '#111827',
-    gradientTo: '#0b2358',
+    baseAccent: DEFAULT_ACCENT,
+    baseGradientFrom: DEFAULT_GRADIENT_FROM,
+    baseGradientTo: DEFAULT_GRADIENT_TO,
+    accent: DEFAULT_ACCENT,
+    gradientFrom: DEFAULT_GRADIENT_FROM,
+    gradientTo: DEFAULT_GRADIENT_TO,
     perStore: {} as Record<string, ThemeValues>,
     hydrated: false,
   }),
@@ -19,29 +25,25 @@ export const useThemeStore = defineStore('theme', {
       if (raw) {
         try {
           const parsed = JSON.parse(raw)
-          this.accent = parsed.accent || this.accent
-          this.gradientFrom = parsed.gradientFrom || this.gradientFrom
-          this.gradientTo = parsed.gradientTo || this.gradientTo
           this.perStore = parsed.perStore || {}
         } catch (error) {
           console.warn('No se pudo leer el tema guardado', error)
         }
       }
       this.hydrated = true
-      this.applyTheme()
+      this.resetToBase()
     },
 
     saveToStorage() {
       if (!process.client) return
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          accent: this.accent,
-          gradientFrom: this.gradientFrom,
-          gradientTo: this.gradientTo,
-          perStore: this.perStore,
-        })
-      )
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ perStore: this.perStore }))
+    },
+
+    resetToBase() {
+      this.accent = this.baseAccent
+      this.gradientFrom = this.baseGradientFrom
+      this.gradientTo = this.baseGradientTo
+      this.applyTheme()
     },
 
     setAccent(color: string) {
@@ -72,12 +74,26 @@ export const useThemeStore = defineStore('theme', {
       this.saveToStorage()
     },
 
+    renameStoreTheme(oldSlug: string, newSlug: string) {
+      if (!oldSlug || !newSlug || oldSlug === newSlug) return
+      if (this.perStore[oldSlug]) {
+        this.perStore[newSlug] = this.perStore[oldSlug]
+        delete this.perStore[oldSlug]
+        this.saveToStorage()
+      }
+    },
+
     applyStoreTheme(slug: string) {
       if (slug && this.perStore[slug]) {
-        this.applyTheme(this.perStore[slug])
+        const values = this.perStore[slug]
+        // Sincroniza el estado para que los bindings reactivos (botones, textos) usen el color del tema
+        this.accent = values.accent || this.accent
+        this.gradientFrom = values.gradientFrom || this.gradientFrom
+        this.gradientTo = values.gradientTo || this.gradientTo
+        this.applyTheme(values)
         return
       }
-      this.applyTheme()
+      this.resetToBase()
     },
 
     applyTheme(overrides?: ThemeValues) {

@@ -7,15 +7,20 @@ export const useReports = () => {
   const auth = useAuthStore();
   const tenant = useTenantStore();
 
-  const downloadReport = async (reportType: 'inventory' | 'sales' | 'reviews') => {
+  const downloadReport = async (reportType: 'inventory' | 'sales' | 'reviews', opts: { storeSlug?: string; start?: string; end?: string } = {}) => {
     try {
+      const params: Record<string, any> = {
+        store_id: tenant.data?.id,
+        store_slug: opts.storeSlug || tenant.data?.slug,
+        type: reportType,
+      }
+      if (opts.start) params.start = opts.start
+      if (opts.end) params.end = opts.end
+
       const response = await $fetch(`${config.public.apiBase}/reports/export/`, {
         method: 'GET',
         headers: { Authorization: `Bearer ${auth.token}` },
-        params: { 
-          store_id: tenant.data.id,
-          type: reportType 
-        },
+        params,
         responseType: 'blob' // Fundamental para archivos
       });
 

@@ -75,13 +75,39 @@
           </div>
         </div>
       </section>
+
+      <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-white/60">Más vendidos</p>
+            <h2 class="text-xl font-semibold">Productos con más compras</h2>
+          </div>
+          <NuxtLink v-if="storesMine[0]" :to="`/store/${storesMine[0].slug}/productos`" class="text-sm font-semibold text-white/80 hover:text-white">Ver catálogo</NuxtLink>
+        </div>
+        <div v-if="!topProducts.length" class="mt-4 text-white/70">No hay datos aún.</div>
+        <div v-else class="mt-4 divide-y divide-white/10">
+          <div v-for="prod in topProducts" :key="prod.id" class="flex items-center justify-between py-3 text-white/80">
+            <div>
+              <p class="font-semibold text-white">{{ prod.name }}</p>
+              <p class="text-xs text-white/60">{{ prod.category?.name || 'General' }} • {{ prod.store?.slug || 'tienda' }}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-sm">{{ prod.total_quantity }} ventas</p>
+              <p class="text-xs text-white/60">
+                <span v-if="prod.offer_price" class="mr-1 line-through opacity-60">${{ prod.price }}</span>
+                <span :style="{ color: theme.accent }">${{ prod.offer_price || prod.price }}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { navigateTo } from 'nuxt/app'
+import { navigateTo, useRuntimeConfig } from 'nuxt/app'
 import StoreCard from '~/components/StoreCard.vue'
 import StatCard from '~/components/StatCard.vue'
 import { useAuthStore } from '~/stores/auth'
@@ -91,6 +117,8 @@ const auth = useAuthStore()
 const theme = useThemeStore()
 const storesMine = ref<{ id: number; name: string; slug: string }[]>([])
 const loading = ref(true)
+const topProducts = ref<any[]>([])
+const config = useRuntimeConfig()
 
 const analytics = ref({ visits: 1280, conversions: 74, support: 3 })
 const sparkline = computed(() => [60, 90, 80, 120, 140, 110, 170])
@@ -100,7 +128,21 @@ const barColor = (idx: number) => (idx === sparkline.value.length - 1 ? theme.ac
 const loadData = async () => {
   loading.value = true
   storesMine.value = await auth.fetchMyStores()
+  await loadTopProducts()
   loading.value = false
+}
+
+const loadTopProducts = async () => {
+  topProducts.value = []
+  const firstStore = storesMine.value[0]
+  if (!firstStore || !auth.token) return
+  try {
+    topProducts.value = await $fetch(`${config.public.apiBase}/orders/store/${firstStore.slug}/top-products/`, {
+      headers: { Authorization: `Bearer ${auth.token}` },
+    })
+  } catch (error) {
+    console.warn('No se pudieron cargar los más vendidos')
+  }
 }
 
 const refresh = async () => {

@@ -2,6 +2,7 @@ import { navigateTo, useCookie, useRuntimeConfig } from 'nuxt/app'
 import { defineStore } from 'pinia'
 
 type Credentials = { username: string; password: string }
+type SignupPayload = { username: string; email: string; password: string; first_name?: string; last_name?: string }
 type StoreLite = { id: number; name: string; slug: string }
 type UserProfile = {
   id: number
@@ -9,6 +10,8 @@ type UserProfile = {
   email: string
   first_name?: string
   last_name?: string
+  avatar_url?: string | null
+  is_staff?: boolean
   memberships?: Array<{ store: StoreLite; roles: string[] }>
 }
 
@@ -60,6 +63,32 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async register(payload: SignupPayload) {
+      this.loading = true
+      this.error = null
+      const config = useRuntimeConfig()
+
+      try {
+        const data = await $fetch<{ access: string; refresh: string; user: UserProfile }>(`${config.public.apiBase}/users/signup/`, {
+          method: 'POST',
+          body: payload,
+        })
+
+        this.token = data.access
+        this.refreshToken = data.refresh
+        this.user = data.user
+
+        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax' }).value = data.access
+        useCookie('refresh_token', { maxAge: 60 * 60 * 24 * 7, sameSite: 'lax' }).value = data.refresh
+      } catch (error: any) {
+        const detail = error?.response?._data?.detail || error?.response?._data || 'No pudimos registrar tu cuenta'
+        this.error = detail
+        throw new Error(detail)
+      } finally {
+        this.loading = false
+      }
+    },
+
     async fetchProfile(): Promise<UserProfile | null> {
       if (!this.token) return null
       const config = useRuntimeConfig()
@@ -71,8 +100,41 @@ export const useAuthStore = defineStore('auth', {
         this.user = profile
         return profile
       } catch (error: any) {
+        const code = error?.response?._data?.code
+        if (code === 'token_not_valid' && this.refreshToken) {
+          const refreshed = await this.refreshTokens()
+          if (refreshed) {
+            try {
+              const profile = await $fetch<UserProfile>(`${config.public.apiBase}/users/me/`, {
+                headers: { Authorization: `Bearer ${refreshed}` },
+              })
+              this.user = profile
+              return profile
+            } catch (e) {
+              // fall through to error handling
+            }
+          }
+        }
         const detail = error?.response?._data?.detail || 'No pudimos cargar tu perfil'
         this.error = detail
+        return null
+      }
+    },
+
+    async refreshTokens(): Promise<string | null> {
+      if (!this.refreshToken) return null
+      const config = useRuntimeConfig()
+      try {
+        const data = await $fetch<{ access: string }>(`${config.public.apiBase}/token/refresh/`, {
+          method: 'POST',
+          body: { refresh: this.refreshToken },
+        })
+
+        this.token = data.access
+        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax' }).value = data.access
+        return data.access
+      } catch (error) {
+        this.logout()
         return null
       }
     },
@@ -84,7 +146,20 @@ export const useAuthStore = defineStore('auth', {
         return await $fetch<StoreLite[]>(`${config.public.apiBase}/stores/mine/`, {
           headers: { Authorization: `Bearer ${this.token}` },
         })
-      } catch (error) {
+      } catch (error: any) {
+        const code = error?.response?._data?.code
+        if (code === 'token_not_valid' && this.refreshToken) {
+          const refreshed = await this.refreshTokens()
+          if (refreshed) {
+            try {
+              return await $fetch<StoreLite[]>(`${config.public.apiBase}/stores/mine/`, {
+                headers: { Authorization: `Bearer ${refreshed}` },
+              })
+            } catch (e) {
+              console.error('Reintento falló al cargar tus tiendas', e)
+            }
+          }
+        }
         console.error('No pudimos cargar tus tiendas', error)
         return []
       }

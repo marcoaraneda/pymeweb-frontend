@@ -84,7 +84,10 @@
               </span>
             </button>
 
-            <p class="text-xs text-white/60">¿Sin cuenta? Pide a un administrador que te cree un usuario y te asigne a una tienda.</p>
+            <p class="text-xs text-white/60">
+              ¿No tienes cuenta?
+              <NuxtLink to="/register" class="underline">Regístrate aquí</NuxtLink>
+            </p>
           </form>
         </div>
       </div>
@@ -107,7 +110,8 @@ const submit = async () => {
   loading.value = true
   try {
     await auth.login(credentials)
-    await navigateTo('/')
+    const hasStores = ((auth.user as any)?.memberships || []).length > 0
+    await navigateTo(hasStores ? '/dashboard' : '/')
   } catch (error) {
     /* El store ya maneja el mensaje */
   } finally {
