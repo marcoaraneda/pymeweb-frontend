@@ -132,42 +132,42 @@ const loadCategories = async () => {
     categories.value = []
   }
 }
-
 const save = async () => {
   if (!auth.token) {
     message.value = 'Inicia sesión para crear productos'
     messageType.value = 'error'
     return
   }
+
   saving.value = true
   message.value = ''
-  let doSave: (tokenOverride?: string) => Promise<any>
+
+  const slugValue = form.slug || form.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')
+  const buildPayload = () => ({
+    name: form.name,
+    slug: slugValue,
+    description: form.description,
+    price: form.price,
+    offer_price: form.offer_price,
+    is_featured: form.is_featured,
+    product_of_week: form.product_of_week,
+    is_active: form.is_active,
+    is_marketplace: form.is_marketplace,
+    ...(form.category ? { category: form.category } : {}),
+    ...(form.image_url ? { image_url: form.image_url } : {}),
+  })
+  const doSave = (tokenOverride?: string) =>
+    $fetch(`${config.public.apiBase}/store/${slug}/admin/catalogo/products/`, {
+      method: 'POST',
+      body: buildPayload(),
+      headers: { Authorization: `Bearer ${tokenOverride || auth.token}` },
+    })
+
   try {
     // Refresca el token antes de enviar para evitar expirados
     if (auth.refreshToken) {
       await auth.refreshTokens()
     }
-
-    const payload: any = {
-      name: form.name,
-      slug: form.slug || form.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'),
-      description: form.description,
-      price: form.price,
-      offer_price: form.offer_price,
-      is_featured: form.is_featured,
-      product_of_week: form.product_of_week,
-      is_active: form.is_active,
-      is_marketplace: form.is_marketplace,
-    }
-
-    if (form.category) payload.category = form.category
-    if (form.image_url) payload.image_url = form.image_url
-    doSave = (tokenOverride?: string) =>
-      $fetch(`${config.public.apiBase}/store/${slug}/admin/catalogo/products/`, {
-        method: 'POST',
-        body: payload,
-        headers: { Authorization: `Bearer ${tokenOverride || auth.token}` },
-      })
 
     await doSave()
     message.value = 'Producto creado'
@@ -183,9 +183,8 @@ const save = async () => {
           message.value = 'Producto creado'
           messageType.value = 'ok'
           router.push(`/store/${slug}/productos`)
-          return
         } catch (e) {
-          // fall through to error handling
+          console.error('Retry after refresh failed', e)
         }
       }
     }
@@ -197,6 +196,7 @@ const save = async () => {
       message.value = apiError || 'No pudimos crear el producto'
     }
     messageType.value = 'error'
+    console.error('Error al crear producto', error)
   } finally {
     saving.value = false
   }
