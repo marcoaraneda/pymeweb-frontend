@@ -98,6 +98,63 @@
         </div>
       </div>
 
+      <div class="grid gap-4 lg:grid-cols-2">
+        <div class="rounded-xl border border-slate-200 p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-800">Productos más vendidos</h3>
+            <span class="text-xs text-slate-500">Top 5</span>
+          </div>
+          <div v-if="!topProducts.length" class="text-slate-500 text-sm">Sin datos</div>
+          <div v-for="prod in topProducts" :key="prod.id" class="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm">
+            <div>
+              <p class="font-semibold text-slate-900">{{ prod.name }}</p>
+              <p class="text-xs text-slate-500">{{ prod.sales }} ventas</p>
+            </div>
+            <span class="font-semibold" :style="{ color: accentColor }">{{ money(prod.revenue) }}</span>
+          </div>
+        </div>
+
+        <div class="grid gap-4">
+          <div class="rounded-xl border border-slate-200 p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-semibold text-slate-800">Pedidos en proceso</h3>
+              <span class="text-xs text-slate-500">Pendiente / Preparando / En tránsito</span>
+            </div>
+            <div v-if="!pendingList.length" class="text-slate-500 text-sm">Sin pedidos en proceso.</div>
+            <div v-for="order in pendingList" :key="order.id" class="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm">
+              <div class="space-y-0.5">
+                <p class="font-semibold text-slate-900">Pedido #{{ order.id }} — {{ order.customer }}</p>
+                <p class="text-xs text-slate-500">{{ order.date }}</p>
+                <p class="text-xs text-slate-500">Tracking {{ order.tracking || '—' }}</p>
+              </div>
+              <div class="text-right">
+                <p class="font-semibold text-slate-900">{{ money(order.total) }}</p>
+                <NuxtLink :to="`/store/${order.store}/admin/orders/${order.id}`" class="text-xs text-blue-600 hover:underline">Ver</NuxtLink>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-slate-200 p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-semibold text-slate-800">Entregados / Finalizados</h3>
+              <span class="text-xs text-slate-500">Llegó a destino</span>
+            </div>
+            <div v-if="!deliveredList.length" class="text-slate-500 text-sm">Sin entregas registradas.</div>
+            <div v-for="order in deliveredList" :key="order.id" class="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm">
+              <div class="space-y-0.5">
+                <p class="font-semibold text-slate-900">Pedido #{{ order.id }} — {{ order.customer }}</p>
+                <p class="text-xs text-slate-500">{{ order.date }}</p>
+                <p class="text-xs text-slate-500">Tracking {{ order.tracking || '—' }}</p>
+              </div>
+              <div class="text-right">
+                <p class="font-semibold text-slate-900">{{ money(order.total) }}</p>
+                <NuxtLink :to="`/store/${order.store}/admin/orders/${order.id}`" class="text-xs text-blue-600 hover:underline">Ver</NuxtLink>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="rounded-xl border border-slate-200 p-4">
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-semibold text-slate-800">Órdenes recientes</h3>
@@ -144,6 +201,8 @@ import { useTenantStore } from '~/stores/tenant'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { useReports } from '~/composables/useReports'
+import { useRuntimeConfig } from 'nuxt/app'
+import { useRoute } from '#app'
 
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 
@@ -151,6 +210,9 @@ const tenant = useTenantStore()
 const auth = useAuthStore()
 const theme = useThemeStore()
 const { downloadReport } = useReports()
+const config = useRuntimeConfig()
+const route = useRoute()
+const routeSlug = route.params.slug as string
 
 const accentColor = computed(() => theme.accent || '#2563eb')
 
@@ -158,6 +220,7 @@ const filters = reactive({ store: '', range: '7d', start: '', end: '' })
 const summary = reactive({ sales: 0, orders: 0, avgTicket: 0, activeProducts: 0 })
 const chart = ref<{ label: string; value: number }[]>([])
 const topCategories = ref<{ name: string; count: number; revenue: number }[]>([])
+const topProducts = ref<{ id: number; name: string; sales: number; revenue: number }[]>([])
 const orders = ref<any[]>([])
 
 const storeOptions = computed(() => {
@@ -175,10 +238,22 @@ const storeOptions = computed(() => {
 const filteredOrders = computed(() => {
   return orders.value.filter((o) => {
     const matchStore = !filters.store || o.store === filters.store
-    const dateOk = true // datos mock, no filtramos por fecha real aquí
+    const dateOk = true
     return matchStore && dateOk
   })
 })
+
+const pendingList = computed(() =>
+  filteredOrders.value
+    .filter((o) => ['pending', 'preparing', 'in_transit', 'pendiente', 'preparando', 'en_transito'].includes(o.status))
+    .slice(0, 8)
+)
+
+const deliveredList = computed(() =>
+  filteredOrders.value
+    .filter((o) => ['delivered', 'completed', 'finalizado', 'entregado'].includes(o.status))
+    .slice(0, 8)
+)
 
 const money = (n: number) => `$${(n || 0).toFixed(2)}`
 const barColor = (idx: number) => (idx === chart.value.length - 1 ? accentColor.value : '#cbd5e1')
@@ -200,8 +275,26 @@ const handleExport = async (type: 'sales' | 'inventory') => {
   }
 }
 
-const applyFilters = () => {
-  // Datos mock para mantener la UI funcional sin depender del backend.
+const fetchTopProducts = async () => {
+  if (!filters.store) return
+  try {
+    const data = await $fetch<any[]>(`${config.public.apiBase}/orders/store/${filters.store}/top-products/`, {
+      headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : undefined,
+    })
+    topProducts.value = data.map((p: any, idx: number) => ({
+      id: p.id || idx,
+      name: p.name,
+      sales: p.total_quantity || p.sales || 0,
+      revenue: p.total_quantity && p.price ? p.total_quantity * p.price : p.revenue || 0,
+      store: filters.store,
+    }))
+  } catch (e) {
+    console.error('Error top productos', e)
+    topProducts.value = []
+  }
+}
+
+const applyFilters = async () => {
   const base = filters.range === '7d' ? 7 : filters.range === '30d' ? 30 : 90
   summary.sales = 1200 * base * 0.3
   summary.orders = Math.round(base * 4.2)
@@ -213,24 +306,44 @@ const applyFilters = () => {
     { name: 'General', count: Math.round(base * 1.2), revenue: summary.sales * 0.4 },
     { name: 'Destacados', count: Math.round(base * 0.8), revenue: summary.sales * 0.35 },
   ]
-  orders.value = Array.from({ length: 8 }, (_, i) => ({
-    id: 1000 + i,
-    customer: `Cliente ${i + 1}`,
-    store: filters.store || tenant.data?.slug || 'tienda',
-    date: '2025-12-0' + ((i % 9) + 1),
-    total: 20 + Math.random() * 80,
-    status: i % 3 === 0 ? 'pagado' : i % 2 === 0 ? 'pendiente' : 'enviado',
-  }))
+
+  await Promise.all([
+    fetchTopProducts(),
+    (async () => {
+      if (!filters.store) return
+      try {
+        const data = await $fetch<any[]>(`${config.public.apiBase}/orders/`, {
+          params: { store: filters.store },
+          headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : undefined,
+        })
+        orders.value = data.map((o) => ({
+          id: o.id,
+          customer: o.name,
+          store: filters.store,
+          date: new Date(o.created_at).toLocaleString('es-CL'),
+          tracking: o.tracking_code,
+          total: Number(o.total),
+          status: o.status,
+        }))
+      } catch (e) {
+        console.error('Error cargando órdenes', e)
+        orders.value = []
+      }
+    })(),
+  ])
 }
 
 const refresh = async () => {
+  tenant.setSlug(routeSlug)
+  await tenant.fetchTienda()
   await tenant.fetchProductos()
-  applyFilters()
+  await applyFilters()
 }
 
 onMounted(async () => {
   theme.loadFromStorage()
-  theme.applyStoreTheme(tenant.slug || tenant.data?.slug)
+  theme.applyStoreTheme(routeSlug)
+  filters.store = filters.store || routeSlug || tenant.slug || tenant.data?.slug || ''
   if (!filters.store && storeOptions.value[0]) filters.store = storeOptions.value[0].slug
   await refresh()
 })

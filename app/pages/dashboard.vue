@@ -14,7 +14,8 @@
         </div>
         <NuxtLink
           to="/"
-          class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:border-white/30"
+          class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5"
+          :style="{ backgroundColor: theme.accent }"
         >
           Ir al marketplace
         </NuxtLink>
@@ -48,7 +49,14 @@
             Aún no tienes tiendas asignadas. Pide acceso o crea una nueva desde administración.
           </div>
           <div v-else class="mt-4 grid gap-4 sm:grid-cols-2">
-            <StoreCard v-for="store in storesMine" :key="store.slug" :store="store" :accent="theme.accent" />
+            <StoreCard
+              v-for="store in storesMine"
+              :key="store.slug"
+              :store="store"
+              :accent="theme.accent"
+              :canDelete="true"
+              @delete="confirmDeleteStore"
+            />
           </div>
         </div>
 
@@ -101,6 +109,76 @@
           </div>
         </div>
       </section>
+
+      <section class="grid gap-4 lg:grid-cols-2">
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Pedidos en proceso</p>
+              <h2 class="text-xl font-semibold">Pendientes / Preparando / En tránsito</h2>
+            </div>
+            <span class="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">{{ pendingOrders.length }}</span>
+          </div>
+          <div v-if="!pendingOrders.length" class="mt-4 text-white/70">No hay pedidos en proceso.</div>
+          <div v-else class="mt-4 space-y-3">
+            <NuxtLink
+              v-for="o in pendingPageOrders"
+              :key="o.id"
+              :to="orderLink(o.id)"
+              class="block rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 transition hover:border-white/30"
+            >
+              <div class="flex items-center justify-between">
+                <p class="font-semibold text-white">#{{ o.id }} — {{ o.customer }}</p>
+                <span class="text-xs text-white/60">{{ o.date }}</span>
+              </div>
+              <p class="text-xs text-white/60">Tracking {{ o.tracking || '—' }}</p>
+              <div class="mt-1 flex items-center justify-between">
+                <span class="font-semibold" :style="{ color: theme.accent }">{{ currency(o.total) }}</span>
+                <span :class="['rounded-full px-2 py-0.5 text-[11px] font-semibold', statusBadge(o.status).classes]">{{ statusBadge(o.status).label }}</span>
+              </div>
+            </NuxtLink>
+            <div class="flex items-center justify-between text-xs text-white/70" v-if="pendingTotalPages > 1">
+              <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="pendingPage === 1" @click="pendingPage--">Anterior</button>
+              <span>Página {{ pendingPage }} / {{ pendingTotalPages }}</span>
+              <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="pendingPage === pendingTotalPages" @click="pendingPage++">Siguiente</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Entregados</p>
+              <h2 class="text-xl font-semibold">Llegó a destino / Finalizado</h2>
+            </div>
+            <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-100">{{ deliveredOrders.length }}</span>
+          </div>
+          <div v-if="!deliveredOrders.length" class="mt-4 text-white/70">Sin entregas registradas.</div>
+          <div v-else class="mt-4 space-y-3">
+            <NuxtLink
+              v-for="o in deliveredPageOrders"
+              :key="o.id"
+              :to="orderLink(o.id)"
+              class="block rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 transition hover:border-white/30"
+            >
+              <div class="flex items-center justify-between">
+                <p class="font-semibold text-white">#{{ o.id }} — {{ o.customer }}</p>
+                <span class="text-xs text-white/60">{{ o.date }}</span>
+              </div>
+              <p class="text-xs text-white/60">Tracking {{ o.tracking || '—' }}</p>
+              <div class="mt-1 flex items-center justify-between">
+                <span class="font-semibold" :style="{ color: theme.accent }">{{ currency(o.total) }}</span>
+                <span :class="['rounded-full px-2 py-0.5 text-[11px] font-semibold', statusBadge(o.status).classes]">{{ statusBadge(o.status).label }}</span>
+              </div>
+            </NuxtLink>
+            <div class="flex items-center justify-between text-xs text-white/70" v-if="deliveredTotalPages > 1">
+              <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="deliveredPage === 1" @click="deliveredPage--">Anterior</button>
+              <span>Página {{ deliveredPage }} / {{ deliveredTotalPages }}</span>
+              <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="deliveredPage === deliveredTotalPages" @click="deliveredPage++">Siguiente</button>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -118,18 +196,93 @@ const theme = useThemeStore()
 const storesMine = ref<{ id: number; name: string; slug: string }[]>([])
 const loading = ref(true)
 const topProducts = ref<any[]>([])
+const orders = ref<any[]>([])
+const pendingPage = ref(1)
+const deliveredPage = ref(1)
+const pageSize = 6
 const config = useRuntimeConfig()
+const deletingStore = ref(false)
 
 const analytics = ref({ visits: 1280, conversions: 74, support: 3 })
 const sparkline = computed(() => [60, 90, 80, 120, 140, 110, 170])
 
 const barColor = (idx: number) => (idx === sparkline.value.length - 1 ? theme.accent : 'rgba(255,255,255,0.25)')
 
+const pendingOrders = computed(() => orders.value.filter((o) => ['pending', 'preparing', 'in_transit'].includes(o.status)))
+const deliveredOrders = computed(() => orders.value.filter((o) => ['delivered', 'completed'].includes(o.status)))
+
+const pendingTotalPages = computed(() => Math.max(1, Math.ceil(pendingOrders.value.length / pageSize)))
+const deliveredTotalPages = computed(() => Math.max(1, Math.ceil(deliveredOrders.value.length / pageSize)))
+
+const pendingPageOrders = computed(() => {
+  const start = (pendingPage.value - 1) * pageSize
+  return pendingOrders.value.slice(start, start + pageSize)
+})
+
+const deliveredPageOrders = computed(() => {
+  const start = (deliveredPage.value - 1) * pageSize
+  return deliveredOrders.value.slice(start, start + pageSize)
+})
+
+const statusLabel = (status: string) => {
+  const map: Record<string, string> = {
+    pending: 'Pendiente',
+    preparing: 'Preparando',
+    in_transit: 'En tránsito',
+    delivered: 'Llegó a destino',
+    completed: 'Finalizado',
+    cancelled: 'Cancelado',
+  }
+  return map[status] || status
+}
+
+const statusBadge = (status: string) => {
+  const map: Record<string, { label: string; classes: string }> = {
+    pending: { label: statusLabel('pending'), classes: 'bg-amber-100/70 text-amber-900' },
+    preparing: { label: statusLabel('preparing'), classes: 'bg-sky-100/70 text-sky-900' },
+    in_transit: { label: statusLabel('in_transit'), classes: 'bg-indigo-100/70 text-indigo-900' },
+    delivered: { label: statusLabel('delivered'), classes: 'bg-emerald-100/70 text-emerald-900' },
+    completed: { label: statusLabel('completed'), classes: 'bg-slate-200 text-slate-900' },
+    cancelled: { label: statusLabel('cancelled'), classes: 'bg-red-100 text-red-700' },
+  }
+  return map[status] || { label: statusLabel(status), classes: 'bg-white/20 text-white' }
+}
+
+const currency = (value: number) =>
+  new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(Number(value) || 0)
+
+const orderLink = (orderId: number) => {
+  const firstStore = storesMine.value[0]
+  if (!firstStore) return '#'
+  return `/store/${firstStore.slug}/admin/orders/${orderId}`
+}
+
 const loadData = async () => {
   loading.value = true
   storesMine.value = await auth.fetchMyStores()
   await loadTopProducts()
+   await loadOrders()
   loading.value = false
+}
+
+const confirmDeleteStore = async (store: any) => {
+  if (deletingStore.value) return
+  const ok = window.confirm(`¿Eliminar la tienda “${store.name}”? Esto la desactivará y ya no estará visible.`)
+  if (!ok) return
+  deletingStore.value = true
+  try {
+    await $fetch(`${config.public.apiBase}/stores/${store.slug}/`, {
+      method: 'DELETE',
+      headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+    })
+    await loadData()
+    alert('Tienda eliminada')
+  } catch (error: any) {
+    console.error('No se pudo eliminar', error)
+    alert('No se pudo eliminar la tienda (revisa permisos)')
+  } finally {
+    deletingStore.value = false
+  }
 }
 
 const loadTopProducts = async () => {
@@ -142,6 +295,22 @@ const loadTopProducts = async () => {
     })
   } catch (error) {
     console.warn('No se pudieron cargar los más vendidos')
+  }
+}
+
+const loadOrders = async () => {
+  orders.value = []
+  const firstStore = storesMine.value[0]
+  if (!firstStore || !auth.token) return
+  try {
+    orders.value = await $fetch(`${config.public.apiBase}/orders/`, {
+      params: { store: firstStore.slug },
+      headers: { Authorization: `Bearer ${auth.token}` },
+    })
+    pendingPage.value = 1
+    deliveredPage.value = 1
+  } catch (error) {
+    console.warn('No se pudieron cargar pedidos')
   }
 }
 

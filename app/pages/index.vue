@@ -141,6 +141,14 @@
                 <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Todas las tiendas</p>
                 <h3 class="text-xl font-semibold text-slate-900">Explora el marketplace</h3>
               </div>
+              <div class="flex items-center gap-3">
+                <NuxtLink
+                  to="/tiendas"
+                  class="hidden rounded-xl px-4 py-2 text-sm font-semibold text-white shadow sm:inline-flex"
+                  :style="{ backgroundColor: theme.accent }"
+                >
+                  Ver todas las tiendas
+                </NuxtLink>
               <input
                 v-model="filterQuery"
                 type="text"
@@ -164,8 +172,34 @@
               No hay tiendas que coincidan con tu búsqueda.
             </div>
             <div v-else class="grid gap-4 sm:grid-cols-2">
-              <StoreCard v-for="store in filteredStoresAll" :key="store.slug" :store="store" :accent="theme.accent" />
+              <StoreCard v-for="store in paginatedStores" :key="store.slug" :store="store" :accent="theme.accent" />
             </div>
+
+            <div v-if="storesTotalPages > 1" class="flex items-center justify-between pt-2 text-sm text-slate-600">
+              <button
+                class="rounded-lg border border-slate-200 px-3 py-1 hover:border-slate-300 disabled:opacity-40"
+                :disabled="storesPage === 1"
+                @click="storesPage--"
+              >
+                Anterior
+              </button>
+              <span>Página {{ storesPage }} / {{ storesTotalPages }}</span>
+              <button
+                class="rounded-lg border border-slate-200 px-3 py-1 hover:border-slate-300 disabled:opacity-40"
+                :disabled="storesPage === storesTotalPages"
+                @click="storesPage++"
+              >
+                Siguiente
+              </button>
+            </div>
+
+            <NuxtLink
+              to="/tiendas"
+              class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 sm:hidden"
+            >
+              Ver todas las tiendas
+              <span aria-hidden="true">→</span>
+            </NuxtLink>
           </div>
         </div>
       </section>
@@ -274,6 +308,8 @@ const creating = ref(false)
 const createError = ref('')
 const createMessage = ref('')
 const filterQuery = ref('')
+const storesPage = ref(1)
+const storesPerPage = 4
 const heroStyle = computed(() => ({
   backgroundImage: `linear-gradient(120deg, ${theme.gradientFrom}, ${theme.gradientTo})`,
 }))
@@ -284,11 +320,18 @@ const filteredStoresAll = computed(() => {
   return storesAll.value.filter((s) => s.name.toLowerCase().includes(term) || s.slug.toLowerCase().includes(term))
 })
 
+const storesTotalPages = computed(() => Math.max(1, Math.ceil(filteredStoresAll.value.length / storesPerPage)))
+const paginatedStores = computed(() => {
+  const start = (storesPage.value - 1) * storesPerPage
+  return filteredStoresAll.value.slice(start, start + storesPerPage)
+})
+
 const fetchAllStores = async () => {
   loadingAll.value = true
   error.value = ''
   try {
     storesAll.value = await $fetch<Store[]>(`${config.public.apiBase}/stores/`)
+    storesPage.value = 1
   } catch (err) {
     console.error(err)
     error.value = 'Error al cargar las tiendas'
@@ -342,7 +385,7 @@ const createStore = async () => {
   createMessage.value = ''
   creating.value = true
   try {
-    await $fetch<Store>(`${config.public.apiBase}/stores/`, {
+    const created = await $fetch<Store>(`${config.public.apiBase}/stores/`, {
       method: 'POST',
       body: { name: newStoreName.value },
       headers: { Authorization: `Bearer ${auth.token}` },
@@ -350,6 +393,9 @@ const createStore = async () => {
     createMessage.value = 'Tienda creada correctamente'
     newStoreName.value = ''
     await Promise.all([fetchAllStores(), fetchMyStores()])
+    if (created?.slug) {
+      await navigateTo(`/store/${created.slug}?edit=true`)
+    }
   } catch (err: any) {
     createError.value = err?.response?._data?.detail || 'No pudimos crear la tienda'
   } finally {
@@ -381,4 +427,8 @@ watch(
     }
   }
 )
+
+watch(filterQuery, () => {
+  storesPage.value = 1
+})
 </script>

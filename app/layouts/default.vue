@@ -25,7 +25,7 @@
           <NuxtLink
             v-if="auth.isAuthenticated && hasStores"
             to="/dashboard"
-            class="hidden rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm md:inline-flex"
+            class="hidden h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg md:inline-flex"
             :style="{ backgroundColor: accentColor }"
           >
             Dashboard
@@ -41,7 +41,7 @@
 
           <div v-else class="relative" ref="menuRef">
             <button
-              class="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm"
+              class="flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
               :style="{ backgroundColor: accentColor }"
               @click.stop="showMenu = !showMenu"
             >
@@ -105,7 +105,7 @@ const route = useRoute()
 const menuRef = ref<HTMLElement | null>(null)
 const avatarUrl = computed(() => auth.user?.avatar_url || null)
 const initials = computed(() => (auth.user?.username || 'U').slice(0, 2).toUpperCase())
-const accentColor = '#2563eb'
+const accentColor = computed(() => theme.accent || '#2563eb')
 const hasStores = computed(() => ((auth.user as any)?.memberships || []).length > 0)
 
 const handleOutside = (event: MouseEvent) => {

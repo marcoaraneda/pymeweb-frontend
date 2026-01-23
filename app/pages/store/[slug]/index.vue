@@ -95,7 +95,7 @@
             </div>
             <div class="space-y-2">
               <label class="text-sm text-slate-600">Email de contacto</label>
-              <input v-model="storeForm.email" type="email" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+              <input v-model="storeForm.contact_email" type="email" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <div class="space-y-2">
               <label class="text-sm text-slate-600">Teléfono</label>
@@ -290,13 +290,30 @@ const auth = useAuthStore()
 const { getProductImage } = useImages()
 const config = useRuntimeConfig()
 
-const storeForm = reactive({ name: '', slug: '', logo_url: '', description: '', email: '', phone: '' })
+const storeForm = reactive({ name: '', slug: '', logo_url: '', description: '', contact_email: '', phone: '' })
 const showStoreForm = ref(false)
 const updatingStore = ref(false)
 const updateMessage = ref('')
 const updateStatus = ref<'ok' | 'error'>('ok')
+const shouldAutoOpen = computed(() => {
+  const edit = route.query.edit
+  return edit === 'true' || edit === '1' || edit === 'yes'
+})
 
-const palette = ['#2563eb', '#16a34a', '#f59e0b', '#e11d48', '#7c3aed']
+const palette = [
+  '#2563eb', // azul
+  '#16a34a', // verde
+  '#f59e0b', // ámbar
+  '#e11d48', // rosa/rojo
+  '#7c3aed', // violeta
+  '#0ea5e9', // celeste
+  '#f97316', // naranjo
+  '#10b981', // esmeralda
+  '#9333ea', // púrpura profundo
+  '#0d9488', // teal oscuro
+  '#64748b', // slate
+  '#111827', // negro grafito
+]
 const gradients = [
   { from: '#0f172a', to: '#0b2358' },
   { from: '#0b3b2e', to: '#0f766e' },
@@ -310,7 +327,8 @@ const canEditTheme = computed(() => {
   const membership = (auth.user as any)?.memberships || []
   const ownsStore = membership.some((m: any) => {
     const roles = (m.roles || []).map((r: string) => r?.toLowerCase?.())
-    return m?.store?.slug === slug.value && roles.some((r: string) => ['admin', 'owner', 'manager'].includes(r))
+    return m?.store?.slug?.toString().toLowerCase() === slug.value?.toString().toLowerCase() &&
+      roles.some((r: string) => ['admin', 'owner', 'manager'].includes(r))
   })
   return Boolean((auth.user as any)?.is_staff || ownsStore)
 })
@@ -327,6 +345,12 @@ const previewProducts = computed(() => (tenantStore.productos || []).slice(0, 4)
 const setAccent = (color: string) => theme.setStoreTheme(slug.value, { accent: color })
 const setGradient = (from: string, to: string) => theme.setStoreTheme(slug.value, { gradientFrom: from, gradientTo: to })
 
+const maybeOpenEdit = () => {
+  if (shouldAutoOpen.value && canEditTheme.value) {
+    showStoreForm.value = true
+  }
+}
+
 const loadData = async () => {
   tenantStore.setSlug(slug.value)
   await Promise.all([tenantStore.fetchTienda(), tenantStore.fetchProductos()])
@@ -338,7 +362,7 @@ const hydrateForm = () => {
   storeForm.slug = data.slug || slug.value || ''
   storeForm.logo_url = data.logo_url || data.logo || ''
   storeForm.description = data.description || ''
-  storeForm.email = data.email || ''
+  storeForm.contact_email = data.contact_email || data.email || ''
   storeForm.phone = data.phone || ''
 }
 
@@ -353,7 +377,7 @@ const saveStore = async () => {
       slug: storeForm.slug,
       logo_url: storeForm.logo_url,
       description: storeForm.description,
-      email: storeForm.email,
+      contact_email: storeForm.contact_email,
       phone: storeForm.phone,
     }
 
@@ -397,6 +421,7 @@ onMounted(async () => {
   theme.applyStoreTheme(slug.value)
   await loadData()
   hydrateForm()
+  maybeOpenEdit()
 })
 
 watch(
@@ -407,6 +432,8 @@ watch(
     hydrateForm()
   }
 )
+
+watch([shouldAutoOpen, canEditTheme], () => maybeOpenEdit())
 
 watch(
   () => tenantStore.data,
