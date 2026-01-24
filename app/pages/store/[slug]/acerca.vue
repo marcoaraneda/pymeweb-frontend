@@ -12,30 +12,27 @@
     <section class="mx-auto max-w-5xl px-6 py-10 space-y-6">
       <div class="grid gap-6 md:grid-cols-2">
         <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 class="text-xl font-semibold text-slate-900">Información</h2>
-          <p class="mt-2 text-slate-600">{{ storeDescription }}</p>
-          <dl class="mt-4 space-y-2 text-sm text-slate-700">
-            <div v-if="storeData?.slug" class="flex justify-between">
-              <dt class="text-slate-500">Slug</dt>
-              <dd class="font-semibold">{{ storeData.slug }}</dd>
-            </div>
-            <div v-if="storeData?.email" class="flex justify-between">
-              <dt class="text-slate-500">Contacto</dt>
-              <dd class="font-semibold">{{ storeData.email }}</dd>
-            </div>
-            <div v-if="storeData?.phone" class="flex justify-between">
-              <dt class="text-slate-500">Teléfono</dt>
-              <dd class="font-semibold">{{ storeData.phone }}</dd>
-            </div>
-          </dl>
+          <h2 class="text-xl font-semibold text-slate-900">Acerca de nosotros</h2>
+          <p class="mt-2 text-slate-700 whitespace-pre-line">{{ aboutMessage }}</p>
+          <dl class="mt-4 space-y-2 text-sm text-slate-700"></dl>
         </div>
 
         <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 class="text-xl font-semibold text-slate-900">Tema de la tienda</h2>
-          <p class="mt-2 text-slate-600">Colores aplicados para esta tienda.</p>
-          <div class="mt-4 flex flex-wrap gap-3 text-sm">
-            <span class="rounded-full border border-slate-200 px-3 py-1" :style="{ backgroundColor: theme.accent, color: '#fff' }">Acento</span>
-            <span class="rounded-full border border-slate-200 px-3 py-1" :style="{ backgroundImage: `linear-gradient(120deg, ${theme.gradientFrom}, ${theme.gradientTo})`, color: '#0f172a' }">Degradado</span>
+          <h2 class="text-xl font-semibold text-slate-900">Contacto</h2>
+          <p class="mt-2 text-slate-600">¿Tienes dudas o necesitas soporte? Escríbenos y responderemos pronto.</p>
+          <dl class="mt-4 space-y-2 text-sm text-slate-700">
+            <div v-if="contactEmail" class="flex items-center justify-between gap-3">
+              <dt class="text-slate-500">Correo</dt>
+              <dd class="font-semibold truncate">{{ contactEmail }}</dd>
+            </div>
+            <div v-if="phone" class="flex items-center justify-between gap-3">
+              <dt class="text-slate-500">Teléfono</dt>
+              <dd class="font-semibold">{{ phone }}</dd>
+            </div>
+          </dl>
+          <div class="mt-4 flex flex-wrap gap-2 text-sm font-semibold">
+            <a v-if="contactEmail" :href="`mailto:${contactEmail}`" class="rounded-xl bg-slate-900 px-4 py-2 text-white shadow hover:-translate-y-0.5 transition">Enviar correo</a>
+            <a v-if="phone" :href="`tel:${phone}`" class="rounded-xl border border-slate-200 px-4 py-2 text-slate-800 hover:border-slate-300 transition">Llamar</a>
           </div>
         </div>
       </div>
@@ -59,7 +56,16 @@ const theme = useThemeStore()
 
 const storeData = computed(() => tenantStore.data)
 const storeName = computed(() => tenantStore.data?.name || 'Tienda')
-const storeDescription = computed(() => tenantStore.data?.description || 'Personaliza esta sección desde el panel de tu tienda.')
+const storeDescription = computed(() => tenantStore.data?.description || '')
+const aboutMessage = computed(
+  () =>
+    tenantStore.data?.about ||
+    tenantStore.data?.about_us ||
+    tenantStore.data?.about_text ||
+    'Agrega un mensaje de “Acerca de nosotros” desde el editor de la tienda.'
+)
+const contactEmail = computed(() => tenantStore.data?.contact_email || tenantStore.data?.email || '')
+const phone = computed(() => tenantStore.data?.phone || '')
 
 const loadData = async () => {
   tenantStore.setSlug(slug)

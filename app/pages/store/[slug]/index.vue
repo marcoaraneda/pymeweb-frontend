@@ -20,7 +20,7 @@
             </button>
           </div>
           <p class="max-w-2xl text-lg text-white/80">
-            Explora un catálogo curado con envíos rápidos y una experiencia pensada para conversión. Personaliza el acento visual para alinear la tienda a tu marca.
+            {{ heroDescription }}
           </p>
           <div class="flex flex-wrap gap-3">
             <NuxtLink
@@ -93,6 +93,10 @@
             <div class="space-y-2 md:col-span-2">
               <label class="text-sm text-slate-600">Descripción</label>
               <textarea v-model="storeForm.description" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"></textarea>
+            </div>
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Acerca de nosotros (página Acerca)</label>
+              <textarea v-model="storeForm.about" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Cuenta la historia, misión o promesa de tu tienda."></textarea>
             </div>
             <div class="space-y-2">
               <label class="text-sm text-slate-600">Email de contacto</label>
@@ -305,7 +309,7 @@ const auth = useAuthStore()
 const { getProductImage } = useImages()
 const config = useRuntimeConfig()
 
-const storeForm = reactive({ name: '', slug: '', logo_url: '', description: '', contact_email: '', phone: '' })
+const storeForm = reactive({ name: '', slug: '', logo_url: '', description: '', about: '', contact_email: '', phone: '' })
 const showStoreForm = ref(false)
 const updatingStore = ref(false)
 const updateMessage = ref('')
@@ -338,6 +342,11 @@ const gradients = [
 
 const accentColor = computed(() => theme.accent || '#2563eb')
 const accentStyle = computed(() => ({ backgroundColor: accentColor.value, color: '#fff' }))
+const heroDescription = computed(
+  () =>
+    tenantStore.data?.description ||
+    'Explora un catálogo curado con envíos rápidos y una experiencia pensada para conversión. Personaliza el acento visual para alinear la tienda a tu marca.'
+)
 const canEditTheme = computed(() => {
   const membershipRaw = (auth.user as any)?.memberships
   const membership = Array.isArray(membershipRaw) ? membershipRaw : []
@@ -412,6 +421,7 @@ const hydrateForm = () => {
   storeForm.slug = data.slug || slug.value || ''
   storeForm.logo_url = data.logo_url || data.logo || ''
   storeForm.description = data.description || ''
+   storeForm.about = data.about || data.about_us || data.about_text || ''
   storeForm.contact_email = data.contact_email || data.email || ''
   storeForm.phone = data.phone || ''
 }
@@ -428,6 +438,7 @@ const saveStore = async () => {
       logo_url: storeForm.logo_url,
       description: storeForm.description,
       contact_email: storeForm.contact_email,
+      about: storeForm.about,
       phone: storeForm.phone,
     }
 

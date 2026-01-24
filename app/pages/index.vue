@@ -6,7 +6,7 @@
     </div>
 
     <section
-      class="relative z-10 bg-slate-950 text-white"
+      class="relative z-10 bg-slate-950 text-white reveal"
       :style="heroStyle"
     >
       <div class="max-w-6xl mx-auto px-6 py-16 lg:py-24 grid lg:grid-cols-[1.1fr,0.9fr] gap-12 items-center">
@@ -84,7 +84,7 @@
       </div>
     </section>
 
-      <section id="tiendas" class="relative z-10 max-w-6xl mx-auto px-6 py-14 space-y-10">
+      <section id="tiendas" class="relative z-10 max-w-6xl mx-auto px-6 py-14 space-y-10 reveal" style="animation-delay: 0.05s;">
         <div class="grid gap-8 lg:grid-cols-[1.1fr,0.9fr]">
           <div v-if="auth.isAuthenticated" class="space-y-4">
             <div class="flex items-center justify-between">
@@ -205,7 +205,7 @@
         </div>
       </section>
 
-      <section class="relative z-10 max-w-6xl mx-auto px-6 py-14 space-y-6">
+      <section class="relative z-10 max-w-6xl mx-auto px-6 py-14 space-y-6 reveal" style="animation-delay: 0.08s;">
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Marketplace</p>

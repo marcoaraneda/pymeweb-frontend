@@ -1,75 +1,63 @@
-# Nuxt Minimal Starter
+# Pymeweb – Frontend Nuxt + Backend Django
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Proyecto full-stack con Nuxt 4 (frontend) y Django 6 + DRF (backend). La API sirve los datos de tiendas, productos y soporte; el frontend consume `apiBase` (por defecto `http://127.0.0.1:8000/api`).
 
-## Setup
+## Estructura
+- `app/` Nuxt (páginas, layouts, componentes, stores Pinia).
+- `backend/` Proyecto Django.
+- `requirements.txt` Dependencias Python (mismas que `backend/requirements.txt`).
+- `package.json` Scripts y dependencias de frontend.
 
-Make sure to install dependencies:
+## Requisitos previos
+- Node.js 18+ y npm.
+- Python 3.11+ (compatible con Django 6).
+- PostgreSQL si usas base de datos externa (o SQLite por defecto si está configurado así).
 
+## Variables de entorno
+- Frontend: `API_BASE` (opcional). Si no se define, usa `http://127.0.0.1:8000/api`.
+- Backend (coloca en `backend/.env`):
+	- `SECRET_KEY` (obligatorio en producción).
+	- `DEBUG` (`True`/`False`).
+	- `DATABASE_URL` (si usas Postgres) o variables de conexión equivalentes.
+	- Cloudinary/Transbank si se usan: `CLOUDINARY_URL`, credenciales Transbank, etc.
+	- CORS/hosts: añade tu host en `ALLOWED_HOSTS` y `CORS_ALLOWED_ORIGINS`.
+
+## Instalación
+### Backend
 ```bash
-# npm
+cd backend
+python -m venv .venv
+.venv\Scripts\activate            # Windows
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver          # http://127.0.0.1:8000
+```
+
+### Frontend
+```bash
+cd app
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
+# (opcional) API_BASE=http://127.0.0.1:8000/api npm run dev
+npm run dev                          # http://localhost:3000
 ```
 
-## Development Server
+## Scripts útiles (frontend)
+- `npm run dev` Arranca Nuxt en modo desarrollo.
+- `npm run build` Genera build de producción.
+- `npm run preview` Previsualiza el build.
 
-Start the development server on `http://localhost:3000`:
+## Endpoints de prueba
+- API tiendas: `http://127.0.0.1:8000/api/stores/`
+- API marketplace: `http://127.0.0.1:8000/api/marketplace/products/`
+- Frontend: `http://localhost:3000`
 
-```bash
-# npm
-npm run dev
+## Despliegue rápido
+1) Configura variables de entorno seguras (SECRET_KEY, DB, CORS/hosts).
+2) Ejecuta migraciones en el entorno de despliegue.
+3) Sirve Django con WSGI/ASGI productivo (gunicorn/uvicorn) detrás de un reverse proxy.
+4) Genera el build de Nuxt (`npm run build`) y sirve con `nuxt start` o detrás de un proxy.
 
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
-```
-
-## Production
-
-Build the application for production:
-
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+## Problemas comunes
+- **CORS / hosts**: añade el dominio del frontend en `ALLOWED_HOSTS` y `CORS_ALLOWED_ORIGINS` del backend.
+- **API BASE**: si el frontend no llega a la API, revisa `API_BASE` o el valor por defecto en `nuxt.config.ts`.
+- **Dependencias**: si falta una lib de sistema para `psycopg2-binary`, instala las herramientas de Postgres o usa la rueda precompilada.

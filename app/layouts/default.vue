@@ -17,7 +17,7 @@
 
         <div class="flex items-center gap-3">
           <button
-            class="md:hidden rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800"
+            class="md:hidden rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 glass-btn"
             @click.stop="showMenuMobile = !showMenuMobile"
           >
             Menú
@@ -25,8 +25,7 @@
           <NuxtLink
             v-if="auth.isAuthenticated && hasStores"
             to="/dashboard"
-            class="hidden h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg md:inline-flex"
-            :style="{ backgroundColor: accentColor }"
+            class="hidden h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-800 glass-btn md:inline-flex"
           >
             Dashboard
           </NuxtLink>
@@ -39,10 +38,52 @@
             Iniciar sesión
           </NuxtLink>
 
-          <div v-else class="relative" ref="menuRef">
+          <div v-else class="relative flex items-center gap-3" ref="menuRef">
+            <div class="relative inline-flex items-center">
+              <button
+                class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm glass-btn"
+                aria-label="Notificaciones"
+                @click.stop="showNotifications = !showNotifications"
+              >
+                🔔
+                <span
+                  v-if="notificationsCount > 0"
+                  class="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white"
+                >
+                  {{ notificationsCount }}
+                </span>
+              </button>
+              <div
+                v-if="showNotifications"
+                class="absolute right-0 top-12 w-64 rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-lg"
+              >
+                <div class="flex items-center justify-between">
+                  <p class="font-semibold text-slate-800">Notificaciones</p>
+                  <button class="text-xs text-slate-600 underline hover:text-slate-900" @click.stop="clearNotifications">Limpiar</button>
+                </div>
+                <div class="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                  <p v-if="!notifications.length" class="text-slate-500">Sin notificaciones.</p>
+                  <button
+                    v-else
+                    v-for="(n, idx) in notifications"
+                    :key="idx"
+                    class="w-full text-left rounded-lg border border-slate-100 px-2 py-1 text-slate-700 hover:bg-slate-50"
+                    @click="handleNotification(n)"
+                  >
+                    {{ n.message }}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="mt-3 block text-xs font-semibold text-blue-600 hover:underline"
+                  @click="goTickets"
+                >
+                  Ver tickets
+                </button>
+              </div>
+            </div>
             <button
-              class="flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
-              :style="{ backgroundColor: accentColor }"
+              class="flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-800 glass-btn"
               @click.stop="showMenu = !showMenu"
             >
               <span
@@ -61,7 +102,7 @@
             </button>
             <div
               v-if="showMenu"
-              class="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white py-2 text-sm shadow-lg"
+              class="absolute right-0 top-full mt-2 w-48 rounded-xl border border-slate-200 bg-white py-2 text-sm shadow-lg"
             >
               <NuxtLink v-if="hasStores" to="/dashboard" class="block px-3 py-2 text-slate-700 hover:bg-slate-50">Dashboard</NuxtLink>
               <NuxtLink to="/profile" class="block px-3 py-2 text-slate-700 hover:bg-slate-50">Editar perfil</NuxtLink>
@@ -85,7 +126,7 @@
       </div>
     </header>
 
-    <main>
+    <main class="reveal" style="animation-delay: 0.04s;">
       <slot />
     </main>
   </div>
@@ -96,22 +137,72 @@ import { onBeforeUnmount, onMounted, ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
+import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 
 const auth = useAuthStore()
 const theme = useThemeStore()
+const config = useRuntimeConfig()
+const route = useRoute()
 const showMenu = ref(false)
 const showMenuMobile = ref(false)
-const route = useRoute()
 const menuRef = ref<HTMLElement | null>(null)
 const avatarUrl = computed(() => auth.user?.avatar_url || null)
 const initials = computed(() => (auth.user?.username || 'U').slice(0, 2).toUpperCase())
 const accentColor = computed(() => theme.accent || '#2563eb')
 const hasStores = computed(() => ((auth.user as any)?.memberships || []).length > 0)
+type NotificationItem = { type: string; message: string; count: number }
+type DashboardSummary = { notifications?: NotificationItem[] }
+const notifications = ref<NotificationItem[]>([])
+const notificationsCount = computed(() => notifications.value.reduce((acc, n) => acc + (Number(n.count) || 0), 0))
+const showNotifications = ref(false)
 
 const handleOutside = (event: MouseEvent) => {
   if (!menuRef.value) return
   if (!menuRef.value.contains(event.target as Node)) {
     showMenu.value = false
+    showNotifications.value = false
+  }
+}
+
+const loadNotifications = async () => {
+  if (!auth.token) {
+    notifications.value = []
+    return
+  }
+  try {
+    const data = await $fetch<DashboardSummary>(`${config.public.apiBase}/support/dashboard/summary/`, {
+      headers: { Authorization: `Bearer ${auth.token}` },
+    })
+    notifications.value = data?.notifications || []
+  } catch (error) {
+    console.warn('No se pudieron cargar notificaciones', error)
+    notifications.value = []
+  }
+}
+
+const clearNotifications = () => {
+  notifications.value = []
+  showNotifications.value = false
+}
+
+const goTickets = async () => {
+  showNotifications.value = false
+  await navigateTo('/dashboard/tickets')
+}
+
+const handleNotification = async (n: any) => {
+  showNotifications.value = false
+  if (n?.type === 'ticket_detail' && n?.store) {
+    await navigateTo(`/store/${n.store}/soporte`)
+    return
+  }
+  if (n?.type?.startsWith('ticket')) {
+    await navigateTo('/dashboard/tickets')
+    return
+  }
+  if (n?.type?.startsWith('order')) {
+    await navigateTo('/dashboard')
+    return
   }
 }
 
@@ -128,6 +219,7 @@ onMounted(async () => {
   }
   theme.loadFromStorage()
   theme.resetToBase()
+  await loadNotifications()
   document.addEventListener('click', handleOutside)
 })
 
@@ -140,6 +232,7 @@ watch(
   () => {
     showMenu.value = false
     showMenuMobile.value = false
+    showNotifications.value = false
   }
 )
 </script>

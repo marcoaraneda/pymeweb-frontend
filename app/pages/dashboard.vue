@@ -179,6 +179,84 @@
           </div>
         </div>
       </section>
+
+      <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-white/60">Soporte</p>
+            <h2 class="text-xl font-semibold">Tickets</h2>
+          </div>
+          <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">{{ tickets.length }}</span>
+        </div>
+        <div v-if="loadingTickets" class="mt-4 text-white/70">Cargando tickets...</div>
+        <div v-else-if="!tickets.length" class="mt-4 text-white/70">No hay tickets abiertos.</div>
+        <div v-else class="mt-4 divide-y divide-white/10">
+          <button
+            v-for="t in tickets"
+            :key="t.id"
+            class="w-full py-3 flex items-start justify-between gap-3 text-left transition hover:bg-white/5"
+            @click="openTicket(t)"
+          >
+            <div class="space-y-1">
+              <p class="text-sm font-semibold text-white">{{ t.title }}</p>
+              <p class="text-xs text-white/60">{{ t.store_slug || 'Sin tienda' }} • Prioridad {{ t.priority }}</p>
+              <p class="text-sm text-white/80 line-clamp-2">{{ t.description }}</p>
+            </div>
+            <span :class="['rounded-full px-3 py-1 text-[11px] font-semibold', ticketBadge(t.status).classes]">{{ ticketBadge(t.status).label }}</span>
+          </button>
+        </div>
+      </section>
+
+      <div v-if="showTicketModal" class="fixed inset-0 z-30 flex items-center justify-center bg-black/50 px-4 py-6">
+        <div class="relative w-full max-w-2xl rounded-3xl bg-slate-900 p-6 shadow-2xl border border-white/10">
+          <button class="absolute right-4 top-4 text-white/70 hover:text-white" @click="closeTicket">✕</button>
+          <p class="text-xs uppercase tracking-[0.2em] text-white/60">Ticket</p>
+          <h3 class="text-2xl font-semibold text-white">{{ selectedTicket?.title }}</h3>
+          <p class="text-sm text-white/70 mt-1">{{ selectedTicket?.store_slug || 'Sin tienda' }}</p>
+
+          <div class="mt-4 grid gap-4 md:grid-cols-2">
+            <div class="space-y-2">
+              <label class="text-xs text-white/60">Estado</label>
+              <select v-model="editStatus" class="w-full rounded-xl border border-white/20 bg-white text-sm text-slate-900 px-3 py-2">
+                <option value="open">Abierto</option>
+                <option value="in_progress">En progreso</option>
+                <option value="resolved">Resuelto</option>
+                <option value="closed">Cerrado</option>
+              </select>
+            </div>
+            <div class="space-y-2">
+              <label class="text-xs text-white/60">Prioridad</label>
+              <select v-model="editPriority" class="w-full rounded-xl border border-white/20 bg-white text-sm text-slate-900 px-3 py-2">
+                <option value="low">Baja</option>
+                <option value="normal">Normal</option>
+                <option value="high">Alta</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <p class="text-xs uppercase tracking-[0.2em] text-white/60">Descripción</p>
+            <p class="mt-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/80 whitespace-pre-line">{{ selectedTicket?.description }}</p>
+          </div>
+
+          <div class="mt-4 space-y-2">
+            <label class="text-xs text-white/60">Agregar comentario (visible para el cliente)</label>
+            <textarea v-model="newComment" rows="3" class="w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white/90" placeholder="Escribe una actualización"></textarea>
+          </div>
+
+          <div class="mt-6 flex items-center gap-3">
+            <button
+              class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5 disabled:opacity-60"
+              :style="{ backgroundColor: theme.accent }"
+              :disabled="savingTicket"
+              @click="saveTicket"
+            >
+              {{ savingTicket ? 'Guardando...' : 'Guardar cambios' }}
+            </button>
+            <button class="text-sm text-white/70 hover:text-white" @click="closeTicket">Cerrar</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -190,6 +268,15 @@ import StoreCard from '~/components/StoreCard.vue'
 import StatCard from '~/components/StatCard.vue'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
+
+type TicketItem = {
+  id: number
+  title: string
+  description: string
+  status: string
+  priority: string
+  store_slug?: string | null
+}
 
 const auth = useAuthStore()
 const theme = useThemeStore()
@@ -203,8 +290,25 @@ const pageSize = 6
 const config = useRuntimeConfig()
 const deletingStore = ref(false)
 
-const analytics = ref({ visits: 1280, conversions: 74, support: 3 })
+type DashboardSummary = {
+  active_stores: number
+  visits_last_7d: number
+  conversions: number
+  support_open: number
+  pending_products: number
+  notifications?: { type: string; message: string; count: number }[]
+}
+
+const analytics = ref<{ visits: number; conversions: number; support: number; pending_products: number }>({ visits: 0, conversions: 0, support: 0, pending_products: 0 })
 const sparkline = computed(() => [60, 90, 80, 120, 140, 110, 170])
+const tickets = ref<TicketItem[]>([])
+const loadingTickets = ref(true)
+const selectedTicket = ref<TicketItem | null>(null)
+const showTicketModal = ref(false)
+const editStatus = ref('open')
+const editPriority = ref('normal')
+const newComment = ref('')
+const savingTicket = ref(false)
 
 const barColor = (idx: number) => (idx === sparkline.value.length - 1 ? theme.accent : 'rgba(255,255,255,0.25)')
 
@@ -248,6 +352,16 @@ const statusBadge = (status: string) => {
   return map[status] || { label: statusLabel(status), classes: 'bg-white/20 text-white' }
 }
 
+const ticketBadge = (status: string) => {
+  const map: Record<string, { label: string; classes: string }> = {
+    open: { label: 'Abierto', classes: 'bg-amber-500/20 text-amber-100' },
+    in_progress: { label: 'En progreso', classes: 'bg-sky-500/20 text-sky-100' },
+    resolved: { label: 'Resuelto', classes: 'bg-emerald-500/20 text-emerald-100' },
+    closed: { label: 'Cerrado', classes: 'bg-slate-500/20 text-slate-100' },
+  }
+  return map[status] || { label: status, classes: 'bg-white/10 text-white' }
+}
+
 const currency = (value: number) =>
   new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(Number(value) || 0)
 
@@ -260,8 +374,7 @@ const orderLink = (orderId: number) => {
 const loadData = async () => {
   loading.value = true
   storesMine.value = await auth.fetchMyStores()
-  await loadTopProducts()
-   await loadOrders()
+  await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets()])
   loading.value = false
 }
 
@@ -311,6 +424,87 @@ const loadOrders = async () => {
     deliveredPage.value = 1
   } catch (error) {
     console.warn('No se pudieron cargar pedidos')
+  }
+}
+
+const loadTickets = async () => {
+  loadingTickets.value = true
+  tickets.value = []
+  const firstStore = storesMine.value[0]
+  if (!auth.token || !firstStore) {
+    loadingTickets.value = false
+    return
+  }
+  try {
+    tickets.value = await $fetch<TicketItem[]>(`${config.public.apiBase}/support/tickets/`, {
+      headers: { Authorization: `Bearer ${auth.token}` },
+      params: { status: 'open', store: firstStore.slug },
+    })
+  } catch (error) {
+    console.warn('No se pudieron cargar tickets', error)
+    tickets.value = []
+  } finally {
+    loadingTickets.value = false
+  }
+}
+
+const openTicket = (t: any) => {
+  selectedTicket.value = { ...t }
+  editStatus.value = t.status
+  editPriority.value = t.priority
+  newComment.value = ''
+  showTicketModal.value = true
+}
+
+const closeTicket = () => {
+  showTicketModal.value = false
+  selectedTicket.value = null
+}
+
+const saveTicket = async () => {
+  if (!selectedTicket.value) return
+  savingTicket.value = true
+  try {
+    const body: Record<string, any> = {
+      status: editStatus.value,
+      priority: editPriority.value,
+    }
+    if (newComment.value.trim()) {
+      body.description = `${selectedTicket.value.description}\n\n[Admin] ${newComment.value.trim()}`
+    }
+    const updated = await $fetch<TicketItem>(`${config.public.apiBase}/support/tickets/${selectedTicket.value.id}/`, {
+      method: 'PATCH',
+      body,
+      headers: { Authorization: `Bearer ${auth.token}` },
+    })
+    // refresh list locally
+    tickets.value = tickets.value.map((t) => (t.id === updated.id ? updated : t))
+    selectedTicket.value = updated
+    newComment.value = ''
+    showTicketModal.value = false
+  } catch (error) {
+    console.error('No se pudo guardar el ticket', error)
+  } finally {
+    savingTicket.value = false
+  }
+}
+
+const loadSummary = async () => {
+  const firstStore = storesMine.value[0]
+  if (!auth.token) return
+  try {
+    const summary = await $fetch<DashboardSummary>(`${config.public.apiBase}/support/dashboard/summary/`, {
+      headers: { Authorization: `Bearer ${auth.token}` },
+      params: firstStore ? { store: firstStore.slug } : {},
+    })
+    analytics.value = {
+      visits: summary?.visits_last_7d || 0,
+      conversions: summary?.conversions || 0,
+      support: summary?.support_open || 0,
+      pending_products: summary?.pending_products || 0,
+    }
+  } catch (error) {
+    console.warn('No se pudo cargar el resumen', error)
   }
 }
 

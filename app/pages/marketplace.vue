@@ -1,16 +1,16 @@
 <template>
   <div class="min-h-screen bg-slate-50 text-slate-900">
-    <section class="relative overflow-hidden bg-gradient-to-br from-[var(--gradient-from,#0f172a)] to-[var(--gradient-to,#0b2358)] text-white">
+    <section class="relative overflow-hidden bg-gradient-to-br from-[var(--gradient-from,#0f172a)] to-[var(--gradient-to,#0b2358)] text-white" :style="heroStyle">
       <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.08),transparent_45%)]" aria-hidden="true" />
       <div class="relative mx-auto flex max-w-6xl flex-col gap-8 px-6 py-16 lg:flex-row lg:items-center lg:py-20">
         <div class="space-y-5 lg:w-1/2">
           <p class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.25em]">Marketplace</p>
-          <h1 class="text-4xl font-bold leading-tight md:text-5xl">Explora productos y tiendas en un solo lugar</h1>
+          <h1 class="text-4xl font-bold leading-tight md:text-5xl">Marketplace abierto: compra directo a tiendas verificadas</h1>
           <p class="max-w-2xl text-lg text-white/80">
-            Descubre artículos publicados para marketplace y entra directo a la tienda propietaria para finalizar tu compra.
+            Explora productos publicados por tiendas reales, compara ofertas y entra directo a pagar en la tienda propietaria con envíos rápidos y seguros.
           </p>
           <div class="flex flex-wrap gap-3">
-            <a href="#productos" class="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5" :style="{ backgroundColor: theme.accent, color: '#fff' }">
+            <a href="#productos" class="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5" :style="ctaStyle">
               Ver productos
               <span aria-hidden="true">→</span>
             </a>
@@ -93,7 +93,7 @@
             <div class="flex flex-wrap items-center gap-2">
               <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
               <span v-else-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta</span>
-              <span class="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700">Marketplace</span>
+              <span class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-900">Marketplace</span>
             </div>
 
             <p class="text-base font-bold" :style="{ color: theme.accent }">
@@ -130,6 +130,11 @@ import { useThemeStore } from '~/stores/theme'
 
 const theme = useThemeStore()
 const config = useRuntimeConfig()
+
+const amberFrom = '#92400e'
+const amberTo = '#f59e0b'
+const heroStyle = computed(() => ({ '--gradient-from': amberFrom, '--gradient-to': amberTo }))
+const ctaStyle = computed(() => ({ backgroundColor: '#0f172a', color: '#fff' }))
 
 const products = ref<any[]>([])
 const loadingProducts = ref(true)
