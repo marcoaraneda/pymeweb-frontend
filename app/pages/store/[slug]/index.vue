@@ -190,7 +190,7 @@
               <span v-if="product.is_marketplace" class="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-800">Marketplace</span>
             </div>
 
-            <p class="text-base font-bold" :style="{ color: accentColor }">
+            <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">
               <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
               ${{ product.offer_price || product.price }}
             </p>
@@ -258,7 +258,7 @@
               <span v-if="product.is_marketplace" class="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-800">Marketplace</span>
             </div>
 
-            <p class="text-base font-bold" :style="{ color: accentColor }">
+            <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">
               <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
               ${{ product.offer_price || product.price }}
             </p>

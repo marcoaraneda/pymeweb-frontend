@@ -8,8 +8,9 @@
           <p class="text-slate-600">Explora y añade al carrito con un clic.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <NuxtLink :to="`/store/${slug}/carrito`" class="rounded-xl px-3 py-2 text-sm font-semibold text-white shadow" :style="accentStyle">
-            🛒
+          <NuxtLink :to="`/store/${slug}/carrito`" class="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-white shadow" :style="accentStyle">
+            <ShoppingCart class="h-4 w-4" aria-hidden="true" />
+            Carrito
           </NuxtLink>
           <NuxtLink
             v-if="auth.isAuthenticated"
@@ -80,7 +81,7 @@
               <span v-if="product.is_marketplace" class="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-800">Marketplace</span>
             </div>
 
-            <p class="text-base font-bold" :style="{ color: accentColor }">
+            <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">
               <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
               ${{ product.offer_price || product.price }}
             </p>
@@ -117,6 +118,7 @@ import { useCartStore } from '~/stores/cart'
 import { useImages } from '~/composables/useImages'
 import { useThemeStore } from '~/stores/theme'
 import { useAuthStore } from '~/stores/auth'
+import { ShoppingCart } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'store' })
 

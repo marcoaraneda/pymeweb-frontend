@@ -45,7 +45,7 @@
                 aria-label="Notificaciones"
                 @click.stop="showNotifications = !showNotifications"
               >
-                🔔
+                <Bell class="h-5 w-5" aria-hidden="true" />
                 <span
                   v-if="notificationsCount > 0"
                   class="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white"
@@ -104,7 +104,6 @@
               v-if="showMenu"
               class="absolute right-0 top-full mt-2 w-48 rounded-xl border border-slate-200 bg-white py-2 text-sm shadow-lg"
             >
-              <NuxtLink v-if="hasStores" to="/dashboard" class="block px-3 py-2 text-slate-700 hover:bg-slate-50">Dashboard</NuxtLink>
               <NuxtLink to="/profile" class="block px-3 py-2 text-slate-700 hover:bg-slate-50">Editar perfil</NuxtLink>
               <button class="block w-full px-3 py-2 text-left text-red-600 hover:bg-slate-50" @click="auth.logout()">Cerrar sesión</button>
             </div>
@@ -116,7 +115,6 @@
         <div class="flex flex-col gap-2">
           <NuxtLink to="/marketplace" class="rounded-lg px-3 py-2 hover:bg-slate-100">Marketplace</NuxtLink>
           <NuxtLink to="/#tiendas" class="rounded-lg px-3 py-2 hover:bg-slate-100">Ver tiendas</NuxtLink>
-          <NuxtLink v-if="auth.isAuthenticated && hasStores" to="/dashboard" class="rounded-lg px-3 py-2 hover:bg-slate-100">Dashboard</NuxtLink>
           <NuxtLink v-if="!auth.isAuthenticated" to="/login" class="rounded-lg px-3 py-2 hover:bg-slate-100">Iniciar sesión</NuxtLink>
           <template v-else>
             <NuxtLink to="/profile" class="rounded-lg px-3 py-2 hover:bg-slate-100">Editar perfil</NuxtLink>
@@ -138,6 +136,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
+import { Bell } from 'lucide-vue-next'
 
 const auth = useAuthStore()
 const theme = useThemeStore()

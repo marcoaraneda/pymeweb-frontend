@@ -16,7 +16,7 @@
 
       <div class="flex items-center gap-3 text-2xl font-bold">
         <span v-if="product.offer_price" class="text-slate-400 line-through text-xl">${{ product.price }}</span>
-        <span :style="{ color: accentColor }">${{ product.offer_price || product.price }}</span>
+        <span :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">${{ product.offer_price || product.price }}</span>
       </div>
 
       <div class="flex flex-wrap gap-3 text-sm text-slate-600">
@@ -29,10 +29,11 @@
         <button
           @click="cart.addProduct(product)
             "
-          class="rounded-xl px-5 py-3 text-sm font-semibold text-white shadow"
+          class="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow"
           :style="{ backgroundColor: accentColor }"
         >
-          🛒 Agregar al carrito
+          <ShoppingCart class="h-4 w-4" aria-hidden="true" />
+          Agregar al carrito
         </button>
         <NuxtLink
           v-if="product.store?.slug"
@@ -56,14 +57,20 @@
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Reseñas</p>
             <h2 class="text-lg font-semibold text-slate-900">Opiniones y valoración</h2>
           </div>
-          <span class="text-sm font-semibold text-amber-600" v-if="averageRating">{{ averageRating }} ★</span>
+          <span class="flex items-center gap-1 text-sm font-semibold text-amber-600" v-if="averageRating">
+            <Star class="h-4 w-4" aria-hidden="true" />
+            {{ averageRating }}
+          </span>
         </div>
 
         <div class="space-y-3" v-if="reviews.length">
           <article v-for="review in reviews" :key="review.id" class="rounded-xl border border-slate-100 bg-slate-50 p-3">
             <div class="flex items-center justify-between text-sm text-slate-700">
               <span class="font-semibold">{{ review.customer_name || 'Cliente' }}</span>
-              <span class="text-amber-600">{{ review.rating }} ★</span>
+              <span class="flex items-center gap-1 text-amber-600">
+                <Star class="h-4 w-4" aria-hidden="true" />
+                {{ review.rating }}
+              </span>
             </div>
             <p class="mt-1 text-sm text-slate-600">{{ review.comment }}</p>
             <p class="text-xs text-slate-400">{{ new Date(review.created_at).toLocaleDateString() }}</p>
@@ -109,6 +116,7 @@ import { useImages } from '~/composables/useImages'
 import { useThemeStore } from '~/stores/theme'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
+import { ShoppingCart, Star } from 'lucide-vue-next'
 
 const route = useRoute()
 const cart = useCartStore()

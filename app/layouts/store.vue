@@ -46,7 +46,7 @@
             class="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow ring-1 ring-slate-200 text-slate-800 glass-btn"
             aria-label="Carrito"
           >
-            🛒
+            <ShoppingCart class="h-5 w-5" aria-hidden="true" />
             <span
               v-if="cart.totalItems > 0"
               class="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white"
@@ -76,7 +76,7 @@
                 aria-label="Notificaciones"
                 @click.stop="showNotifications = !showNotifications"
               >
-                🔔
+                <Bell class="h-5 w-5" aria-hidden="true" />
                 <span
                   v-if="notificationsCount > 0"
                   class="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white"
@@ -159,6 +159,7 @@
 import { computed, onBeforeUnmount, onMounted, watch, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
+import { ShoppingCart, Bell } from 'lucide-vue-next'
 import { useTenantStore } from '~/stores/tenant'
 import { useCartStore } from '~/stores/cart'
 import { useAuthStore } from '~/stores/auth'

@@ -6,7 +6,7 @@
           <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Productos</p>
           <h1 class="text-2xl font-bold text-slate-900">Editar producto</h1>
         </div>
-        <NuxtLink :to="`/store/${slug}/productos`" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Volver</NuxtLink>
+        <NuxtLink :to="backPath" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Volver</NuxtLink>
       </div>
 
       <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
@@ -93,8 +93,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useRuntimeConfig } from 'nuxt/app'
+import { useRoute } from 'vue-router'
+import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { definePageMeta } from '#imports'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
@@ -102,15 +102,18 @@ import { useTenantStore } from '~/stores/tenant'
 
 definePageMeta({ layout: 'store' })
 
+// @ts-expect-error – simplify route typing to avoid deep template literal expansion in Volar
 const route = useRoute()
-const router = useRouter()
+const params = route.params as Record<string, string>
 const config = useRuntimeConfig()
 const auth = useAuthStore()
 const theme = useThemeStore()
 const tenantStore = useTenantStore()
 
-const slug = route.params.slug as string
-const productSlug = route.params.product_slug as string
+// Force params to plain strings to avoid deep conditional route types
+const slug = params.slug || ''
+const productSlug = params.product_slug || ''
+const backPath = computed(() => `/store/${slug}/productos`)
 
 const form = reactive({
   id: null as number | null,
@@ -179,7 +182,7 @@ const removeProduct = async () => {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${auth.token}` },
     })
-    router.push(`/store/${slug}/productos`)
+    await navigateTo({ path: backPath.value })
   } catch (error: any) {
     message.value = error?.response?._data || 'No pudimos eliminar el producto'
     messageType.value = 'error'
@@ -219,7 +222,7 @@ const save = async () => {
     })
     message.value = 'Producto actualizado'
     messageType.value = 'ok'
-    router.push(`/store/${slug}/productos`)
+    await navigateTo({ path: backPath.value })
   } catch (error: any) {
     message.value = error?.response?._data || 'No pudimos actualizar el producto'
     messageType.value = 'error'

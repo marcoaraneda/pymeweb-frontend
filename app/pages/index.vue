@@ -29,7 +29,7 @@
               :style="{ backgroundColor: theme.accent, color: '#fff' }"
             >
               Iniciar sesión
-              <span aria-hidden="true">→</span>
+              <ChevronRight class="h-4 w-4" aria-hidden="true" />
             </NuxtLink>
             <a
               v-else
@@ -38,13 +38,14 @@
               :style="{ backgroundColor: theme.accent, color: '#fff' }"
             >
               Crear tienda
-              <span aria-hidden="true">★</span>
+              <Star class="h-4 w-4" aria-hidden="true" />
             </a>
             <a
               href="#tiendas"
               class="inline-flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 font-semibold text-white hover:border-white/40 hover:bg-white/5 transition"
             >
               Ver tiendas
+              <ChevronRight class="h-4 w-4" aria-hidden="true" />
             </a>
           </div>
         </div>
@@ -148,6 +149,7 @@
                   :style="{ backgroundColor: theme.accent }"
                 >
                   Ver todas las tiendas
+                  <ChevronRight class="h-4 w-4" aria-hidden="true" />
                 </NuxtLink>
               <input
                 v-model="filterQuery"
@@ -199,7 +201,7 @@
               class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 sm:hidden"
             >
               Ver todas las tiendas
-              <span aria-hidden="true">→</span>
+              <ChevronRight class="h-4 w-4" aria-hidden="true" />
             </NuxtLink>
           </div>
         </div>
@@ -218,7 +220,7 @@
             :style="{ backgroundColor: theme.accent }"
           >
             Ir al marketplace
-            <span aria-hidden="true">→</span>
+            <ChevronRight class="h-4 w-4" aria-hidden="true" />
           </NuxtLink>
         </div>
 
@@ -284,6 +286,7 @@
 </template>
 
 <script setup lang="ts">
+import { ChevronRight, Star } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import StoreCard from '~/components/StoreCard.vue'

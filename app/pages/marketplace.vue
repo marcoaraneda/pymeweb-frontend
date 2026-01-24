@@ -1,36 +1,44 @@
 <template>
-  <div class="min-h-screen bg-slate-50 text-slate-900">
-    <section class="relative overflow-hidden bg-gradient-to-br from-[var(--gradient-from,#0f172a)] to-[var(--gradient-to,#0b2358)] text-white" :style="heroStyle">
-      <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.08),transparent_45%)]" aria-hidden="true" />
-      <div class="relative mx-auto flex max-w-6xl flex-col gap-8 px-6 py-16 lg:flex-row lg:items-center lg:py-20">
-        <div class="space-y-5 lg:w-1/2">
-          <p class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.25em]">Marketplace</p>
-          <h1 class="text-4xl font-bold leading-tight md:text-5xl">Marketplace abierto: compra directo a tiendas verificadas</h1>
-          <p class="max-w-2xl text-lg text-white/80">
-            Explora productos publicados por tiendas reales, compara ofertas y entra directo a pagar en la tienda propietaria con envíos rápidos y seguros.
-          </p>
-          <div class="flex flex-wrap gap-3">
-            <a href="#productos" class="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5" :style="ctaStyle">
-              Ver productos
-              <span aria-hidden="true">→</span>
-            </a>
-            <a href="#tiendas" class="inline-flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 text-sm font-semibold text-white hover:border-white/40 hover:bg-white/5 transition">
-              Ver todas las tiendas
+  <div class="min-h-screen bg-slate-50">
+    <section class="relative overflow-hidden bg-slate-900 text-white" :style="heroStyle">
+      <div
+        class="absolute inset-0 opacity-80"
+        style="background: radial-gradient(circle at 10% 20%, var(--gradient-from), transparent 35%), radial-gradient(circle at 80% 0%, var(--gradient-to), transparent 40%);"
+      ></div>
+      <div class="relative mx-auto flex max-w-6xl flex-col gap-8 px-6 py-12 lg:flex-row lg:items-center lg:justify-between">
+        <div class="space-y-4">
+          <p class="text-xs uppercase tracking-[0.25em] text-amber-200/90">Marketplace</p>
+          <h1 class="text-3xl font-semibold leading-tight lg:text-4xl">Publica tus productos y véndelos en nuestro marketplace</h1>
+          <p class="max-w-2xl text-slate-100/80">Sube productos sin tener una tienda propia y controla qué está activo o vendido.</p>
+          <div class="flex flex-wrap items-center gap-3">
+            <NuxtLink
+              :to="auth.isAuthenticated ? '#mis-productos' : '/login'"
+              class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
+              :style="ctaStyle"
+            >
+              {{ auth.isAuthenticated ? 'Agregar producto' : 'Iniciar sesión para publicar' }}
+            </NuxtLink>
+            <a
+              href="#productos"
+              class="inline-flex items-center gap-2 rounded-xl border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+            >
+              Ver productos publicados
             </a>
           </div>
         </div>
-        <div class="relative lg:w-1/2">
-          <div class="absolute -inset-6 rounded-3xl bg-white/10 blur-2xl" />
-          <div class="relative rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
-            <p class="text-sm text-white/80">Productos destacados</p>
-            <div class="mt-4 grid gap-3 sm:grid-cols-2">
-              <div v-for="prod in productsPreview" :key="prod.id" class="rounded-2xl bg-white/10 p-4 text-sm shadow-inner">
-                <p class="text-xs uppercase text-white/60">{{ prod.store?.slug || 'tienda' }}</p>
-                <p class="text-base font-semibold">{{ prod.name }}</p>
-                <p class="text-white/80">${{ prod.offer_price || prod.price }}</p>
-              </div>
-              <p v-if="!productsPreview.length" class="text-white/70">Aún no hay productos en marketplace.</p>
-            </div>
+
+        <div class="grid w-full max-w-xl grid-cols-2 gap-3 rounded-2xl bg-white/5 p-4 backdrop-blur">
+          <article v-for="product in filteredProducts.slice(0, 4)" :key="product.id" class="rounded-xl border border-white/10 bg-white/5 p-3">
+            <p class="text-xs uppercase text-amber-200/80">{{ product.category?.name || 'General' }}</p>
+            <p class="text-sm font-semibold text-white line-clamp-1">{{ product.name }}</p>
+            <p class="text-sm text-amber-100 line-clamp-2">{{ product.description }}</p>
+            <p class="text-base font-bold text-red-200">
+              <span v-if="product.offer_price" class="mr-1 text-amber-100/70 line-through">${{ product.price }}</span>
+              ${{ product.offer_price || product.price }}
+            </p>
+          </article>
+          <div v-if="!filteredProducts.length" class="col-span-2 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-amber-100">
+            Sin productos cargados todavía.
           </div>
         </div>
       </div>
@@ -85,10 +93,15 @@
           <div class="flex flex-1 flex-col p-4 space-y-3">
             <div class="flex items-center justify-between">
               <p class="text-xs uppercase text-slate-500">{{ product.category?.name || 'General' }}</p>
-              <span class="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">{{ product.store?.slug || 'tienda' }}</span>
+              <span class="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                {{ product.store_is_marketplace && product.submitted_by_name ? 'Marketplace' : (product.store?.slug || 'tienda') }}
+              </span>
             </div>
             <h3 class="text-lg font-semibold text-slate-900 group-hover:text-slate-700 line-clamp-1">{{ product.name }}</h3>
             <p class="text-sm text-slate-600 line-clamp-2">{{ product.description }}</p>
+            <p v-if="product.store_is_marketplace && product.submitted_by_name" class="text-xs text-slate-500">
+              Vendedor: {{ product.submitted_by_name }}
+            </p>
 
             <div class="flex flex-wrap items-center gap-2">
               <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
@@ -96,39 +109,250 @@
               <span class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-900">Marketplace</span>
             </div>
 
-            <p class="text-base font-bold" :style="{ color: theme.accent }">
+            <p class="text-base font-bold text-red-600">
               <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
               ${{ product.offer_price || product.price }}
             </p>
 
             <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
               <NuxtLink
-                :to="`/store/${product.store?.slug}/productos/${product.slug}`"
+                v-if="product.store?.slug && !product.store_is_marketplace"
+                :to="`/store/${product.store.slug}/productos/${product.slug}`"
                 class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
                 :style="{ backgroundColor: theme.accent }"
               >
                 Ver producto
               </NuxtLink>
               <NuxtLink
-                :to="`/store/${product.store?.slug}`"
+                v-if="product.store?.slug && !product.store_is_marketplace"
+                :to="`/store/${product.store.slug}`"
                 class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900"
               >
-                Ver tienda
+                Ir a la tienda
+              </NuxtLink>
+              <NuxtLink
+                v-if="product.store_is_marketplace"
+                to="/marketplace/mis-productos"
+                class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
+                :style="{ backgroundColor: theme.accent }"
+              >
+                Ver producto
               </NuxtLink>
             </div>
           </div>
         </article>
       </div>
     </section>
+
+    <section v-if="auth.isAuthenticated" id="mis-productos" class="mx-auto max-w-6xl px-6 pb-12 space-y-6">
+      <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Marketplace</p>
+            <h2 class="text-xl font-semibold text-slate-900">Mis productos</h2>
+            <p class="text-sm text-slate-600">Agrega productos, revisa vendidos y reactívalos si lo necesitas.</p>
+          </div>
+          <div class="flex gap-2">
+            <button
+              class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:-translate-y-0.5 transition"
+              @click="fetchSubmissions"
+              :disabled="submissionsLoading"
+            >
+              <Loader2 v-if="submissionsLoading" class="h-4 w-4 animate-spin" />
+              Recargar
+            </button>
+          </div>
+        </div>
+
+        <div v-if="showForm" class="mt-4 grid gap-4 md:grid-cols-2">
+          <div class="space-y-2">
+            <label class="text-sm text-slate-600">Nombre</label>
+            <input v-model="submissionForm.name" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm text-slate-600">Precio</label>
+            <input v-model.number="submissionForm.price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm text-slate-600">Precio oferta (opcional)</label>
+            <input v-model.number="submissionForm.offer_price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm text-slate-600">Imagen (URL)</label>
+            <input v-model="submissionForm.image_url" type="url" placeholder="https://..." class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            <p class="text-xs text-slate-500">Opcional; se sube a Cloudinary.</p>
+          </div>
+          <div class="space-y-2 md:col-span-2">
+            <label class="text-sm text-slate-600">Descripción</label>
+            <textarea v-model="submissionForm.description" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"></textarea>
+          </div>
+
+          <div class="md:col-span-2 flex items-center gap-3">
+            <button
+              class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
+              :style="ctaStyle"
+              :disabled="submissionSaving || !submissionForm.name || !submissionForm.price"
+              @click="createSubmission"
+            >
+              <Loader2 v-if="submissionSaving" class="h-4 w-4 animate-spin" />
+              {{ submissionSaving ? 'Publicando...' : 'Publicar producto' }}
+            </button>
+            <p v-if="submissionMessage" class="text-sm" :class="submissionMessageType === 'error' ? 'text-red-600' : 'text-green-600'">{{ submissionMessage }}</p>
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <div class="mb-3 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-slate-900">Productos vendidos</h3>
+            <span class="text-xs text-slate-500">Se muestran los marcados como inactivos</span>
+          </div>
+          <div v-if="submissionsLoading" class="text-slate-500">Cargando...</div>
+          <div v-else-if="submissionsError" class="text-red-600">{{ submissionsError }}</div>
+          <div v-else-if="!soldSubmissions.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-slate-600">
+            Aún no tienes productos vendidos.
+          </div>
+          <div v-else class="grid gap-3 md:grid-cols-2">
+            <article
+              v-for="item in soldSubmissions"
+              :key="`sold-${item.id}`"
+              class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ item.name }}</p>
+                <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                  <XCircle class="h-4 w-4" />
+                  Vendido
+                </span>
+              </div>
+              <p class="text-sm text-slate-600 line-clamp-2">{{ item.description || 'Sin descripción' }}</p>
+              <p class="text-base font-bold" :class="item.offer_price ? 'text-red-600' : 'text-slate-900'">
+                <span v-if="item.offer_price" class="mr-1 text-slate-400 line-through">${{ item.price }}</span>
+                ${{ item.offer_price || item.price }}
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:-translate-y-0.5 transition"
+                  :disabled="togglingId === item.id"
+                  @click="toggleSubmission(item)"
+                >
+                  <Loader2 v-if="togglingId === item.id" class="h-4 w-4 animate-spin" />
+                  Reactivar
+                </button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-semibold text-slate-900">Productos publicados (no vendidos)</h2>
+            <p class="text-sm text-slate-600">Activos en marketplace. Marca vendido cuando corresponda.</p>
+          </div>
+          <button
+            class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
+            :style="ctaStyle"
+            @click="showForm = !showForm"
+          >
+            {{ showForm ? 'Cerrar formulario' : 'Agregar producto' }}
+          </button>
+        </div>
+
+        <div v-if="submissionsLoading" class="mt-4 text-slate-500">Cargando mis productos...</div>
+        <div v-else-if="submissionsError" class="mt-4 text-red-600">{{ submissionsError }}</div>
+        <div v-else-if="showForm" class="mt-4 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2">
+          <div class="space-y-2">
+            <label class="text-sm text-slate-600">Nombre</label>
+            <input v-model="submissionForm.name" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm text-slate-600">Precio</label>
+            <input v-model.number="submissionForm.price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm text-slate-600">Precio oferta (opcional)</label>
+            <input v-model.number="submissionForm.offer_price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm text-slate-600">Imagen (URL)</label>
+            <input v-model="submissionForm.image_url" type="url" placeholder="https://..." class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            <p class="text-xs text-slate-500">Opcional; se sube a Cloudinary.</p>
+          </div>
+          <div class="space-y-2 md:col-span-2">
+            <label class="text-sm text-slate-600">Descripción</label>
+            <textarea v-model="submissionForm.description" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"></textarea>
+          </div>
+
+          <div class="md:col-span-2 flex items-center gap-3">
+            <button
+              class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
+              :style="ctaStyle"
+              :disabled="submissionSaving || !submissionForm.name || !submissionForm.price"
+              @click="createSubmission"
+            >
+              <Loader2 v-if="submissionSaving" class="h-4 w-4 animate-spin" />
+              {{ submissionSaving ? 'Publicando...' : 'Publicar producto' }}
+            </button>
+            <p v-if="submissionMessage" class="text-sm" :class="submissionMessageType === 'error' ? 'text-red-600' : 'text-green-600'">{{ submissionMessage }}</p>
+          </div>
+        </div>
+        <div v-else-if="!activeSubmissions.length" class="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-slate-600">
+          No tienes productos activos en marketplace.
+        </div>
+        <div v-else class="mt-4 grid gap-4 md:grid-cols-2">
+          <article
+            v-for="item in activeSubmissions"
+            :key="`active-${item.id}`"
+            class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ item.name }}</p>
+              <span
+                class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold"
+                :class="item.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'"
+              >
+                <CheckCircle2 v-if="item.is_active" class="h-4 w-4" />
+                <XCircle v-else class="h-4 w-4" />
+                {{ item.is_active ? 'Activo' : 'Vendido' }}
+              </span>
+            </div>
+            <p class="text-sm text-slate-600 line-clamp-2">{{ item.description || 'Sin descripción' }}</p>
+            <p class="text-base font-bold" :class="item.offer_price ? 'text-red-600' : 'text-slate-900'">
+              <span v-if="item.offer_price" class="mr-1 text-slate-400 line-through">${{ item.price }}</span>
+              ${{ item.offer_price || item.price }}
+            </p>
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+              <span>Slug: {{ item.slug }}</span>
+              <span>·</span>
+              <span>ID: {{ item.id }}</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:-translate-y-0.5 transition"
+                :disabled="togglingId === item.id"
+                @click="toggleSubmission(item)"
+              >
+                <Loader2 v-if="togglingId === item.id" class="h-4 w-4 animate-spin" />
+                {{ item.is_active ? 'Marcar vendido (desactivar)' : 'Reactivar' }}
+              </button>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRuntimeConfig } from 'nuxt/app'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { useThemeStore } from '~/stores/theme'
+import { useAuthStore } from '~/stores/auth'
+import { CheckCircle2, XCircle, Loader2 } from 'lucide-vue-next'
 
 const theme = useThemeStore()
+const auth = useAuthStore()
 const config = useRuntimeConfig()
 
 const amberFrom = '#92400e'
@@ -142,6 +366,28 @@ const productsError = ref('')
 const productSearch = ref('')
 const categoryFilter = ref('')
 const sortOrder = ref('')
+
+const submissions = ref<any[]>([])
+const submissionsLoading = ref(false)
+const submissionsError = ref('')
+const submissionSaving = ref(false)
+const togglingId = ref<number | null>(null)
+
+const submissionForm = reactive({
+  name: '',
+  price: null as number | null,
+  offer_price: null as number | null,
+  description: '',
+  image_url: '',
+  is_active: true,
+})
+
+const submissionMessage = ref('')
+const submissionMessageType = ref<'ok' | 'error'>('ok')
+const showForm = ref(false)
+
+const soldSubmissions = computed(() => submissions.value.filter((s) => !s.is_active))
+const activeSubmissions = computed(() => submissions.value.filter((s) => s.is_active))
 
 const categories = computed(() => {
   const names = new Set<string>()
@@ -175,6 +421,8 @@ const productsPreview = computed(() => filteredProducts.value.slice(0, 4))
 
 const productImage = (product: any) => product?.images?.[0]?.image || 'https://via.placeholder.com/400x240?text=Producto'
 
+const authHeader = computed(() => ({ Authorization: `Bearer ${auth.token}` }))
+
 const fetchProducts = async () => {
   loadingProducts.value = true
   productsError.value = ''
@@ -187,9 +435,88 @@ const fetchProducts = async () => {
   }
 }
 
+const fetchSubmissions = async () => {
+  if (!auth.token) return
+  submissionsLoading.value = true
+  submissionsError.value = ''
+  try {
+    submissions.value = await $fetch(`${config.public.apiBase}/marketplace/submissions/`, {
+      headers: authHeader.value,
+    })
+  } catch (err) {
+    submissionsError.value = 'No pudimos cargar tus productos'
+  } finally {
+    submissionsLoading.value = false
+  }
+}
+
+const resetSubmissionForm = () => {
+  submissionForm.name = ''
+  submissionForm.price = null
+  submissionForm.offer_price = null
+  submissionForm.description = ''
+  submissionForm.image_url = ''
+  submissionForm.is_active = true
+}
+
+const createSubmission = async () => {
+  if (!auth.token) {
+    await navigateTo('/login')
+    return
+  }
+  submissionSaving.value = true
+  submissionMessage.value = ''
+  try {
+    const payload: any = {
+      name: submissionForm.name,
+      price: submissionForm.price,
+      description: submissionForm.description,
+      is_active: submissionForm.is_active,
+    }
+    if (submissionForm.offer_price) payload.offer_price = submissionForm.offer_price
+    if (submissionForm.image_url) payload.image_url = submissionForm.image_url
+
+    const created = await $fetch(`${config.public.apiBase}/marketplace/submissions/`, {
+      method: 'POST',
+      body: payload,
+      headers: authHeader.value,
+    })
+    submissions.value = [created, ...submissions.value]
+    submissionMessage.value = 'Producto publicado en tu marketplace'
+    submissionMessageType.value = 'ok'
+    resetSubmissionForm()
+  } catch (err: any) {
+    submissionMessage.value = err?.response?._data?.detail || 'No pudimos publicar el producto'
+    submissionMessageType.value = 'error'
+  } finally {
+    submissionSaving.value = false
+  }
+}
+
+const toggleSubmission = async (item: any) => {
+  if (!auth.token) {
+    await navigateTo('/login')
+    return
+  }
+  togglingId.value = item.id
+  try {
+    const updated = await $fetch(`${config.public.apiBase}/marketplace/submissions/${item.id}/`, {
+      method: 'PATCH',
+      body: { is_active: !item.is_active },
+      headers: authHeader.value,
+    })
+    submissions.value = submissions.value.map((s) => (s.id === item.id ? updated : s))
+  } catch (err) {
+    // no-op
+  } finally {
+    togglingId.value = null
+  }
+}
+
 onMounted(async () => {
   theme.loadFromStorage()
   theme.applyTheme()
-  await fetchProducts()
+  auth.restoreFromCookies()
+  await Promise.all([fetchProducts(), fetchSubmissions()])
 })
 </script>

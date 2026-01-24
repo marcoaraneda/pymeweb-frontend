@@ -8,20 +8,24 @@
       </h2>
 
       <nav class="space-y-2">
-        <NuxtLink :to="`/store/${slug}/admin/inventario`" class="nav-link">
-          📦 Inventario
+        <NuxtLink :to="`/store/${slug}/admin/inventario`" class="nav-link flex items-center gap-2">
+          <Package class="h-4 w-4" aria-hidden="true" />
+          Inventario
         </NuxtLink>
 
-        <NuxtLink :to="`/store/${slug}/admin/catalog`" class="nav-link">
-          🏷️ Productos
+        <NuxtLink :to="`/store/${slug}/admin/catalog`" class="nav-link flex items-center gap-2">
+          <Tag class="h-4 w-4" aria-hidden="true" />
+          Productos
         </NuxtLink>
 
-        <NuxtLink :to="`/store/${slug}/admin/reviews`" class="nav-link">
-          ⭐ Reseñas
+        <NuxtLink :to="`/store/${slug}/admin/reviews`" class="nav-link flex items-center gap-2">
+          <Star class="h-4 w-4" aria-hidden="true" />
+          Reseñas
         </NuxtLink>
 
-        <NuxtLink :to="`/store/${slug}/admin/cms`" class="nav-link">
-          🎨 Personalización
+        <NuxtLink :to="`/store/${slug}/admin/cms`" class="nav-link flex items-center gap-2">
+          <Palette class="h-4 w-4" aria-hidden="true" />
+          Personalización
         </NuxtLink>
       </nav>
     </aside>
@@ -36,6 +40,7 @@
 
 <script setup lang="ts">
 import { useTenantStore } from '~/stores/tenant'
+import { Package, Tag, Star, Palette } from 'lucide-vue-next'
 const slug = useTenantStore().slug
 </script>
 

@@ -29,7 +29,7 @@
         :style="buttonStyle"
       >
         Entrar a la tienda
-        <span aria-hidden="true" class="transition group-hover:translate-x-0.5">→</span>
+        <ChevronRight class="h-4 w-4" aria-hidden="true" />
       </NuxtLink>
     </div>
   </div>
@@ -37,6 +37,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { ChevronRight, Trash2, Store as StoreIcon } from 'lucide-vue-next'
 
 type Store = { id: number; name: string; slug: string; logo_url?: string; logo?: string | { url?: string } }
 

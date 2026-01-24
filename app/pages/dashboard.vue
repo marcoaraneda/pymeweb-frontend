@@ -22,10 +22,10 @@
       </header>
 
       <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Tiendas activas" :value="storesMine.length" icon="🏪" :accent="theme.accent" />
-        <StatCard title="Visitantes (7d)" :value="analytics.visits" icon="👀" :accent="theme.accent" />
-        <StatCard title="Conversiones" :value="analytics.conversions" icon="🛒" :accent="theme.accent" />
-        <StatCard title="Tickets abiertos" :value="analytics.support" icon="🎧" :accent="theme.accent" />
+        <StatCard title="Tiendas activas" :value="storesMine.length" :icon="Building2" :accent="theme.accent" />
+        <StatCard title="Visitantes (7d)" :value="analytics.visits" :icon="Eye" :accent="theme.accent" />
+        <StatCard title="Conversiones" :value="analytics.conversions" :icon="ShoppingCart" :accent="theme.accent" />
+        <StatCard title="Tickets abiertos" :value="analytics.support" :icon="Headset" :accent="theme.accent" />
       </section>
 
       <section class="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
@@ -75,7 +75,9 @@
           </div>
 
           <div class="mt-6 flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-white/80">
-            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">💡</span>
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">
+              <Lightbulb class="h-5 w-5" aria-hidden="true" />
+            </span>
             <div>
               <p class="text-sm font-semibold">Tip</p>
               <p class="text-xs text-white/60">Personaliza el color en la home para reflejar tu marca en todos los CTA.</p>
@@ -266,6 +268,7 @@ import { computed, onMounted, ref } from 'vue'
 import { navigateTo, useRuntimeConfig } from 'nuxt/app'
 import StoreCard from '~/components/StoreCard.vue'
 import StatCard from '~/components/StatCard.vue'
+import { Building2, Eye, ShoppingCart, Headset, Lightbulb } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 
