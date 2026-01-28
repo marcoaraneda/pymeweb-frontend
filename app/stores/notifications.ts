@@ -45,5 +45,9 @@ export const useNotificationStore = defineStore('notifications', {
       this.unread = []
       this.saveHistory()
     },
+    clearHistory() {
+      this.history = []
+      this.saveHistory()
+    },
   },
 })

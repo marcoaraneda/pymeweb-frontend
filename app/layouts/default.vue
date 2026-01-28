@@ -77,10 +77,10 @@
                   <button class="text-xs text-slate-600 underline hover:text-slate-900" @click.stop="clearNotifications">Limpiar</button>
                 </div>
                 <div class="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                  <p v-if="!notifications.length" class="text-slate-500">Sin notificaciones.</p>
+                  <p v-if="!unreadNotifications.length" class="text-slate-500">Sin notificaciones.</p>
                   <button
                     v-else
-                    v-for="(n, idx) in notifications"
+                    v-for="(n, idx) in unreadNotifications"
                     :key="idx"
                     class="w-full text-left rounded-lg border border-slate-100 px-2 py-1 text-slate-700 hover:bg-slate-50"
                     @click="handleNotification(n)"
@@ -91,9 +91,9 @@
                 <button
                   type="button"
                   class="mt-3 block text-xs font-semibold text-blue-600 hover:underline"
-                  @click="goTickets"
+                  @click="goNotifications"
                 >
-                  Ver tickets
+                  Ver notificaciones
                 </button>
               </div>
             </div>
@@ -143,6 +143,10 @@
     <main class="reveal" style="animation-delay: 0.04s;">
       <slot />
     </main>
+
+    <ClientOnly>
+      <ChatBot />
+    </ClientOnly>
   </div>
 </template>
 
@@ -154,6 +158,8 @@ import { useThemeStore } from '~/stores/theme'
 import { useCartStore } from '~/stores/cart'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { Bell, ShoppingCart } from 'lucide-vue-next'
+import ChatBot from '~/components/ChatBot.vue'
+import { useNotificationStore } from '~/stores/notifications'
 
 const auth = useAuthStore()
 const theme = useThemeStore()
@@ -167,10 +173,11 @@ const avatarUrl = computed(() => auth.user?.avatar_url || null)
 const initials = computed(() => (auth.user?.username || 'U').slice(0, 2).toUpperCase())
 const accentColor = computed(() => theme.accent || '#2563eb')
 const hasStores = computed(() => ((auth.user as any)?.memberships || []).length > 0)
-type NotificationItem = { type: string; message: string; count: number }
+type NotificationItem = { type: string; message: string; count: number; store?: string }
 type DashboardSummary = { notifications?: NotificationItem[] }
-const notifications = ref<NotificationItem[]>([])
-const notificationsCount = computed(() => notifications.value.reduce((acc, n) => acc + (Number(n.count) || 0), 0))
+const notificationStore = useNotificationStore()
+const unreadNotifications = computed(() => notificationStore.unread)
+const notificationsCount = computed(() => notificationStore.totalUnread)
 const showNotifications = ref(false)
 
 const handleOutside = (event: MouseEvent) => {
@@ -183,28 +190,28 @@ const handleOutside = (event: MouseEvent) => {
 
 const loadNotifications = async () => {
   if (!auth.token) {
-    notifications.value = []
+    notificationStore.setUnread([])
     return
   }
   try {
     const data = await $fetch<DashboardSummary>(`${config.public.apiBase}/support/dashboard/summary/`, {
       headers: { Authorization: `Bearer ${auth.token}` },
     })
-    notifications.value = data?.notifications || []
+    notificationStore.setUnread(data?.notifications || [])
   } catch (error) {
     console.warn('No se pudieron cargar notificaciones', error)
-    notifications.value = []
+    notificationStore.setUnread([])
   }
 }
 
 const clearNotifications = () => {
-  notifications.value = []
+  notificationStore.markAllAsRead()
   showNotifications.value = false
 }
 
-const goTickets = async () => {
+const goNotifications = async () => {
   showNotifications.value = false
-  await navigateTo('/dashboard/tickets')
+  await navigateTo('/notificaciones')
 }
 
 const handleNotification = async (n: any) => {
@@ -234,6 +241,7 @@ onMounted(async () => {
   if (auth.token && !auth.user) {
     await auth.fetchProfile()
   }
+  notificationStore.loadHistory()
   cart.loadFromStorage()
   cart.setContext('marketplace')
   theme.loadFromStorage()
@@ -254,4 +262,10 @@ watch(
     showNotifications.value = false
   }
 )
+
+watch(showNotifications, (open, prev) => {
+  if (!open && prev) {
+    notificationStore.markAllAsRead()
+  }
+})
 </script>
