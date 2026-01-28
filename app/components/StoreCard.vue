@@ -21,8 +21,6 @@
         </div>
       </div>
 
-      <p class="text-sm text-slate-500">Slug: {{ store.slug }}</p>
-
       <NuxtLink
         :to="`/store/${store.slug}`"
         class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition"

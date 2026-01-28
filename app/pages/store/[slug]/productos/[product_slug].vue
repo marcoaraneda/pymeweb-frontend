@@ -116,6 +116,7 @@ import { useImages } from '~/composables/useImages'
 import { useThemeStore } from '~/stores/theme'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
+import { useTenantStore } from '~/stores/tenant'
 import { ShoppingCart, Star } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -123,6 +124,7 @@ const cart = useCartStore()
 const theme = useThemeStore()
 const config = useRuntimeConfig()
 const auth = useAuthStore()
+const tenantStore = useTenantStore()
 const { getProductBySlug } = useProducts()
 const { getProductImage } = useImages()
 
@@ -181,6 +183,9 @@ const sendReview = async () => {
 
 onMounted(async () => {
   try {
+    const slug = route.params.slug as string
+    tenantStore.setSlug(slug)
+    theme.applyStoreTheme(slug)
     product.value = await getProductBySlug(route.params.product_slug as string)
     await fetchReviews()
   } catch (e) {

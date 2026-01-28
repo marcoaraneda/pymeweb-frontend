@@ -10,6 +10,12 @@
       </div>
 
       <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+        <div class="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          <p class="font-semibold text-slate-900">Tienda: {{ slug }}</p>
+          <p class="text-slate-600">Slug del producto: {{ productSlug }}</p>
+          <p class="mt-1 text-slate-600">Descripción actual: {{ form.description || 'Sin descripción aún' }}</p>
+        </div>
+
         <div class="grid gap-4">
           <div class="space-y-2">
             <label class="text-sm text-slate-600">Nombre</label>
@@ -101,10 +107,8 @@ import { useThemeStore } from '~/stores/theme'
 import { useTenantStore } from '~/stores/tenant'
 
 definePageMeta({ layout: 'store' })
-
-// @ts-expect-error – simplify route typing to avoid deep template literal expansion in Volar
-const route = useRoute()
-const params = route.params as Record<string, string>
+const route = useRoute() as any
+const params = (route?.params || {}) as Record<string, string>
 const config = useRuntimeConfig()
 const auth = useAuthStore()
 const theme = useThemeStore()

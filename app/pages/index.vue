@@ -217,7 +217,7 @@
           <NuxtLink
             to="/marketplace"
             class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
-            :style="{ backgroundColor: theme.accent }"
+            :style="{ backgroundColor: '#f59e0b' }"
           >
             Ir al marketplace
             <ChevronRight class="h-4 w-4" aria-hidden="true" />
@@ -252,21 +252,31 @@
                 <span class="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700">Marketplace</span>
               </div>
 
-              <p class="text-base font-bold" :style="{ color: theme.accent }">
+              <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : ''" :style="product.offer_price ? {} : { color: theme.accent }">
                 <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
                 ${{ product.offer_price || product.price }}
               </p>
 
               <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
-                <NuxtLink
-                  :to="`/store/${product.store?.slug}/productos/${product.slug}`"
+                <button
                   class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
-                  :style="{ backgroundColor: theme.accent }"
+                  :style="{ backgroundColor: '#f59e0b' }"
+                  @click="addToCart(product)"
                 >
-                  Ir a la tienda
+                  Agregar al carrito
+                </button>
+                <NuxtLink
+                  :to="product.store?.slug && !product.store_is_marketplace
+                    ? `/store/${product.store.slug}/productos/${product.slug || product.id}`
+                    : `/marketplace/productos/${product.slug || product.id}`"
+                  class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
+                  :style="{ backgroundColor: '#f59e0b' }"
+                >
+                  Ver producto
                 </NuxtLink>
                 <NuxtLink
-                  :to="`/store/${product.store?.slug}`"
+                  v-if="product.store?.slug && !product.store_is_marketplace"
+                  :to="`/store/${product.store.slug}`"
                   class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900"
                 >
                   Ver tienda
@@ -292,12 +302,14 @@ import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import StoreCard from '~/components/StoreCard.vue'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
+import { useCartStore } from '~/stores/cart'
 
 type Store = { id: number; name: string; slug: string }
 
 const config = useRuntimeConfig()
 const auth = useAuthStore()
 const theme = useThemeStore()
+const cart = useCartStore()
 
 const storesAll = ref<Store[]>([])
 const storesMine = ref<Store[]>([])
@@ -358,6 +370,11 @@ const fetchMarketplace = async () => {
 }
 
 const productImage = (product: any) => product?.images?.[0]?.image || 'https://via.placeholder.com/400x240?text=Producto'
+
+const addToCart = (product: any) => {
+  if (!product) return
+  cart.addProduct(product)
+}
 
 const canEditProduct = (product: any) => {
   const memberships = (auth.user as any)?.memberships || []

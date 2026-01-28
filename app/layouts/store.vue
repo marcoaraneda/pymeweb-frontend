@@ -43,13 +43,14 @@
           <button class="md:hidden rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 glass-btn" @click.stop="showMobileNav = !showMobileNav">Menú</button>
           <NuxtLink
             :to="`/store/${slug}/carrito`"
-            class="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow ring-1 ring-slate-200 text-slate-800 glass-btn"
+            class="relative flex h-10 w-10 items-center justify-center rounded-xl text-white shadow"
+            :style="{ backgroundColor: accentColor }"
             aria-label="Carrito"
           >
             <ShoppingCart class="h-5 w-5" aria-hidden="true" />
             <span
               v-if="cart.totalItems > 0"
-              class="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white"
+              class="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white px-1 text-xs font-semibold text-slate-900"
             >
               {{ cart.totalItems }}
             </span>
@@ -272,6 +273,7 @@ onMounted(async () => {
   }
   applyThemeForSlug()
   cart.loadFromStorage()
+  cart.setContext(slug.value)
   await ensureStoreData()
   await loadNotifications()
 })
@@ -283,6 +285,7 @@ onBeforeUnmount(() => {
 watch(
   () => route.params.slug,
   async () => {
+    cart.setContext(slug.value)
     await ensureStoreData()
     applyThemeForSlug()
     await loadNotifications()

@@ -13,8 +13,7 @@
           <div class="flex flex-wrap items-center gap-3">
             <NuxtLink
               :to="auth.isAuthenticated ? '#mis-productos' : '/login'"
-              class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
-              :style="ctaStyle"
+              class="inline-flex items-center gap-2 rounded-xl border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
             >
               {{ auth.isAuthenticated ? 'Agregar producto' : 'Iniciar sesión para publicar' }}
             </NuxtLink>
@@ -109,34 +108,34 @@
               <span class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-900">Marketplace</span>
             </div>
 
-            <p class="text-base font-bold text-red-600">
+            <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">
               <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
               ${{ product.offer_price || product.price }}
             </p>
 
             <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
-              <NuxtLink
-                v-if="product.store?.slug && !product.store_is_marketplace"
-                :to="`/store/${product.store.slug}/productos/${product.slug}`"
+              <button
                 class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
-                :style="{ backgroundColor: theme.accent }"
+                :style="{ backgroundColor: marketplaceAccent }"
+                @click="addToCart(product)"
               >
-                Ver producto
+                Agregar al carrito
+              </button>
+              <NuxtLink
+                :to="product.store?.slug && !product.store_is_marketplace
+                  ? `/store/${product.store.slug}/productos/${product.slug || product.id}`
+                  : `/marketplace/productos/${product.slug || product.id}`"
+                class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
+                :style="{ backgroundColor: marketplaceAccent }"
+              >
+                Ver detalle
               </NuxtLink>
               <NuxtLink
                 v-if="product.store?.slug && !product.store_is_marketplace"
                 :to="`/store/${product.store.slug}`"
                 class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900"
               >
-                Ir a la tienda
-              </NuxtLink>
-              <NuxtLink
-                v-if="product.store_is_marketplace"
-                to="/marketplace/mis-productos"
-                class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
-                :style="{ backgroundColor: theme.accent }"
-              >
-                Ver producto
+                Ver tienda
               </NuxtLink>
             </div>
           </div>
@@ -306,27 +305,52 @@
             :key="`active-${item.id}`"
             class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
           >
-            <div class="flex items-center justify-between gap-2">
-              <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ item.name }}</p>
-              <span
-                class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold"
-                :class="item.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'"
-              >
-                <CheckCircle2 v-if="item.is_active" class="h-4 w-4" />
-                <XCircle v-else class="h-4 w-4" />
-                {{ item.is_active ? 'Activo' : 'Vendido' }}
-              </span>
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ item.name }}</p>
+                <div class="flex items-center gap-2 text-[11px] text-slate-500">
+                  <span>Slug: {{ item.slug }}</span>
+                  <span>·</span>
+                  <span>ID: {{ item.id }}</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span
+                  class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold"
+                  :class="item.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'"
+                >
+                  <CheckCircle2 v-if="item.is_active" class="h-4 w-4" />
+                  <XCircle v-else class="h-4 w-4" />
+                  {{ item.is_active ? 'Activo' : 'Vendido' }}
+                </span>
+                <div class="relative">
+                  <button
+                    class="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50"
+                    @click.stop="toggleSubmissionMenu(item.id)"
+                    aria-label="Acciones"
+                  >
+                    ⋮
+                  </button>
+                  <div
+                    v-if="actionMenuId === item.id"
+                    class="absolute right-0 top-11 z-10 w-44 rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+                  >
+                    <NuxtLink
+                      :to="`/marketplace/productos/${item.slug || item.id}`"
+                      class="block px-3 py-2 text-slate-700 hover:bg-slate-50"
+                      @click="toggleSubmissionMenu(null)"
+                    >
+                      Ver detalle / editar
+                    </NuxtLink>
+                  </div>
+                </div>
+              </div>
             </div>
             <p class="text-sm text-slate-600 line-clamp-2">{{ item.description || 'Sin descripción' }}</p>
             <p class="text-base font-bold" :class="item.offer_price ? 'text-red-600' : 'text-slate-900'">
               <span v-if="item.offer_price" class="mr-1 text-slate-400 line-through">${{ item.price }}</span>
               ${{ item.offer_price || item.price }}
             </p>
-            <div class="flex items-center gap-2 text-xs text-slate-500">
-              <span>Slug: {{ item.slug }}</span>
-              <span>·</span>
-              <span>ID: {{ item.id }}</span>
-            </div>
             <div class="flex flex-wrap gap-2">
               <button
                 class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:-translate-y-0.5 transition"
@@ -349,14 +373,17 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { useThemeStore } from '~/stores/theme'
 import { useAuthStore } from '~/stores/auth'
+import { useCartStore } from '~/stores/cart'
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-vue-next'
 
 const theme = useThemeStore()
 const auth = useAuthStore()
+const cart = useCartStore()
 const config = useRuntimeConfig()
 
+const marketplaceAccent = '#f59e0b'
 const amberFrom = '#92400e'
-const amberTo = '#f59e0b'
+const amberTo = marketplaceAccent
 const heroStyle = computed(() => ({ '--gradient-from': amberFrom, '--gradient-to': amberTo }))
 const ctaStyle = computed(() => ({ backgroundColor: '#0f172a', color: '#fff' }))
 
@@ -385,6 +412,7 @@ const submissionForm = reactive({
 const submissionMessage = ref('')
 const submissionMessageType = ref<'ok' | 'error'>('ok')
 const showForm = ref(false)
+const actionMenuId = ref<number | null>(null)
 
 const soldSubmissions = computed(() => submissions.value.filter((s) => !s.is_active))
 const activeSubmissions = computed(() => submissions.value.filter((s) => s.is_active))
@@ -421,7 +449,21 @@ const productsPreview = computed(() => filteredProducts.value.slice(0, 4))
 
 const productImage = (product: any) => product?.images?.[0]?.image || 'https://via.placeholder.com/400x240?text=Producto'
 
+const addToCart = async (product: any) => {
+  if (!product) return
+  cart.loadFromStorage()
+  cart.setContext('marketplace')
+  cart.addProduct(product)
+  await navigateTo('/marketplace/carrito')
+}
+
 const authHeader = computed(() => ({ Authorization: `Bearer ${auth.token}` }))
+
+const ensureFreshToken = async () => {
+  if (!auth.token && auth.refreshToken) {
+    await auth.refreshTokens()
+  }
+}
 
 const fetchProducts = async () => {
   loadingProducts.value = true
@@ -435,7 +477,12 @@ const fetchProducts = async () => {
   }
 }
 
+const toggleSubmissionMenu = (id: number | null) => {
+  actionMenuId.value = actionMenuId.value === id ? null : id
+}
+
 const fetchSubmissions = async () => {
+  await ensureFreshToken()
   if (!auth.token) return
   submissionsLoading.value = true
   submissionsError.value = ''
@@ -443,7 +490,19 @@ const fetchSubmissions = async () => {
     submissions.value = await $fetch(`${config.public.apiBase}/marketplace/submissions/`, {
       headers: authHeader.value,
     })
-  } catch (err) {
+  } catch (err: any) {
+    const code = err?.response?._data?.code
+    if (code === 'token_not_valid' && auth.refreshToken) {
+      await auth.refreshTokens()
+      try {
+        submissions.value = await $fetch(`${config.public.apiBase}/marketplace/submissions/`, {
+          headers: authHeader.value,
+        })
+        return
+      } catch (e) {
+        /* no-op */
+      }
+    }
     submissionsError.value = 'No pudimos cargar tus productos'
   } finally {
     submissionsLoading.value = false
@@ -460,22 +519,23 @@ const resetSubmissionForm = () => {
 }
 
 const createSubmission = async () => {
+  await ensureFreshToken()
   if (!auth.token) {
     await navigateTo('/login')
     return
   }
   submissionSaving.value = true
   submissionMessage.value = ''
-  try {
-    const payload: any = {
-      name: submissionForm.name,
-      price: submissionForm.price,
-      description: submissionForm.description,
-      is_active: submissionForm.is_active,
-    }
-    if (submissionForm.offer_price) payload.offer_price = submissionForm.offer_price
-    if (submissionForm.image_url) payload.image_url = submissionForm.image_url
+  const payload: any = {
+    name: submissionForm.name,
+    price: submissionForm.price,
+    description: submissionForm.description,
+    is_active: submissionForm.is_active,
+  }
+  if (submissionForm.offer_price) payload.offer_price = submissionForm.offer_price
+  if (submissionForm.image_url) payload.image_url = submissionForm.image_url
 
+  try {
     const created = await $fetch(`${config.public.apiBase}/marketplace/submissions/`, {
       method: 'POST',
       body: payload,
@@ -486,6 +546,26 @@ const createSubmission = async () => {
     submissionMessageType.value = 'ok'
     resetSubmissionForm()
   } catch (err: any) {
+    const code = err?.response?._data?.code
+    if (code === 'token_not_valid' && auth.refreshToken) {
+      const refreshed = await auth.refreshTokens()
+      if (refreshed) {
+        try {
+          const created = await $fetch(`${config.public.apiBase}/marketplace/submissions/`, {
+            method: 'POST',
+            body: payload,
+            headers: authHeader.value,
+          })
+          submissions.value = [created, ...submissions.value]
+          submissionMessage.value = 'Producto publicado en tu marketplace'
+          submissionMessageType.value = 'ok'
+          resetSubmissionForm()
+          return
+        } catch (e) {
+          /* fall through to message */
+        }
+      }
+    }
     submissionMessage.value = err?.response?._data?.detail || 'No pudimos publicar el producto'
     submissionMessageType.value = 'error'
   } finally {
@@ -498,6 +578,7 @@ const toggleSubmission = async (item: any) => {
     await navigateTo('/login')
     return
   }
+  await ensureFreshToken()
   togglingId.value = item.id
   try {
     const updated = await $fetch(`${config.public.apiBase}/marketplace/submissions/${item.id}/`, {
@@ -506,8 +587,23 @@ const toggleSubmission = async (item: any) => {
       headers: authHeader.value,
     })
     submissions.value = submissions.value.map((s) => (s.id === item.id ? updated : s))
-  } catch (err) {
-    // no-op
+  } catch (err: any) {
+    const code = err?.response?._data?.code
+    if (code === 'token_not_valid' && auth.refreshToken) {
+      const refreshed = await auth.refreshTokens()
+      if (refreshed) {
+        try {
+          const updated = await $fetch(`${config.public.apiBase}/marketplace/submissions/${item.id}/`, {
+            method: 'PATCH',
+            body: { is_active: !item.is_active },
+            headers: authHeader.value,
+          })
+          submissions.value = submissions.value.map((s) => (s.id === item.id ? updated : s))
+        } catch (e) {
+          /* swallow */
+        }
+      }
+    }
   } finally {
     togglingId.value = null
   }
@@ -517,6 +613,8 @@ onMounted(async () => {
   theme.loadFromStorage()
   theme.applyTheme()
   auth.restoreFromCookies()
+  cart.loadFromStorage()
+  cart.setContext('marketplace')
   await Promise.all([fetchProducts(), fetchSubmissions()])
 })
 </script>

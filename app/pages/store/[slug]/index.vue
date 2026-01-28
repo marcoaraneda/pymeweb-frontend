@@ -338,6 +338,11 @@ const gradients = [
   { from: '#0b3b2e', to: '#0f766e' },
   { from: '#2b0b3f', to: '#7c3aed' },
   { from: '#3b0a1a', to: '#e11d48' },
+  { from: '#1d4ed8', to: '#06b6d4' },
+  { from: '#15803d', to: '#84cc16' },
+  { from: '#c2410c', to: '#f97316' },
+  { from: '#7c2d12', to: '#f59e0b' },
+  { from: '#312e81', to: '#9333ea' },
 ]
 
 const accentColor = computed(() => theme.accent || '#2563eb')

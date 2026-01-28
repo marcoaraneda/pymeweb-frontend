@@ -1,35 +1,52 @@
 import { defineStore } from 'pinia'
 
+type CartItem = {
+  id: number | string
+  name: string
+  price: number
+  image?: string | null
+  quantity: number
+}
+
 export const useCartStore = defineStore('cart', {
   state: () => ({
-    items: [] as any[],
+    itemsByContext: {} as Record<string, CartItem[]>,
+    currentContext: 'marketplace',
   }),
 
   getters: {
-    totalItems: (state) =>
-      state.items.reduce((acc, item) => acc + item.quantity, 0),
+    items: (state) => state.itemsByContext[state.currentContext] || [],
 
-    totalPrice: (state) =>
-      state.items.reduce(
-        (acc, item) => acc + item.price * item.quantity,
-        0
-      ),
+    totalItems(): number {
+      return this.items.reduce((acc, item) => acc + item.quantity, 0)
+    },
+
+    totalPrice(): number {
+      return this.items.reduce((acc, item) => acc + item.price * item.quantity, 0)
+    },
   },
 
   actions: {
+    setContext(contextKey: string) {
+      this.currentContext = contextKey || 'marketplace'
+      if (!this.itemsByContext[this.currentContext]) {
+        this.itemsByContext[this.currentContext] = []
+      }
+      this.saveToStorage()
+    },
+
     addProduct(product: any) {
-      const existing = this.items.find(
-        (item) => item.id === product.id
-      )
+      const list = this.ensureContext()
+      const existing = list.find((item) => item.id === product.id)
 
       if (existing) {
         existing.quantity++
       } else {
-        this.items.push({
+        list.push({
           id: product.id,
           name: product.name,
-          price: Number(product.price),
-          image: product.images?.[0]?.image || null,
+          price: Number(product.offer_price || product.price),
+          image: product.images?.[0]?.image || product.image || null,
           quantity: 1,
         })
       }
@@ -37,15 +54,15 @@ export const useCartStore = defineStore('cart', {
       this.saveToStorage()
     },
 
-    removeProduct(productId: number) {
-      this.items = this.items.filter(
-        (item) => item.id !== productId
-      )
+    removeProduct(productId: number | string) {
+      const list = this.ensureContext()
+      this.itemsByContext[this.currentContext] = list.filter((item) => item.id !== productId)
       this.saveToStorage()
     },
 
-    updateQuantity(productId: number, qty: number) {
-      const item = this.items.find((i) => i.id === productId)
+    updateQuantity(productId: number | string, qty: number) {
+      const list = this.ensureContext()
+      const item = list.find((i) => i.id === productId)
       if (!item) return
 
       item.quantity = qty <= 0 ? 1 : qty
@@ -53,26 +70,41 @@ export const useCartStore = defineStore('cart', {
     },
 
     clearCart() {
-      this.items = []
+      this.itemsByContext[this.currentContext] = []
       this.saveToStorage()
     },
 
     saveToStorage() {
       if (process.client) {
-        localStorage.setItem(
-          'cart',
-          JSON.stringify(this.items)
-        )
+        localStorage.setItem('cart-contexts', JSON.stringify(this.itemsByContext))
       }
     },
 
     loadFromStorage() {
-      if (process.client) {
-        const stored = localStorage.getItem('cart')
-        if (stored) {
-          this.items = JSON.parse(stored)
+      if (!process.client) return
+      const raw = localStorage.getItem('cart-contexts') || localStorage.getItem('cart')
+      if (!raw) return
+      try {
+        const parsed = JSON.parse(raw)
+        // Backward compatibility: if previous value was an array, map it to marketplace context
+        if (Array.isArray(parsed)) {
+          this.itemsByContext = { marketplace: parsed }
+        } else {
+          this.itemsByContext = parsed || {}
         }
+      } catch (e) {
+        this.itemsByContext = { marketplace: [] }
       }
+      if (!this.itemsByContext[this.currentContext]) {
+        this.itemsByContext[this.currentContext] = []
+      }
+    },
+
+    ensureContext() {
+      if (!this.itemsByContext[this.currentContext]) {
+        this.itemsByContext[this.currentContext] = []
+      }
+      return this.itemsByContext[this.currentContext]
     },
   },
 })

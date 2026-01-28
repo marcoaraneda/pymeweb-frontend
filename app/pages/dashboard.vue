@@ -10,15 +10,24 @@
         <div>
           <p class="text-xs uppercase tracking-[0.2em] text-white/60">Panel</p>
           <h1 class="text-3xl font-extrabold">Dashboard de tiendas</h1>
-          <p class="text-white/70">Resumen rápido de tus tiendas, actividad y accesos.</p>
+          <p class="text-white/70">Resumen rápido de tus tiendas, actividad y accesos. Accede al carrito del marketplace desde aquí.</p>
         </div>
-        <NuxtLink
-          to="/"
-          class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5"
-          :style="{ backgroundColor: theme.accent }"
-        >
-          Ir al marketplace
-        </NuxtLink>
+        <div class="flex flex-wrap items-center gap-3">
+          <select
+            v-model="selectedStore"
+            class="rounded-xl border border-white/30 bg-white text-sm text-slate-900 px-3 py-2 focus:border-slate-300 focus:outline-none shadow-sm"
+          >
+            <option value="all">Todas mis tiendas</option>
+            <option v-for="store in storesMine" :key="store.slug" :value="store.slug">{{ store.name }}</option>
+          </select>
+          <NuxtLink
+            :to="cartTarget"
+            class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5"
+            :style="{ backgroundColor: theme.accent }"
+          >
+            Ir al carrito
+          </NuxtLink>
+        </div>
       </header>
 
       <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -87,19 +96,35 @@
       </section>
 
       <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-white/60">Más vendidos</p>
             <h2 class="text-xl font-semibold">Productos con más compras</h2>
           </div>
-          <NuxtLink v-if="storesMine[0]" :to="`/store/${storesMine[0].slug}/productos`" class="text-sm font-semibold text-white/80 hover:text-white">Ver catálogo</NuxtLink>
+          <div class="flex flex-wrap items-center gap-2">
+            <select
+              v-model="topCategoryFilter"
+              class="rounded-lg border border-white/20 bg-white text-sm text-slate-900 px-3 py-1 shadow-sm"
+            >
+              <option value="">Todas las categorías</option>
+              <option v-for="cat in topCategories" :key="cat" :value="cat">{{ cat }}</option>
+            </select>
+            <button
+              class="rounded-lg border border-white/15 px-3 py-1 text-sm text-white/80 hover:border-white/40"
+              @click="exportTopProducts"
+              :disabled="!filteredTopProducts.length"
+            >
+              Exportar Excel
+            </button>
+            <NuxtLink v-if="storesMine[0]" :to="`/store/${storesMine[0].slug}/productos`" class="text-sm font-semibold text-white/80 hover:text-white">Ver catálogo</NuxtLink>
+          </div>
         </div>
         <div v-if="!topProducts.length" class="mt-4 text-white/70">No hay datos aún.</div>
         <div v-else class="mt-4 divide-y divide-white/10">
-          <div v-for="prod in topProducts" :key="prod.id" class="flex items-center justify-between py-3 text-white/80">
+          <div v-for="prod in filteredTopProducts" :key="prod.id + (prod.store_slug || prod.store?.slug || '')" class="flex items-center justify-between py-3 text-white/80">
             <div>
               <p class="font-semibold text-white">{{ prod.name }}</p>
-              <p class="text-xs text-white/60">{{ prod.category?.name || 'General' }} • {{ prod.store?.slug || 'tienda' }}</p>
+              <p class="text-xs text-white/60">{{ prod.category?.name || 'General' }} • {{ prod.store?.slug || prod.store_slug || 'tienda' }}</p>
             </div>
             <div class="text-right">
               <p class="text-sm">{{ prod.total_quantity }} ventas</p>
@@ -114,12 +139,14 @@
 
       <section class="grid gap-4 lg:grid-cols-2">
         <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
-          <div class="flex items-center justify-between">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p class="text-xs uppercase tracking-[0.2em] text-white/60">Pedidos en proceso</p>
               <h2 class="text-xl font-semibold">Pendientes / Preparando / En tránsito</h2>
             </div>
-            <span class="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">{{ pendingOrders.length }}</span>
+            <div class="flex items-center gap-2">
+              <span class="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">{{ pendingOrders.length }}</span>
+            </div>
           </div>
           <div v-if="!pendingOrders.length" class="mt-4 text-white/70">No hay pedidos en proceso.</div>
           <div v-else class="mt-4 space-y-3">
@@ -148,12 +175,14 @@
         </div>
 
         <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
-          <div class="flex items-center justify-between">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p class="text-xs uppercase tracking-[0.2em] text-white/60">Entregados</p>
               <h2 class="text-xl font-semibold">Llegó a destino / Finalizado</h2>
             </div>
-            <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-100">{{ deliveredOrders.length }}</span>
+            <div class="flex items-center gap-2">
+              <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-100">{{ deliveredOrders.length }}</span>
+            </div>
           </div>
           <div v-if="!deliveredOrders.length" class="mt-4 text-white/70">Sin entregas registradas.</div>
           <div v-else class="mt-4 space-y-3">
@@ -183,12 +212,14 @@
       </section>
 
       <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-white/60">Soporte</p>
             <h2 class="text-xl font-semibold">Tickets</h2>
           </div>
-          <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">{{ tickets.length }}</span>
+          <div class="flex items-center gap-2">
+            <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">{{ tickets.length }}</span>
+          </div>
         </div>
         <div v-if="loadingTickets" class="mt-4 text-white/70">Cargando tickets...</div>
         <div v-else-if="!tickets.length" class="mt-4 text-white/70">No hay tickets abiertos.</div>
@@ -264,7 +295,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { navigateTo, useRuntimeConfig } from 'nuxt/app'
 import StoreCard from '~/components/StoreCard.vue'
 import StatCard from '~/components/StatCard.vue'
@@ -284,8 +315,10 @@ type TicketItem = {
 const auth = useAuthStore()
 const theme = useThemeStore()
 const storesMine = ref<{ id: number; name: string; slug: string }[]>([])
+const selectedStore = ref<'all' | string>('all')
 const loading = ref(true)
 const topProducts = ref<any[]>([])
+const topCategoryFilter = ref('')
 const orders = ref<any[]>([])
 const pendingPage = ref(1)
 const deliveredPage = ref(1)
@@ -304,6 +337,29 @@ type DashboardSummary = {
 
 const analytics = ref<{ visits: number; conversions: number; support: number; pending_products: number }>({ visits: 0, conversions: 0, support: 0, pending_products: 0 })
 const sparkline = computed(() => [60, 90, 80, 120, 140, 110, 170])
+const cartTarget = computed(() => {
+  if (selectedStore.value && selectedStore.value !== 'all') {
+    return `/store/${selectedStore.value}/carrito`
+  }
+  const firstStore = storesMine.value[0]
+  if (firstStore?.slug) {
+    return `/store/${firstStore.slug}/carrito`
+  }
+  // Fallback si no hay tiendas asignadas
+  return '/marketplace/carrito'
+})
+const topCategories = computed(() => {
+  const set = new Set<string>()
+  topProducts.value.forEach((p: any) => {
+    const name = p.category?.name || p.category_name
+    if (name) set.add(name)
+  })
+  return Array.from(set).sort((a, b) => a.localeCompare(b))
+})
+const filteredTopProducts = computed(() => {
+  if (!topCategoryFilter.value) return topProducts.value
+  return topProducts.value.filter((p: any) => (p.category?.name || p.category_name) === topCategoryFilter.value)
+})
 const tickets = ref<TicketItem[]>([])
 const loadingTickets = ref(true)
 const selectedTicket = ref<TicketItem | null>(null)
@@ -370,13 +426,17 @@ const currency = (value: number) =>
 
 const orderLink = (orderId: number) => {
   const firstStore = storesMine.value[0]
-  if (!firstStore) return '#'
-  return `/store/${firstStore.slug}/admin/orders/${orderId}`
+  const slugFromFilter = selectedStore.value !== 'all' ? selectedStore.value : undefined
+  const slug = slugFromFilter || firstStore?.slug
+  return slug ? `/store/${slug}/admin/orders/${orderId}` : '#'
 }
 
 const loadData = async () => {
   loading.value = true
   storesMine.value = await auth.fetchMyStores()
+  if (storesMine.value.length && selectedStore.value === 'all') {
+    selectedStore.value = 'all'
+  }
   await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets()])
   loading.value = false
 }
@@ -403,12 +463,35 @@ const confirmDeleteStore = async (store: any) => {
 
 const loadTopProducts = async () => {
   topProducts.value = []
-  const firstStore = storesMine.value[0]
-  if (!firstStore || !auth.token) return
+  if (!auth.token || !storesMine.value.length) return
+
+  // If filtering by a specific store, fetch its top products. If "all", merge top lists across stores.
+  const targetSlugs = (selectedStore.value === 'all' ? storesMine.value.map((s) => s.slug) : [selectedStore.value]).filter(
+    (slug): slug is string => typeof slug === 'string' && slug.length > 0
+  )
+  if (!targetSlugs.length) return
+
   try {
-    topProducts.value = await $fetch(`${config.public.apiBase}/orders/store/${firstStore.slug}/top-products/`, {
-      headers: { Authorization: `Bearer ${auth.token}` },
+    const results = await Promise.all(
+      targetSlugs.map((slug) =>
+        $fetch(`${config.public.apiBase}/orders/store/${slug}/top-products/`, {
+          headers: { Authorization: `Bearer ${auth.token}` },
+        }).catch(() => [])
+      )
+    )
+
+    const merged: Record<string, any> = {}
+    results.flat().forEach((prod: any) => {
+      const storeSlug = prod.store?.slug || prod.store_slug || 'na'
+      const key = `${storeSlug}-${prod.id}`
+      if (!merged[key]) {
+        merged[key] = { ...prod, store_slug: storeSlug }
+      } else {
+        merged[key].total_quantity = (merged[key].total_quantity || 0) + (prod.total_quantity || 0)
+      }
     })
+
+    topProducts.value = Object.values(merged).sort((a: any, b: any) => (b.total_quantity || 0) - (a.total_quantity || 0))
   } catch (error) {
     console.warn('No se pudieron cargar los más vendidos')
   }
@@ -416,11 +499,12 @@ const loadTopProducts = async () => {
 
 const loadOrders = async () => {
   orders.value = []
-  const firstStore = storesMine.value[0]
-  if (!firstStore || !auth.token) return
+  if (!auth.token || !storesMine.value.length) return
+  const params: Record<string, any> = {}
+  if (selectedStore.value !== 'all') params.store = selectedStore.value
   try {
     orders.value = await $fetch(`${config.public.apiBase}/orders/`, {
-      params: { store: firstStore.slug },
+      params,
       headers: { Authorization: `Bearer ${auth.token}` },
     })
     pendingPage.value = 1
@@ -433,15 +517,16 @@ const loadOrders = async () => {
 const loadTickets = async () => {
   loadingTickets.value = true
   tickets.value = []
-  const firstStore = storesMine.value[0]
-  if (!auth.token || !firstStore) {
+  if (!auth.token) {
     loadingTickets.value = false
     return
   }
+  const params: Record<string, any> = { status: 'open' }
+  if (selectedStore.value !== 'all') params.store = selectedStore.value
   try {
     tickets.value = await $fetch<TicketItem[]>(`${config.public.apiBase}/support/tickets/`, {
       headers: { Authorization: `Bearer ${auth.token}` },
-      params: { status: 'open', store: firstStore.slug },
+      params,
     })
   } catch (error) {
     console.warn('No se pudieron cargar tickets', error)
@@ -493,12 +578,13 @@ const saveTicket = async () => {
 }
 
 const loadSummary = async () => {
-  const firstStore = storesMine.value[0]
   if (!auth.token) return
+  const params: Record<string, any> = {}
+  if (selectedStore.value !== 'all') params.store = selectedStore.value
   try {
     const summary = await $fetch<DashboardSummary>(`${config.public.apiBase}/support/dashboard/summary/`, {
       headers: { Authorization: `Bearer ${auth.token}` },
-      params: firstStore ? { store: firstStore.slug } : {},
+      params,
     })
     analytics.value = {
       visits: summary?.visits_last_7d || 0,
@@ -515,6 +601,38 @@ const refresh = async () => {
   await loadData()
 }
 
+const exportCsv = (filename: string, rows: Record<string, any>[], headers: { key: string; label: string }[]) => {
+  if (!rows.length) return
+  const csvRows = []
+  csvRows.push(headers.map((h) => '"' + (h.label || '').replace(/"/g, '""') + '"').join(','))
+  rows.forEach((row) => {
+    csvRows.push(
+      headers
+        .map((h) => {
+          const val = row[h.key] ?? ''
+          return '"' + String(val).replace(/"/g, '""') + '"'
+        })
+        .join(',')
+    )
+  })
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `${filename}.csv`
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+
+const exportTopProducts = () => {
+  exportCsv('top-products', filteredTopProducts.value, [
+    { key: 'name', label: 'Producto' },
+    { key: 'store_slug', label: 'Tienda' },
+    { key: 'total_quantity', label: 'Ventas' },
+    { key: 'price', label: 'Precio' },
+    { key: 'offer_price', label: 'Oferta' },
+  ])
+}
+
 onMounted(async () => {
   if (!auth.isAuthenticated) {
     await navigateTo('/login')
@@ -522,5 +640,11 @@ onMounted(async () => {
   }
   await loadData()
   theme.applyTheme()
+})
+
+watch(selectedStore, async () => {
+  pendingPage.value = 1
+  deliveredPage.value = 1
+  await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets()])
 })
 </script>
