@@ -212,6 +212,49 @@
       </section>
 
       <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-white/60">Comentarios</p>
+            <h2 class="text-xl font-semibold">Lo que dicen los clientes</h2>
+          </div>
+          <button
+            class="inline-flex items-center gap-2 rounded-2xl border border-white/20 px-4 py-2 text-sm font-semibold text-white/80 hover:text-white"
+            @click="loadRecentReviews"
+          >
+            <MessageSquare class="h-4 w-4" aria-hidden="true" />
+            Actualizar
+          </button>
+        </div>
+        <div v-if="loadingReviews" class="mt-4 text-white/70">Cargando comentarios...</div>
+        <div v-else-if="!recentReviews.length" class="mt-4 text-white/70">Aún no hay reseñas registradas en tus tiendas.</div>
+        <div v-else class="mt-4 space-y-3">
+          <NuxtLink
+            v-for="review in recentReviews"
+            :key="review.id + review.created_at"
+            :to="review.product_slug ? `/store/${review.store_slug}/productos/${review.product_slug}` : `/store/${review.store_slug}`"
+            class="block rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80 transition hover:border-white/40"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p class="text-white font-semibold">{{ review.product_name || 'Producto' }}</p>
+                <p class="text-xs text-white/60">{{ review.customer_name || 'Cliente' }} • {{ review.store_slug }}</p>
+              </div>
+              <div class="flex items-center gap-1 text-amber-300">
+                <StarIcon
+                  v-for="star in 5"
+                  :key="`${review.id}-star-${star}`"
+                  class="h-4 w-4"
+                  :class="star <= Number(review.rating) ? 'text-amber-400 fill-amber-400 stroke-amber-400' : 'text-white/30 fill-transparent stroke-white/40'"
+                />
+              </div>
+            </div>
+            <p class="mt-2 text-white/80">{{ review.comment }}</p>
+            <p class="text-[11px] text-white/50">{{ new Date(review.created_at).toLocaleString() }}</p>
+          </NuxtLink>
+        </div>
+      </section>
+
+      <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-white/60">Soporte</p>
@@ -295,11 +338,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { navigateTo, useRuntimeConfig } from 'nuxt/app'
 import StoreCard from '~/components/StoreCard.vue'
 import StatCard from '~/components/StatCard.vue'
-import { Building2, Eye, ShoppingCart, Headset, Lightbulb } from 'lucide-vue-next'
+import { Building2, Eye, ShoppingCart, Headset, Lightbulb, MessageSquare, Star as StarIcon } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 
@@ -324,6 +367,7 @@ const pendingPage = ref(1)
 const deliveredPage = ref(1)
 const pageSize = 6
 const config = useRuntimeConfig()
+const apiBase = String(config.public.apiBase || '')
 const deletingStore = ref(false)
 
 type DashboardSummary = {
@@ -368,6 +412,21 @@ const editStatus = ref('open')
 const editPriority = ref('normal')
 const newComment = ref('')
 const savingTicket = ref(false)
+const recentReviews = ref<ReviewFeedItem[]>([])
+const loadingReviews = ref(false)
+const REVIEW_EVENT = 'pymeweb:review-created'
+
+type ReviewFeedItem = {
+  id: number | string
+  rating: number
+  comment: string
+  customer_name: string
+  created_at: string
+  store_slug: string
+  product_slug?: string
+  product_name?: string
+  status?: string
+}
 
 const barColor = (idx: number) => (idx === sparkline.value.length - 1 ? theme.accent : 'rgba(255,255,255,0.25)')
 
@@ -437,7 +496,7 @@ const loadData = async () => {
   if (storesMine.value.length && selectedStore.value === 'all') {
     selectedStore.value = 'all'
   }
-  await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets()])
+  await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets(), loadRecentReviews()])
   loading.value = false
 }
 
@@ -447,7 +506,7 @@ const confirmDeleteStore = async (store: any) => {
   if (!ok) return
   deletingStore.value = true
   try {
-    await $fetch(`${config.public.apiBase}/stores/${store.slug}/`, {
+    await $fetch(`${apiBase}/stores/${store.slug}/` as any, {
       method: 'DELETE',
       headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
     })
@@ -474,7 +533,7 @@ const loadTopProducts = async () => {
   try {
     const results = await Promise.all(
       targetSlugs.map((slug) =>
-        $fetch(`${config.public.apiBase}/orders/store/${slug}/top-products/`, {
+        $fetch(`${apiBase}/orders/store/${slug}/top-products/` as any, {
           headers: { Authorization: `Bearer ${auth.token}` },
         }).catch(() => [])
       )
@@ -503,7 +562,7 @@ const loadOrders = async () => {
   const params: Record<string, any> = {}
   if (selectedStore.value !== 'all') params.store = selectedStore.value
   try {
-    orders.value = await $fetch(`${config.public.apiBase}/orders/`, {
+    orders.value = await $fetch<any[]>(`${apiBase}/orders/` as any, {
       params,
       headers: { Authorization: `Bearer ${auth.token}` },
     })
@@ -524,7 +583,7 @@ const loadTickets = async () => {
   const params: Record<string, any> = { status: 'open' }
   if (selectedStore.value !== 'all') params.store = selectedStore.value
   try {
-    tickets.value = await $fetch<TicketItem[]>(`${config.public.apiBase}/support/tickets/`, {
+    tickets.value = await $fetch<TicketItem[]>(`${apiBase}/support/tickets/` as any, {
       headers: { Authorization: `Bearer ${auth.token}` },
       params,
     })
@@ -533,6 +592,27 @@ const loadTickets = async () => {
     tickets.value = []
   } finally {
     loadingTickets.value = false
+  }
+}
+
+const loadRecentReviews = async () => {
+  if (!auth.token) {
+    recentReviews.value = []
+    return
+  }
+  loadingReviews.value = true
+  const params: Record<string, any> = {}
+  if (selectedStore.value !== 'all') params.store = selectedStore.value
+  try {
+    recentReviews.value = await $fetch<ReviewFeedItem[]>(`${apiBase}/support/dashboard/reviews/` as any, {
+      headers: { Authorization: `Bearer ${auth.token}` },
+      params,
+    })
+  } catch (error) {
+    console.warn('No se pudieron cargar reseñas', error)
+    recentReviews.value = []
+  } finally {
+    loadingReviews.value = false
   }
 }
 
@@ -560,7 +640,7 @@ const saveTicket = async () => {
     if (newComment.value.trim()) {
       body.description = `${selectedTicket.value.description}\n\n[Admin] ${newComment.value.trim()}`
     }
-    const updated = await $fetch<TicketItem>(`${config.public.apiBase}/support/tickets/${selectedTicket.value.id}/`, {
+    const updated = await $fetch<TicketItem>(`${apiBase}/support/tickets/${selectedTicket.value.id}/` as any, {
       method: 'PATCH',
       body,
       headers: { Authorization: `Bearer ${auth.token}` },
@@ -582,7 +662,7 @@ const loadSummary = async () => {
   const params: Record<string, any> = {}
   if (selectedStore.value !== 'all') params.store = selectedStore.value
   try {
-    const summary = await $fetch<DashboardSummary>(`${config.public.apiBase}/support/dashboard/summary/`, {
+    const summary = await $fetch<DashboardSummary>(`${apiBase}/support/dashboard/summary/` as any, {
       headers: { Authorization: `Bearer ${auth.token}` },
       params,
     })
@@ -640,11 +720,25 @@ onMounted(async () => {
   }
   await loadData()
   theme.applyTheme()
+  if (process.client) {
+    window.addEventListener(REVIEW_EVENT, handleReviewEvent as EventListener)
+  }
+})
+
+const handleReviewEvent = () => {
+  if (!auth.isAuthenticated) return
+  loadRecentReviews()
+}
+
+onBeforeUnmount(() => {
+  if (process.client) {
+    window.removeEventListener(REVIEW_EVENT, handleReviewEvent as EventListener)
+  }
 })
 
 watch(selectedStore, async () => {
   pendingPage.value = 1
   deliveredPage.value = 1
-  await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets()])
+  await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets(), loadRecentReviews()])
 })
 </script>

@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia'
 
-type NotificationItem = { type: string; message: string; count: number; store?: string }
+type NotificationItem = {
+  type: string
+  message: string
+  count: number
+  store?: string
+  product_slug?: string
+}
 type NotificationHistoryItem = NotificationItem & { id: string; readAt: string }
 
 const HISTORY_KEY = 'notification-history'
@@ -32,6 +38,10 @@ export const useNotificationStore = defineStore('notifications', {
     },
     setUnread(items: NotificationItem[]) {
       this.unread = items || []
+    },
+    pushNotification(item: NotificationItem) {
+      if (!item) return
+      this.unread = [item, ...this.unread]
     },
     markAllAsRead() {
       if (!this.unread.length) return

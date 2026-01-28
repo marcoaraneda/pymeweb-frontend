@@ -21,11 +21,11 @@
             Inicia sesión, consulta tus tiendas, explora todas las disponibles y ajusta los colores para que tu marca se sienta en casa.
           </p>
 
-          <div class="mt-8 flex flex-wrap gap-3">
+          <div class="mt-8 grid gap-3 sm:grid-cols-3">
             <NuxtLink
               v-if="!auth.isAuthenticated"
               to="/login"
-              class="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5"
               :style="{ backgroundColor: theme.accent, color: '#fff' }"
             >
               Iniciar sesión
@@ -34,7 +34,7 @@
             <a
               v-else
               href="#crear-tienda"
-              class="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5"
               :style="{ backgroundColor: theme.accent, color: '#fff' }"
             >
               Crear tienda
@@ -42,7 +42,7 @@
             </a>
             <a
               href="#tiendas"
-              class="inline-flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 font-semibold text-white hover:border-white/40 hover:bg-white/5 transition"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/20 px-5 py-3 font-semibold text-white hover:border-white/40 hover:bg-white/5 transition"
             >
               Ver tiendas
               <ChevronRight class="h-4 w-4" aria-hidden="true" />
@@ -86,7 +86,7 @@
     </section>
 
       <section id="tiendas" class="relative z-10 max-w-6xl mx-auto px-6 py-14 space-y-10 reveal" style="animation-delay: 0.05s;">
-        <div class="grid gap-8 lg:grid-cols-[1.1fr,0.9fr]">
+        <div class="grid gap-8" :class="auth.isAuthenticated ? 'lg:grid-cols-[1.1fr,0.9fr]' : 'lg:grid-cols-1'">
           <div v-if="auth.isAuthenticated" class="space-y-4">
             <div class="flex items-center justify-between">
               <div>
@@ -135,14 +135,13 @@
               </div>
             </div>
           </div>
-
           <div class="space-y-4">
-            <div class="flex items-center justify-between gap-4">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Todas las tiendas</p>
                 <h3 class="text-xl font-semibold text-slate-900">Explora el marketplace</h3>
               </div>
-              <div class="flex items-center gap-3">
+              <div class="flex flex-wrap items-center justify-end gap-3">
                 <NuxtLink
                   to="/tiendas"
                   class="hidden rounded-xl px-4 py-2 text-sm font-semibold text-white shadow sm:inline-flex"
@@ -151,22 +150,46 @@
                   Ver todas las tiendas
                   <ChevronRight class="h-4 w-4" aria-hidden="true" />
                 </NuxtLink>
-              <input
-                v-model="filterQuery"
-                type="text"
-                placeholder="Buscar tienda..."
-                class="hidden w-56 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none sm:block"
-              />
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition"
+                  :class="showFavoriteStoresOnly ? 'border-rose-200 bg-rose-50 text-rose-600 shadow-inner' : 'border-slate-200 text-slate-700 hover:border-slate-300'"
+                  @click="toggleFavoriteStoreFilter"
+                >
+                  <Heart
+                    class="h-4 w-4"
+                    :class="showFavoriteStoresOnly ? 'fill-current text-rose-600' : 'text-slate-500'"
+                  />
+                  {{ showFavoriteStoresOnly ? 'Solo favoritos' : 'Todos' }}
+                </button>
+                <input
+                  v-model="filterQuery"
+                  type="text"
+                  placeholder="Buscar tienda..."
+                  class="hidden w-56 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none sm:block"
+                />
               </div>
             </div>
 
-            <div class="sm:hidden">
+            <div class="sm:hidden flex flex-col gap-2">
               <input
                 v-model="filterQuery"
                 type="text"
                 placeholder="Buscar tienda..."
                 class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
               />
+              <button
+                type="button"
+                class="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition"
+                :class="showFavoriteStoresOnly ? 'border-rose-200 bg-rose-50 text-rose-600 shadow-inner' : 'border-slate-200 text-slate-700 hover:border-slate-300'"
+                @click="toggleFavoriteStoreFilter"
+              >
+                <Heart
+                  class="h-4 w-4"
+                  :class="showFavoriteStoresOnly ? 'fill-current text-rose-600' : 'text-slate-500'"
+                />
+                {{ showFavoriteStoresOnly ? 'Solo favoritos' : 'Filtrar favoritos' }}
+              </button>
             </div>
 
             <div v-if="loadingAll" class="text-slate-500">Cargando tiendas...</div>
@@ -208,20 +231,34 @@
       </section>
 
       <section class="relative z-10 max-w-6xl mx-auto px-6 py-14 space-y-6 reveal" style="animation-delay: 0.08s;">
-        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Marketplace</p>
             <h3 class="text-2xl font-semibold text-slate-900">Productos destacados de todas las tiendas</h3>
             <p class="text-slate-600">Compra directo en la tienda propietaria sin salir del marketplace.</p>
           </div>
-          <NuxtLink
-            to="/marketplace"
-            class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
-            :style="{ backgroundColor: '#f59e0b' }"
-          >
-            Ir al marketplace
-            <ChevronRight class="h-4 w-4" aria-hidden="true" />
-          </NuxtLink>
+          <div class="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition"
+              :class="showFavoriteProductsOnly ? 'border-rose-200 bg-rose-50 text-rose-600 shadow-inner' : 'border-slate-200 text-slate-700 hover:border-slate-300'"
+              @click="toggleFavoriteProductFilter"
+            >
+              <Heart
+                class="h-4 w-4"
+                :class="showFavoriteProductsOnly ? 'fill-current text-rose-600' : 'text-slate-500'"
+              />
+              {{ showFavoriteProductsOnly ? 'Solo productos favoritos' : 'Todos los productos' }}
+            </button>
+            <NuxtLink
+              to="/marketplace"
+              class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
+              :style="{ backgroundColor: '#f59e0b' }"
+            >
+              Ir al marketplace
+              <ChevronRight class="h-4 w-4" aria-hidden="true" />
+            </NuxtLink>
+          </div>
         </div>
 
         <div v-if="loadingMarketplace" class="text-slate-500">Cargando marketplace...</div>
@@ -231,10 +268,23 @@
         </div>
         <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <article
-            v-for="product in marketplaceProducts"
+            v-for="product in displayMarketplaceProducts"
             :key="product.id"
-            class="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+            class="group relative flex h-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
           >
+            <button
+              type="button"
+              class="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border bg-white text-sm font-semibold text-slate-500 shadow transition hover:text-rose-500"
+              :class="isProductFavorite(product) ? 'border-rose-200 text-rose-600' : 'border-slate-200'"
+              @click.stop="toggleProductFavorite(product)"
+              :aria-pressed="isProductFavorite(product)"
+              aria-label="Marcar producto como favorito"
+            >
+              <Heart
+                class="h-4 w-4"
+                :class="isProductFavorite(product) ? 'fill-current text-rose-600' : 'text-slate-500'"
+              />
+            </button>
             <div class="h-44 w-full overflow-hidden rounded-t-2xl bg-slate-100">
               <img :src="productImage(product)" :alt="product.name" class="h-full w-full object-cover" />
             </div>
@@ -266,9 +316,7 @@
                   Agregar al carrito
                 </button>
                 <NuxtLink
-                  :to="product.store?.slug && !product.store_is_marketplace
-                    ? `/store/${product.store.slug}/productos/${product.slug || product.id}`
-                    : `/marketplace/productos/${product.slug || product.id}`"
+                  :to="asAnyTo(productDetailPath(product))"
                   class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
                   :style="{ backgroundColor: '#f59e0b' }"
                 >
@@ -276,7 +324,7 @@
                 </NuxtLink>
                 <NuxtLink
                   v-if="product.store?.slug && !product.store_is_marketplace"
-                  :to="`/store/${product.store.slug}`"
+                  :to="asAnyTo(storePath(product))"
                   class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900"
                 >
                   Ver tienda
@@ -296,20 +344,27 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronRight, Star } from 'lucide-vue-next'
+import { ChevronRight, Heart, Star } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRuntimeConfig, navigateTo } from 'nuxt/app'
-import StoreCard from '~/components/StoreCard.vue'
+import { useRouter } from 'vue-router'
+import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { useCartStore } from '~/stores/cart'
+import { makeProductFavoriteKey, useFavorites } from '../composables/useFavorites'
 
 type Store = { id: number; name: string; slug: string }
 
 const config = useRuntimeConfig()
+const apiBase = String(config.public.apiBase || '')
+const router = useRouter()
 const auth = useAuthStore()
 const theme = useThemeStore()
 const cart = useCartStore()
+
+const { isStoreFavorite, isProductFavoriteKey, toggleProductFavoriteKey } = useFavorites()
+
+const asAnyTo = (path: string) => ({ path } as any)
 
 const storesAll = ref<Store[]>([])
 const storesMine = ref<Store[]>([])
@@ -326,14 +381,35 @@ const createMessage = ref('')
 const filterQuery = ref('')
 const storesPage = ref(1)
 const storesPerPage = 4
+const showFavoriteStoresOnly = ref(false)
+const showFavoriteProductsOnly = ref(false)
+
 const heroStyle = computed(() => ({
   backgroundImage: `linear-gradient(120deg, ${theme.gradientFrom}, ${theme.gradientTo})`,
 }))
 
+const toggleFavoriteStoreFilter = () => {
+  showFavoriteStoresOnly.value = !showFavoriteStoresOnly.value
+  storesPage.value = 1
+}
+
+const toggleFavoriteProductFilter = () => {
+  showFavoriteProductsOnly.value = !showFavoriteProductsOnly.value
+}
+
 const filteredStoresAll = computed(() => {
   const term = filterQuery.value.trim().toLowerCase()
-  if (!term) return storesAll.value
-  return storesAll.value.filter((s) => s.name.toLowerCase().includes(term) || s.slug.toLowerCase().includes(term))
+  const base = !term
+    ? storesAll.value
+    : storesAll.value.filter((s) => s.name.toLowerCase().includes(term) || s.slug.toLowerCase().includes(term))
+
+  const filtered = showFavoriteStoresOnly.value ? base.filter((s) => isStoreFavorite(s.slug)) : base
+
+  return [...filtered].sort((a, b) => {
+    const favDiff = Number(isStoreFavorite(b.slug)) - Number(isStoreFavorite(a.slug))
+    if (favDiff) return favDiff
+    return a.name.localeCompare(b.name)
+  })
 })
 
 const storesTotalPages = computed(() => Math.max(1, Math.ceil(filteredStoresAll.value.length / storesPerPage)))
@@ -346,7 +422,7 @@ const fetchAllStores = async () => {
   loadingAll.value = true
   error.value = ''
   try {
-    storesAll.value = await $fetch<Store[]>(`${config.public.apiBase}/stores/`)
+    storesAll.value = await $fetch<Store[]>(`${apiBase}/stores/` as any)
     storesPage.value = 1
   } catch (err) {
     console.error(err)
@@ -360,7 +436,7 @@ const fetchMarketplace = async () => {
   loadingMarketplace.value = true
   marketplaceError.value = ''
   try {
-    marketplaceProducts.value = await $fetch(`${config.public.apiBase}/marketplace/products/?limit=6`)
+    marketplaceProducts.value = await $fetch<any[]>(`${apiBase}/marketplace/products/?limit=6` as any)
   } catch (err) {
     console.error(err)
     marketplaceError.value = 'Error al cargar el marketplace'
@@ -376,12 +452,6 @@ const addToCart = (product: any) => {
   cart.addProduct(product)
 }
 
-const canEditProduct = (product: any) => {
-  const memberships = (auth.user as any)?.memberships || []
-  const slug = product?.store?.slug
-  return Boolean(slug && memberships.some((m: any) => m?.store?.slug === slug && (m.roles || []).some((r: string) => r?.toLowerCase?.() === 'admin')))
-}
-
 const fetchMyStores = async () => {
   if (!auth.token) return
   loadingMine.value = true
@@ -394,7 +464,7 @@ const fetchMyStores = async () => {
 
 const createStore = async () => {
   if (!auth.token) {
-    await navigateTo('/login')
+    await router.push('/login')
     return
   }
   if (!newStoreName.value.trim()) {
@@ -406,7 +476,7 @@ const createStore = async () => {
   createMessage.value = ''
   creating.value = true
   try {
-    const created = await $fetch<Store>(`${config.public.apiBase}/stores/`, {
+    const created = await $fetch<Store>(`${apiBase}/stores/` as any, {
       method: 'POST',
       body: { name: newStoreName.value },
       headers: { Authorization: `Bearer ${auth.token}` },
@@ -415,7 +485,7 @@ const createStore = async () => {
     newStoreName.value = ''
     await Promise.all([fetchAllStores(), fetchMyStores()])
     if (created?.slug) {
-      await navigateTo(`/store/${created.slug}?edit=true`)
+      await router.push({ path: '/store/' + created.slug, query: { edit: 'true' } } as any)
     }
   } catch (err: any) {
     createError.value = err?.response?._data?.detail || 'No pudimos crear la tienda'
@@ -423,6 +493,30 @@ const createStore = async () => {
     creating.value = false
   }
 }
+
+const productFavoriteKey = (product: any) => makeProductFavoriteKey(product?.store?.slug, product?.slug || product?.id)
+const isProductFavorite = (product: any) => isProductFavoriteKey(productFavoriteKey(product))
+const toggleProductFavorite = (product: any) => toggleProductFavoriteKey(productFavoriteKey(product))
+
+const productDetailPath = (product: any) => {
+  const id = product?.slug || product?.id
+  if (!id) return '/marketplace'
+  if (product?.store?.slug && !product?.store_is_marketplace) {
+    return `/store/${product.store.slug}/productos/${id}`
+  }
+  return `/marketplace/productos/${id}`
+}
+
+const storePath = (product: any) => {
+  const storeSlug = product?.store?.slug
+  return storeSlug ? `/store/${storeSlug}` : '/tiendas'
+}
+
+const displayMarketplaceProducts = computed(() => {
+  const base = marketplaceProducts.value || []
+  const filtered = showFavoriteProductsOnly.value ? base.filter((p: any) => isProductFavorite(p)) : base
+  return [...filtered].sort((a: any, b: any) => Number(isProductFavorite(b)) - Number(isProductFavorite(a)))
+})
 
 onMounted(async () => {
   theme.loadFromStorage()
@@ -453,3 +547,4 @@ watch(filterQuery, () => {
   storesPage.value = 1
 })
 </script>
+

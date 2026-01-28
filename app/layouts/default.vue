@@ -10,9 +10,21 @@
           </div>
         </NuxtLink>
 
-        <nav class="hidden items-center gap-4 text-sm font-semibold text-slate-700 md:flex">
-          <NuxtLink to="/marketplace" class="hover:text-slate-900">Marketplace</NuxtLink>
-          <NuxtLink to="/tiendas" class="hover:text-slate-900">Ver tiendas</NuxtLink>
+        <nav class="hidden items-center gap-3 md:flex">
+          <NuxtLink
+            to="/marketplace"
+            class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
+          >
+            <StoreIcon class="h-4 w-4" aria-hidden="true" />
+            Marketplace
+          </NuxtLink>
+          <NuxtLink
+            to="/tiendas"
+            class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
+          >
+            <ShoppingBag class="h-4 w-4" aria-hidden="true" />
+            Ver tiendas
+          </NuxtLink>
         </nav>
 
         <div class="flex items-center gap-3">
@@ -40,16 +52,18 @@
           <NuxtLink
             v-if="auth.isAuthenticated && hasStores"
             to="/dashboard"
-            class="hidden h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-800 glass-btn md:inline-flex"
+            class="hidden items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-md transition hover:-translate-y-0.5 hover:bg-slate-50 md:inline-flex"
           >
+            <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
             Dashboard
           </NuxtLink>
 
           <NuxtLink
             v-if="!auth.isAuthenticated"
             to="/login"
-            class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 hover:border-slate-300"
+            class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-slate-900/5 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-900/10"
           >
+            <LogIn class="h-4 w-4" aria-hidden="true" />
             Iniciar sesión
           </NuxtLink>
 
@@ -157,7 +171,7 @@ import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { useCartStore } from '~/stores/cart'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
-import { Bell, ShoppingCart } from 'lucide-vue-next'
+import { Bell, ShoppingCart, LayoutDashboard, LogIn, Store as StoreIcon, ShoppingBag } from 'lucide-vue-next'
 import ChatBot from '~/components/ChatBot.vue'
 import { useNotificationStore } from '~/stores/notifications'
 
@@ -216,6 +230,15 @@ const goNotifications = async () => {
 
 const handleNotification = async (n: any) => {
   showNotifications.value = false
+  if (n?.type?.startsWith('review') && n?.store) {
+    const targetProduct = n.product_slug || n.productSlug
+    if (targetProduct) {
+      await navigateTo(`/store/${n.store}/productos/${targetProduct}`)
+      return
+    }
+    await navigateTo(`/store/${n.store}`)
+    return
+  }
   if (n?.type === 'ticket_detail' && n?.store) {
     await navigateTo(`/store/${n.store}/soporte`)
     return

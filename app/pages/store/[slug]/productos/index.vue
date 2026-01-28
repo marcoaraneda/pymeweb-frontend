@@ -27,16 +27,26 @@
               <option value="">Todas las categorías</option>
               <option v-for="cat in tenantStore.categories" :key="cat.slug" :value="cat.slug">{{ cat.name }}</option>
             </select>
+            <div class="w-full sm:w-64">
+              <label class="sr-only" for="catalog-search">Buscar producto</label>
+              <input
+                id="catalog-search"
+                v-model="searchQuery"
+                type="search"
+                placeholder="Buscar producto o categoría..."
+                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none"
+              />
+            </div>
         </div>
       </div>
 
       <div v-if="tenantStore.loading" class="text-slate-500">Cargando productos...</div>
-      <div v-else-if="!tenantStore.productos.length" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
-        No hay productos para esta tienda todavía.
+      <div v-else-if="!filteredProducts.length" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
+        {{ tenantStore.productos.length ? 'No encontramos productos con los filtros aplicados.' : 'No hay productos para esta tienda todavía.' }}
       </div>
       <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <article
-          v-for="product in tenantStore.productos"
+          v-for="product in filteredProducts"
           :key="product.id"
           class="relative group flex h-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
         >
@@ -84,6 +94,11 @@
             <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">
               <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
               ${{ product.offer_price || product.price }}
+            </p>
+
+            <p class="text-sm text-slate-600">
+              <span class="font-semibold">Stock:</span>
+              <span :class="formatStockClass(product.stock_available)">{{ formatStockLabel(product.stock_available) }}</span>
             </p>
 
             <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
@@ -134,6 +149,7 @@ const { getProductImage } = useImages()
 
 const actionMenu = ref<number | null>(null)
 const selectedCategory = ref('')
+const searchQuery = ref('')
 const canManageStore = computed(() => {
   const memberships = (auth.user as any)?.memberships || []
   return memberships.some((m: any) => m?.store?.slug === slug && (m.roles || []).some((r: string) => r?.toLowerCase?.() === 'admin'))
@@ -141,6 +157,11 @@ const canManageStore = computed(() => {
 
 const accentColor = computed(() => theme.accent || '#2563eb')
 const accentStyle = computed(() => ({ backgroundColor: accentColor.value, color: '#fff' }))
+const filteredProducts = computed(() => {
+  const term = searchQuery.value.trim().toLowerCase()
+  if (!term) return tenantStore.productos
+  return (tenantStore.productos || []).filter((product: any) => matchesSearch(product, term))
+})
 
 onMounted(async () => {
   auth.restoreFromCookies()
@@ -196,6 +217,34 @@ const deleteProduct = async (product: any) => {
     console.error('No pudimos eliminar el producto', error)
     window.alert('No pudimos eliminar el producto')
   }
+}
+
+const matchesSearch = (product: any, term: string) => {
+  if (!term) return true
+  const fields = [product?.name, product?.description, product?.category?.name, product?.slug]
+  return fields.some((value) => {
+    const text = value?.toString?.()
+    return text ? text.toLowerCase().includes(term) : false
+  })
+}
+
+const normalizeStock = (value: any) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+const formatStockLabel = (value: any) => {
+  const stock = normalizeStock(value)
+  if (stock <= 0) return 'Sin stock'
+  if (stock <= 5) return `Stock bajo (${stock})`
+  return `${stock} en inventario`
+}
+
+const formatStockClass = (value: any) => {
+  const stock = normalizeStock(value)
+  if (stock <= 0) return 'text-red-600'
+  if (stock <= 5) return 'text-amber-600'
+  return 'text-emerald-600'
 }
 
 watch(

@@ -55,7 +55,6 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-// @ts-expect-error suppress deep route type inference in Nuxt
 import { useRoute } from 'vue-router'
 import { useRuntimeConfig } from 'nuxt/app'
 import { definePageMeta } from '#imports'

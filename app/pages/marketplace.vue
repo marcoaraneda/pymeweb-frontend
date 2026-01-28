@@ -125,8 +125,7 @@
                 :to="product.store?.slug && !product.store_is_marketplace
                   ? `/store/${product.store.slug}/productos/${product.slug || product.id}`
                   : `/marketplace/productos/${product.slug || product.id}`"
-                class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
-                :style="{ backgroundColor: marketplaceAccent }"
+                class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:border-slate-300"
               >
                 Ver detalle
               </NuxtLink>

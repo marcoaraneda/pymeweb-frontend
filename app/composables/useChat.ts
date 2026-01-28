@@ -65,7 +65,7 @@ export const useChat = () => {
         return `• ${p.name} — ${formatCurrency(Number(p.offer_price || p.price || 0))} ${storeLabel}`
       })
       .join('\n')
-    return `Estos son los productos más económicos que encontré ahora mismo:\n${list}\n¿Quieres que te envíe directo a alguna tienda?`
+    return `Te dejo los precios más convenientes que encontré recién:\n${list}\nSi te gusta alguno avísame y te abro la página adecuada.`
   }
 
   const computersAnswer = async () => {
@@ -81,7 +81,7 @@ export const useChat = () => {
         return `• ${p.name} — ${formatCurrency(Number(p.offer_price || p.price || 0))} · ${storeLabel}`
       })
       .join('\n')
-    return `Estas son las opciones relacionadas con computadores que tengo registradas:\n${list}`
+    return `Esto es lo que veo en computadores ahora mismo:\n${list}\nSi buscas algo más específico dame pistas y seguimos afinando.`
   }
 
   const storesAnswer = async () => {
@@ -91,11 +91,11 @@ export const useChat = () => {
       .slice(0, 5)
       .map((s) => `• ${s.name} — Página de tienda (${s.name}) dentro de la sección Ver tiendas`)
       .join('\n')
-    return `Estas son algunas tiendas activas ahora:\n${list}\nPuedes explorar el resto en la página "Ver tiendas".`
+    return `Aquí tienes un vistazo rápido de tiendas activas:\n${list}\nPara seguir descubriendo puedes entrar a la página "Ver tiendas" y deslizar por todas las opciones.`
   }
 
   const fallbackAnswer = () =>
-    'Puedo ayudarte a comparar precios, encontrar tiendas o productos específicos. Pregúntame, por ejemplo: "¿Qué tienda tiene lo más barato?" o "Muéstrame computadores".'
+    'Estoy lista para comparar precios, recomendar tiendas o listar productos por categoría. Intenta con preguntas como "¿Qué tienda vende más barato hoy?" o "Muéstrame notebooks disponibles".'
 
   const sendMessage = async (message: string) => {
     const lower = message.toLowerCase()

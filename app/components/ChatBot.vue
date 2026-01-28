@@ -7,9 +7,14 @@
 
     <div v-if="isOpen" class="absolute bottom-20 right-0 w-80 h-96 bg-white rounded-2xl shadow-2xl border flex flex-col overflow-hidden">
       <div class="bg-blue-600 p-4 text-white">
-        <p class="text-sm uppercase tracking-[0.3em] text-white/70">Asistente virtual</p>
-        <p class="text-lg font-bold">{{ assistantName }} · Pymeweb</p>
-        <p class="text-xs text-white/80">Pregúntame por tiendas, precios o productos</p>
+        <div class="flex items-center gap-3">
+          <img :src="assistantAvatar" :alt="`Aurora, asistente virtual`" class="h-12 w-12 rounded-2xl border border-white/20 object-cover shadow-lg" />
+          <div>
+            <p class="text-xs uppercase tracking-[0.3em] text-white/70">Asistente virtual Aurora</p>
+            <p class="text-lg font-bold">{{ assistantName }} · Pymeweb</p>
+            <p class="text-[11px] text-white/80">Resuelvo dudas de precios y tiendas al instante.</p>
+          </div>
+        </div>
       </div>
       
       <div class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
@@ -59,11 +64,12 @@ import { useChat } from '~/composables/useChat'
 type ChatMessage = { id: number; role: 'user' | 'bot'; text: string }
 
 const assistantName = 'Aurora'
+const assistantAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=Aurora&backgroundColor=1c76ff,0b1a3f&backgroundType=gradientLinear'
 const { sendMessage } = useChat()
 const isOpen = ref(false)
 const userInput = ref('')
 const messages = ref<ChatMessage[]>([
-  { id: 1, role: 'bot', text: `Hola, soy ${assistantName}, tu asistente Pymeweb. ¿En qué te ayudo hoy?` },
+  { id: 1, role: 'bot', text: `¡Hola! Soy ${assistantName}, tu asistente virtual Aurora. Puedo recomendarte tiendas, comparar precios o contarte qué conviene comprar hoy.` },
 ])
 const isThinking = ref(false)
 const isTyping = ref(false)
@@ -71,7 +77,7 @@ const typingTimers = new Set<number>()
 
 const assistantBusy = computed(() => isThinking.value || isTyping.value)
 const busyLabel = computed(() =>
-  isThinking.value ? `${assistantName} está revisando datos...` : `${assistantName} está escribiendo...`
+  isThinking.value ? `${assistantName} está revisando los catálogos...` : `${assistantName} está escribiendo su respuesta`
 )
 
 const stopTypingTimers = () => {

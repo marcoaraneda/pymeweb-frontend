@@ -25,16 +25,33 @@
           </div>
         </div>
 
-        <nav class="hidden flex-1 items-center justify-center gap-5 md:flex">
-          <NuxtLink to="/" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Menú principal</NuxtLink>
-          <NuxtLink to="/marketplace" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Marketplace</NuxtLink>
-          <span class="mx-3 h-6 w-px bg-slate-200" aria-hidden="true"></span>
+        <nav class="hidden flex-1 flex-wrap items-center justify-center gap-3 md:flex">
+          <NuxtLink to="/" :class="navButtonClass">
+            <Home class="h-4 w-4" aria-hidden="true" />
+            Menú principal
+          </NuxtLink>
+          <NuxtLink to="/marketplace" :class="navButtonClass">
+            <StoreIcon class="h-4 w-4" aria-hidden="true" />
+            Marketplace
+          </NuxtLink>
           <template v-if="hasStoreContext">
-            <div class="flex items-center gap-5">
-              <NuxtLink :to="`/store/${slug}`" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Inicio</NuxtLink>
-              <NuxtLink :to="`/store/${slug}/productos`" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Productos</NuxtLink>
-              <NuxtLink :to="`/store/${slug}/acerca`" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Acerca de</NuxtLink>
-              <NuxtLink :to="`/store/${slug}/soporte`" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Soporte</NuxtLink>
+            <div class="flex flex-wrap items-center gap-3">
+              <NuxtLink :to="`/store/${slug}`" :class="navButtonClass">
+                <Home class="h-4 w-4" aria-hidden="true" />
+                Inicio
+              </NuxtLink>
+              <NuxtLink :to="`/store/${slug}/productos`" :class="navButtonClass">
+                <ShoppingBag class="h-4 w-4" aria-hidden="true" />
+                Productos
+              </NuxtLink>
+              <NuxtLink :to="`/store/${slug}/acerca`" :class="navButtonClass">
+                <Info class="h-4 w-4" aria-hidden="true" />
+                Acerca de
+              </NuxtLink>
+              <NuxtLink :to="`/store/${slug}/soporte`" :class="navButtonClass">
+                <LifeBuoy class="h-4 w-4" aria-hidden="true" />
+                Soporte
+              </NuxtLink>
             </div>
           </template>
         </nav>
@@ -59,16 +76,18 @@
           <NuxtLink
             v-if="!auth.isAuthenticated"
             to="/login"
-            class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 hover:border-slate-300"
+            :class="navButtonClass"
           >
+            <LogIn class="h-4 w-4" aria-hidden="true" />
             Iniciar sesión
           </NuxtLink>
           <div class="flex flex-nowrap items-center gap-2 md:gap-3">
             <NuxtLink
               v-if="hasStores"
               to="/dashboard"
-              class="rounded-xl px-4 py-2 text-sm font-semibold text-slate-800 glass-btn"
+              :class="[navButtonClass, 'whitespace-nowrap']"
             >
+              <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
               Dashboard
             </NuxtLink>
             <div class="relative flex items-center">
@@ -109,7 +128,7 @@
             </div>
             <NuxtLink
               to="/profile"
-              class="flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-800 hover:border-slate-300 whitespace-nowrap"
+              :class="[navButtonClass, 'h-11 whitespace-nowrap']"
             >
               <span
                 v-if="avatarUrl"
@@ -126,25 +145,62 @@
 
       <div v-if="showMobileNav" class="md:hidden border-t border-slate-200 bg-white/95 px-6 py-3 text-sm">
         <div class="flex flex-col gap-4">
-          <div class="space-y-1">
+          <div class="space-y-2">
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">General</p>
-            <NuxtLink to="/" class="block rounded-lg px-3 py-2 hover:bg-slate-100">Menú principal</NuxtLink>
-            <NuxtLink to="/marketplace" class="block rounded-lg px-3 py-2 hover:bg-slate-100">Marketplace</NuxtLink>
+            <NuxtLink to="/" :class="mobileButtonClass">
+              <Home class="h-4 w-4" aria-hidden="true" />
+              <span>Menú principal</span>
+            </NuxtLink>
+            <NuxtLink to="/marketplace" :class="mobileButtonClass">
+              <StoreIcon class="h-4 w-4" aria-hidden="true" />
+              <span>Marketplace</span>
+            </NuxtLink>
           </div>
-          <div v-if="hasStoreContext" class="space-y-1">
+          <div v-if="hasStoreContext" class="space-y-2">
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Esta tienda</p>
-            <NuxtLink :to="`/store/${slug}`" class="block rounded-lg px-3 py-2 hover:bg-slate-100">Inicio</NuxtLink>
-            <NuxtLink :to="`/store/${slug}/productos`" class="block rounded-lg px-3 py-2 hover:bg-slate-100">Productos</NuxtLink>
-            <NuxtLink :to="`/store/${slug}/acerca`" class="block rounded-lg px-3 py-2 hover:bg-slate-100">Acerca de</NuxtLink>
-            <NuxtLink :to="`/store/${slug}/soporte`" class="block rounded-lg px-3 py-2 hover:bg-slate-100">Soporte</NuxtLink>
-            <NuxtLink :to="`/store/${slug}/carrito`" class="block rounded-lg px-3 py-2 hover:bg-slate-100">Carrito</NuxtLink>
+            <NuxtLink :to="`/store/${slug}`" :class="mobileButtonClass">
+              <Home class="h-4 w-4" aria-hidden="true" />
+              <span>Inicio</span>
+            </NuxtLink>
+            <NuxtLink :to="`/store/${slug}/productos`" :class="mobileButtonClass">
+              <ShoppingBag class="h-4 w-4" aria-hidden="true" />
+              <span>Productos</span>
+            </NuxtLink>
+            <NuxtLink :to="`/store/${slug}/acerca`" :class="mobileButtonClass">
+              <Info class="h-4 w-4" aria-hidden="true" />
+              <span>Acerca de</span>
+            </NuxtLink>
+            <NuxtLink :to="`/store/${slug}/soporte`" :class="mobileButtonClass">
+              <LifeBuoy class="h-4 w-4" aria-hidden="true" />
+              <span>Soporte</span>
+            </NuxtLink>
+            <NuxtLink :to="`/store/${slug}/carrito`" :class="mobileButtonClass">
+              <ShoppingCart class="h-4 w-4" aria-hidden="true" />
+              <span>Carrito</span>
+            </NuxtLink>
           </div>
-          <div class="space-y-1">
+          <div class="space-y-2">
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Cuenta</p>
-            <NuxtLink v-if="auth.isAuthenticated && hasStores" to="/dashboard" class="block rounded-lg px-3 py-2 hover:bg-slate-100">Dashboard</NuxtLink>
-            <NuxtLink v-if="auth.isAuthenticated" to="/profile" class="block rounded-lg px-3 py-2 hover:bg-slate-100">Perfil</NuxtLink>
-            <NuxtLink v-else to="/login" class="block rounded-lg px-3 py-2 hover:bg-slate-100">Iniciar sesión</NuxtLink>
-            <button v-if="auth.isAuthenticated" class="w-full rounded-lg px-3 py-2 text-left text-red-600 hover:bg-slate-100" @click="handleLogout">Cerrar sesión</button>
+            <NuxtLink v-if="auth.isAuthenticated && hasStores" to="/dashboard" :class="mobileButtonClass">
+              <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
+              <span>Dashboard</span>
+            </NuxtLink>
+            <NuxtLink v-if="auth.isAuthenticated" to="/profile" :class="mobileButtonClass">
+              <UserRound class="h-4 w-4" aria-hidden="true" />
+              <span>Perfil</span>
+            </NuxtLink>
+            <NuxtLink v-else to="/login" :class="mobileButtonClass">
+              <LogIn class="h-4 w-4" aria-hidden="true" />
+              <span>Iniciar sesión</span>
+            </NuxtLink>
+            <button
+              v-if="auth.isAuthenticated"
+              :class="[mobileButtonClass, 'text-red-600']"
+              @click="handleLogout"
+            >
+              <LogOut class="h-4 w-4" aria-hidden="true" />
+              <span>Cerrar sesión</span>
+            </button>
           </div>
         </div>
       </div>
@@ -160,7 +216,19 @@
 import { computed, onBeforeUnmount, onMounted, watch, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
-import { ShoppingCart, Bell } from 'lucide-vue-next'
+import {
+  ShoppingCart,
+  Bell,
+  Home,
+  Store as StoreIcon,
+  ShoppingBag,
+  Info,
+  LifeBuoy,
+  LayoutDashboard,
+  LogIn,
+  LogOut,
+  UserRound,
+} from 'lucide-vue-next'
 import { useTenantStore } from '~/stores/tenant'
 import { useCartStore } from '~/stores/cart'
 import { useAuthStore } from '~/stores/auth'
@@ -186,6 +254,8 @@ const gradientStyle = computed(() => ({ backgroundImage: `linear-gradient(120deg
 const hasStores = computed(() => ((auth.user as any)?.memberships || []).length > 0)
 const hasStoreContext = computed(() => Boolean(slug.value))
 const showMobileNav = ref(false)
+const navButtonClass = 'inline-flex items-center gap-2 rounded-2xl border border-slate-900/15 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50'
+const mobileButtonClass = 'flex w-full items-center gap-3 rounded-2xl border border-slate-900/10 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm'
 type NotificationItem = { type: string; message: string; count: number }
 type StoreSummary = { notifications?: NotificationItem[] }
 

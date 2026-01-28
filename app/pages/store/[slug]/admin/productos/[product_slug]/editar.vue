@@ -67,6 +67,32 @@
               Publicar en marketplace
             </label>
           </div>
+          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Inventario registrado</p>
+                <p class="text-lg font-semibold text-slate-900">{{ totalStock }} unidades</p>
+              </div>
+              <NuxtLink
+                :to="`/store/${slug}/admin/inventario`"
+                class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-slate-300"
+              >
+                Abrir inventario
+              </NuxtLink>
+            </div>
+            <div v-if="variants.length" class="rounded-xl border border-slate-200 bg-white">
+              <div v-for="variant in variants" :key="variant.id" class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0">
+                <div>
+                  <p class="text-sm font-semibold text-slate-900">{{ variant.name }}</p>
+                  <p v-if="variant.sku" class="text-xs text-slate-500">SKU: {{ variant.sku }}</p>
+                </div>
+                <p class="text-sm font-semibold" :class="variantStockClass(variant.stock_available)">
+                  {{ variantStockLabel(variant.stock_available) }}
+                </p>
+              </div>
+            </div>
+            <p v-else class="text-sm text-slate-600">Aún no hay variantes con stock registrado en Inventario.</p>
+          </div>
           <div class="space-y-2">
             <label class="text-sm text-slate-600">Imagen (URL)</label>
             <input v-model="form.image_url" type="url" placeholder="https://..." class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
@@ -138,9 +164,31 @@ const saving = ref(false)
 const deleting = ref(false)
 const message = ref('')
 const messageType = ref<'ok' | 'error'>('ok')
+const variants = ref<any[]>([])
 
 const accentStyle = computed(() => ({ backgroundColor: theme.accent, color: '#fff' }))
 const categories = ref<any[]>([])
+
+const normalizeStock = (value: any) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+const variantStockLabel = (value: any) => {
+  const stock = normalizeStock(value)
+  if (stock <= 0) return 'Sin stock'
+  if (stock <= 5) return `Stock bajo (${stock})`
+  return `${stock} en inventario`
+}
+
+const variantStockClass = (value: any) => {
+  const stock = normalizeStock(value)
+  if (stock <= 0) return 'text-red-600'
+  if (stock <= 5) return 'text-amber-600'
+  return 'text-emerald-600'
+}
+
+const totalStock = computed(() => variants.value.reduce((acc, variant) => acc + normalizeStock(variant.stock_available), 0))
 
 const loadCategories = async () => {
   try {
@@ -166,6 +214,7 @@ const load = async () => {
     form.is_marketplace = data.is_marketplace
     form.image_url = data.images?.[0]?.image || ''
     form.category = data.category?.id || ''
+    variants.value = data.variants || []
   } catch (error) {
     message.value = 'No pudimos cargar el producto'
     messageType.value = 'error'
