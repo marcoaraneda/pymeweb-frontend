@@ -1,45 +1,12 @@
 <template>
   <div class="min-h-screen bg-slate-50 text-slate-900">
-    <header class="relative z-50 overflow-visible border-b border-slate-200 bg-white/85 backdrop-blur">
+    <header class="relative overflow-hidden border-b border-slate-200 bg-white/85 backdrop-blur">
       <div class="pointer-events-none absolute inset-0" aria-hidden="true">
         <div class="absolute -left-12 top-6 h-40 w-40 rounded-full" :style="gradientStyle" />
         <div class="absolute -right-10 -bottom-6 h-48 w-48 rounded-full" :style="gradientStyle" />
       </div>
       <div class="relative mx-auto flex max-w-7xl items-center justify-between gap-5 px-6 py-4">
         <div class="flex flex-shrink-0 items-center gap-3">
-          <div class="relative z-30">
-            <button
-              class="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
-              aria-label="Menú general"
-              @click.stop="showGeneralMenu = !showGeneralMenu"
-            >
-              <Menu class="h-5 w-5" aria-hidden="true" />
-            </button>
-            <div
-              v-if="showGeneralMenu"
-              class="absolute left-0 top-full mt-3 w-48 rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-lg z-50"
-            >
-              <p class="px-2 text-[11px] uppercase tracking-[0.18em] text-slate-500">General</p>
-              <div class="mt-2 space-y-2">
-                <NuxtLink to="/" class="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-800 hover:bg-slate-50">
-                  <Home class="h-4 w-4" aria-hidden="true" />
-                  Menú principal
-                </NuxtLink>
-                <NuxtLink to="/marketplace" class="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-800 hover:bg-slate-50">
-                  <StoreIcon class="h-4 w-4" aria-hidden="true" />
-                  Marketplace
-                </NuxtLink>
-                <NuxtLink
-                  v-if="auth.isAuthenticated && hasStores"
-                  to="/dashboard"
-                  class="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-800 hover:bg-slate-50"
-                >
-                  <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
-                  Dashboard
-                </NuxtLink>
-              </div>
-            </div>
-          </div>
           <button
             class="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow ring-1 ring-slate-200"
             :aria-label="canEditBrand ? 'Cambiar imagen de la tienda' : 'Logo de la tienda'"
@@ -58,9 +25,17 @@
           </div>
         </div>
 
-        <nav class="hidden flex-1 flex-nowrap items-center justify-center gap-3 md:flex overflow-x-auto">
+        <nav class="hidden flex-1 flex-wrap items-center justify-center gap-3 md:flex">
+          <NuxtLink to="/" :class="navButtonClass">
+            <Home class="h-4 w-4" aria-hidden="true" />
+            Menú principal
+          </NuxtLink>
+          <NuxtLink to="/marketplace" :class="navButtonClass">
+            <StoreIcon class="h-4 w-4" aria-hidden="true" />
+            Marketplace
+          </NuxtLink>
           <template v-if="hasStoreContext">
-            <div class="flex flex-nowrap items-center gap-3">
+            <div class="flex flex-wrap items-center gap-3">
               <NuxtLink :to="`/store/${slug}`" :class="navButtonClass">
                 <Home class="h-4 w-4" aria-hidden="true" />
                 Inicio
@@ -74,7 +49,7 @@
                 Acerca de
               </NuxtLink>
               <NuxtLink :to="`/store/${slug}/soporte`" :class="navButtonClass">
-                <Headset class="h-4 w-4" aria-hidden="true" />
+                <LifeBuoy class="h-4 w-4" aria-hidden="true" />
                 Soporte
               </NuxtLink>
             </div>
@@ -107,6 +82,14 @@
             Iniciar sesión
           </NuxtLink>
           <div class="flex flex-nowrap items-center gap-2 md:gap-3">
+            <NuxtLink
+              v-if="hasStores"
+              to="/dashboard"
+              :class="[navButtonClass, 'whitespace-nowrap']"
+            >
+              <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
+              Dashboard
+            </NuxtLink>
             <div class="relative flex items-center">
               <button
                 class="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow ring-1 ring-slate-200 text-slate-800 glass-btn"
@@ -188,7 +171,7 @@
               <span>Acerca de</span>
             </NuxtLink>
             <NuxtLink :to="`/store/${slug}/soporte`" :class="mobileButtonClass">
-              <Headset class="h-4 w-4" aria-hidden="true" />
+              <LifeBuoy class="h-4 w-4" aria-hidden="true" />
               <span>Soporte</span>
             </NuxtLink>
             <NuxtLink :to="`/store/${slug}/carrito`" :class="mobileButtonClass">
@@ -240,12 +223,11 @@ import {
   Store as StoreIcon,
   ShoppingBag,
   Info,
-  Headset,
+  LifeBuoy,
   LayoutDashboard,
   LogIn,
   LogOut,
   UserRound,
-  Menu,
 } from 'lucide-vue-next'
 import { useTenantStore } from '~/stores/tenant'
 import { useCartStore } from '~/stores/cart'
@@ -272,8 +254,7 @@ const gradientStyle = computed(() => ({ backgroundImage: `linear-gradient(120deg
 const hasStores = computed(() => ((auth.user as any)?.memberships || []).length > 0)
 const hasStoreContext = computed(() => Boolean(slug.value))
 const showMobileNav = ref(false)
-const showGeneralMenu = ref(false)
-const navButtonClass = 'inline-flex h-11 min-w-[140px] items-center justify-center gap-2 rounded-2xl border border-slate-900/15 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 whitespace-nowrap'
+const navButtonClass = 'inline-flex items-center gap-2 rounded-2xl border border-slate-900/15 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50'
 const mobileButtonClass = 'flex w-full items-center gap-3 rounded-2xl border border-slate-900/10 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm'
 type NotificationItem = { type: string; message: string; count: number }
 type StoreSummary = { notifications?: NotificationItem[] }
@@ -391,7 +372,6 @@ watch(
   () => {
     showMobileNav.value = false
     showNotifications.value = false
-    showGeneralMenu.value = false
   }
 )
 </script>
