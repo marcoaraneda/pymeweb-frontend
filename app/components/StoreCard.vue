@@ -17,8 +17,9 @@
         class="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/80 text-slate-500 shadow-sm transition hover:-translate-y-0.5 hover:text-red-600"
         title="Eliminar tienda"
         @click.stop="handleDelete"
+        aria-label="Eliminar tienda"
       >
-        🗑️
+        <img src="/tailwind-trash.svg" alt="Eliminar" class="h-5 w-5 text-red-500" style="filter: invert(27%) sepia(99%) saturate(7492%) hue-rotate(357deg) brightness(97%) contrast(119%);" />
       </button>
       <div class="flex items-center gap-3">
         <div class="h-12 w-12 overflow-hidden rounded-xl bg-slate-100 shadow-inner ring-1 ring-slate-200">

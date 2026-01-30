@@ -83,7 +83,7 @@
             :key="item.id"
             class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
           >
-            <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center justify-between gap-2 relative">
               <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ item.name }}</p>
               <span
                 class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold"
@@ -93,6 +93,22 @@
                 <XCircle v-else class="h-4 w-4" />
                 {{ item.is_active ? 'Activo' : 'Inactivo' }}
               </span>
+              <div class="relative">
+                <button @click="openMenu(item.id)" class="ml-2 p-1 rounded-full hover:bg-slate-100 focus:outline-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+                </button>
+                <div v-if="openMenuId === item.id" class="absolute right-0 top-8 z-50 min-w-[160px] rounded-xl border border-slate-200 bg-white shadow-lg">
+                  <button @click="goToDetail(item)" class="flex w-full items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                    Ver detalle
+                  </button>
+                  <button @click="goToEdit(item)" class="flex w-full items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                    Editar
+                  </button>
+                  <button @click="deleteProduct(item)" class="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                    Eliminar
+                  </button>
+                </div>
+              </div>
             </div>
             <p class="text-sm text-slate-600 line-clamp-2">{{ item.description || 'Sin descripción' }}</p>
             <p class="text-base font-bold" :class="item.offer_price ? 'text-red-600' : 'text-slate-900'">
@@ -127,6 +143,24 @@ import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-vue-next'
+
+const openMenuId = ref<number|null>(null)
+const openMenu = (id:number) => {
+  openMenuId.value = openMenuId.value === id ? null : id
+}
+const goToDetail = (item:any) => {
+  openMenuId.value = null
+  navigateTo(`/marketplace/productos/${item.slug}`)
+}
+const goToEdit = (item:any) => {
+  openMenuId.value = null
+  navigateTo(`/marketplace/productos/${item.slug}?edit=1`)
+}
+const deleteProduct = (item:any) => {
+  openMenuId.value = null
+  // Aquí irá la lógica real de borrado
+  alert('Eliminar producto: ' + item.name)
+}
 
 const auth = useAuthStore()
 const theme = useThemeStore()
