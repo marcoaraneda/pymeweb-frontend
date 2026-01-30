@@ -187,7 +187,6 @@ const loadProduct = async () => {
 
 const handleAddToCart = async () => {
   if (!product.value) return
-  cart.loadFromStorage()
   cart.setContext('marketplace')
   cart.addProduct(product.value)
   await navigateTo('/marketplace/carrito')

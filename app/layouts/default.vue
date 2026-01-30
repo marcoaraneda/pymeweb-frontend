@@ -33,7 +33,7 @@
             class="relative hidden h-11 w-11 items-center justify-center rounded-xl text-white shadow md:inline-flex"
             :style="{ backgroundColor: '#f59e0b' }"
             aria-label="Carrito marketplace"
-            @click="cart.setContext('marketplace')"
+            @click.prevent="handleMarketplaceCartClick"
           >
             <ShoppingCart class="h-5 w-5" aria-hidden="true" />
             <span
@@ -144,7 +144,7 @@
         <div class="flex flex-col gap-2">
           <NuxtLink to="/marketplace" class="rounded-lg px-3 py-2 hover:bg-slate-100">Marketplace</NuxtLink>
           <NuxtLink to="/tiendas" class="rounded-lg px-3 py-2 hover:bg-slate-100">Ver tiendas</NuxtLink>
-          <NuxtLink to="/marketplace/carrito" class="rounded-lg px-3 py-2 hover:bg-slate-100 text-amber-700" @click="cart.setContext('marketplace')">Carrito marketplace</NuxtLink>
+          <NuxtLink to="/marketplace/carrito" class="rounded-lg px-3 py-2 hover:bg-slate-100 text-amber-700" @click.prevent="handleMarketplaceCartClick">Carrito marketplace</NuxtLink>
           <NuxtLink v-if="!auth.isAuthenticated" to="/login" class="rounded-lg px-3 py-2 hover:bg-slate-100">Iniciar sesión</NuxtLink>
           <template v-else>
             <NuxtLink to="/profile" class="rounded-lg px-3 py-2 hover:bg-slate-100">Editar perfil</NuxtLink>
@@ -178,6 +178,11 @@ import { useNotificationStore } from '~/stores/notifications'
 const auth = useAuthStore()
 const theme = useThemeStore()
 const cart = useCartStore()
+// Corrige warning: handleMarketplaceCartClick no estaba definido
+const handleMarketplaceCartClick = () => {
+  cart.setContext('marketplace')
+  navigateTo('/marketplace/carrito')
+}
 const config = useRuntimeConfig()
 const route = useRoute()
 const showMenu = ref(false)

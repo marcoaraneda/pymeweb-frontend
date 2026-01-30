@@ -101,9 +101,11 @@ const loadProduct = async () => {
   }
 }
 
-const handleAddToCart = () => {
+const handleAddToCart = async () => {
   if (!product.value) return
+  cart.setContext('marketplace')
   cart.addProduct(product.value)
+  await navigateTo('/marketplace/carrito')
 }
 
 onMounted(async () => {

@@ -1,12 +1,53 @@
 <template>
   <div class="min-h-screen bg-slate-50 text-slate-900">
-    <header class="relative overflow-hidden border-b border-slate-200 bg-white/85 backdrop-blur">
+    <header class="relative z-50 overflow-visible border-b border-slate-200 bg-white/85 backdrop-blur">
       <div class="pointer-events-none absolute inset-0" aria-hidden="true">
         <div class="absolute -left-12 top-6 h-40 w-40 rounded-full" :style="gradientStyle" />
         <div class="absolute -right-10 -bottom-6 h-48 w-48 rounded-full" :style="gradientStyle" />
       </div>
       <div class="relative mx-auto flex max-w-7xl items-center justify-between gap-5 px-6 py-4">
         <div class="flex flex-shrink-0 items-center gap-3">
+          <div class="relative z-30">
+            <button
+              ref="menuBtnRef"
+              class="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
+              aria-label="Menú general"
+              @click.stop="toggleGeneralMenu"
+            >
+              <Menu class="h-5 w-5" aria-hidden="true" />
+            </button>
+            <teleport to="body">
+              <div v-if="showGeneralMenu">
+                <div class="fixed inset-0 z-[99999]" @click="showGeneralMenu = false"></div>
+                <div
+                  class="fixed w-48 rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-lg z-[100000]"
+                  :style="menuGeneralStyle"
+                  style="min-width:180px"
+                  @click.stop
+                >
+                  <p class="px-2 text-[11px] uppercase tracking-[0.18em] text-slate-500">General</p>
+                  <div class="mt-2 space-y-2">
+                    <NuxtLink to="/" class="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-800 hover:bg-slate-50">
+                      <Home class="h-4 w-4" aria-hidden="true" />
+                      Menú principal
+                    </NuxtLink>
+                    <NuxtLink to="/marketplace" class="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-800 hover:bg-slate-50">
+                      <StoreIcon class="h-4 w-4" aria-hidden="true" />
+                      Marketplace
+                    </NuxtLink>
+                    <NuxtLink
+                      v-if="auth.isAuthenticated && hasStores"
+                      to="/dashboard"
+                      class="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-800 hover:bg-slate-50"
+                    >
+                      <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
+                      Dashboard
+                    </NuxtLink>
+                  </div>
+                </div>
+              </div>
+            </teleport>
+          </div>
           <button
             class="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow ring-1 ring-slate-200"
             :aria-label="canEditBrand ? 'Cambiar imagen de la tienda' : 'Logo de la tienda'"
@@ -25,17 +66,9 @@
           </div>
         </div>
 
-        <nav class="hidden flex-1 flex-wrap items-center justify-center gap-3 md:flex">
-          <NuxtLink to="/" :class="navButtonClass">
-            <Home class="h-4 w-4" aria-hidden="true" />
-            Menú principal
-          </NuxtLink>
-          <NuxtLink to="/marketplace" :class="navButtonClass">
-            <StoreIcon class="h-4 w-4" aria-hidden="true" />
-            Marketplace
-          </NuxtLink>
+        <nav class="hidden flex-1 flex-nowrap items-center justify-center gap-3 md:flex overflow-x-auto">
           <template v-if="hasStoreContext">
-            <div class="flex flex-wrap items-center gap-3">
+            <div class="flex flex-nowrap items-center gap-3">
               <NuxtLink :to="`/store/${slug}`" :class="navButtonClass">
                 <Home class="h-4 w-4" aria-hidden="true" />
                 Inicio
@@ -49,7 +82,7 @@
                 Acerca de
               </NuxtLink>
               <NuxtLink :to="`/store/${slug}/soporte`" :class="navButtonClass">
-                <LifeBuoy class="h-4 w-4" aria-hidden="true" />
+                <Headset class="h-4 w-4" aria-hidden="true" />
                 Soporte
               </NuxtLink>
             </div>
@@ -82,19 +115,12 @@
             Iniciar sesión
           </NuxtLink>
           <div class="flex flex-nowrap items-center gap-2 md:gap-3">
-            <NuxtLink
-              v-if="hasStores"
-              to="/dashboard"
-              :class="[navButtonClass, 'whitespace-nowrap']"
-            >
-              <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
-              Dashboard
-            </NuxtLink>
             <div class="relative flex items-center">
               <button
+                ref="notifBtnRef"
                 class="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow ring-1 ring-slate-200 text-slate-800 glass-btn"
                 aria-label="Notificaciones"
-                @click.stop="showNotifications = !showNotifications"
+                @click.stop="toggleNotifications"
               >
                 <Bell class="h-5 w-5" aria-hidden="true" />
                 <span
@@ -104,27 +130,33 @@
                   {{ notificationsCount }}
                 </span>
               </button>
-              <div
-                v-if="showNotifications"
-                class="absolute right-0 top-full mt-3 w-64 rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-lg z-20"
-              >
-                <div class="flex items-center justify-between">
-                  <p class="font-semibold text-slate-800">Notificaciones</p>
-                  <button class="text-xs text-slate-600 underline hover:text-slate-900" @click.stop="clearNotifications">Limpiar</button>
-                </div>
-                <div class="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                  <p v-if="!notifications.length" class="text-slate-500">Sin notificaciones.</p>
-                  <button
-                    v-else
-                    v-for="(n, idx) in notifications"
-                    :key="idx"
-                    class="w-full text-left rounded-lg border border-slate-100 px-2 py-1 text-slate-700 hover:bg-slate-50"
-                    @click="handleNotification(n)"
+              <teleport to="body">
+                <div v-if="showNotifications">
+                  <div class="fixed inset-0 z-[99999]" @click="showNotifications = false"></div>
+                  <div
+                    class="fixed w-64 rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-lg z-[100000]"
+                    :style="notifMenuStyle"
+                    @click.stop
                   >
-                    {{ n.message }}
-                  </button>
+                    <div class="flex items-center justify-between">
+                      <p class="font-semibold text-slate-800">Notificaciones</p>
+                      <button class="text-xs text-slate-600 underline hover:text-slate-900" @click.stop="clearNotifications">Limpiar</button>
+                    </div>
+                    <div class="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                      <p v-if="!notifications.length" class="text-slate-500">Sin notificaciones.</p>
+                      <button
+                        v-else
+                        v-for="(n, idx) in notifications"
+                        :key="idx"
+                        class="w-full text-left rounded-lg border border-slate-100 px-2 py-1 text-slate-700 hover:bg-slate-50"
+                        @click="handleNotification(n)"
+                      >
+                        {{ n.message }}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </teleport>
             </div>
             <NuxtLink
               to="/profile"
@@ -171,7 +203,7 @@
               <span>Acerca de</span>
             </NuxtLink>
             <NuxtLink :to="`/store/${slug}/soporte`" :class="mobileButtonClass">
-              <LifeBuoy class="h-4 w-4" aria-hidden="true" />
+              <Headset class="h-4 w-4" aria-hidden="true" />
               <span>Soporte</span>
             </NuxtLink>
             <NuxtLink :to="`/store/${slug}/carrito`" :class="mobileButtonClass">
@@ -213,7 +245,34 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, watch, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, watch, ref, nextTick } from 'vue'
+// Refs para los menús
+const notifBtnRef = ref<HTMLElement | null>(null)
+const notifMenuStyle = ref('')
+const menuBtnRef = ref<HTMLElement | null>(null)
+const menuGeneralStyle = ref('')
+
+const toggleNotifications = async () => {
+  showNotifications.value = !showNotifications.value
+  if (showNotifications.value) {
+    await nextTick()
+    if (notifBtnRef.value) {
+      const rect = notifBtnRef.value.getBoundingClientRect()
+      notifMenuStyle.value = `top: ${rect.bottom + 8}px; left: ${rect.left}px;` // 8px de separación
+    }
+  }
+}
+
+const toggleGeneralMenu = async () => {
+  showGeneralMenu.value = !showGeneralMenu.value
+  if (showGeneralMenu.value) {
+    await nextTick()
+    if (menuBtnRef.value) {
+      const rect = menuBtnRef.value.getBoundingClientRect()
+      menuGeneralStyle.value = `top: ${rect.bottom + 8}px; left: ${rect.left}px;` // 8px de separación
+    }
+  }
+}
 import { useRoute, useRouter } from 'vue-router'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import {
@@ -223,11 +282,12 @@ import {
   Store as StoreIcon,
   ShoppingBag,
   Info,
-  LifeBuoy,
+  Headset,
   LayoutDashboard,
   LogIn,
   LogOut,
   UserRound,
+  Menu,
 } from 'lucide-vue-next'
 import { useTenantStore } from '~/stores/tenant'
 import { useCartStore } from '~/stores/cart'
@@ -254,7 +314,8 @@ const gradientStyle = computed(() => ({ backgroundImage: `linear-gradient(120deg
 const hasStores = computed(() => ((auth.user as any)?.memberships || []).length > 0)
 const hasStoreContext = computed(() => Boolean(slug.value))
 const showMobileNav = ref(false)
-const navButtonClass = 'inline-flex items-center gap-2 rounded-2xl border border-slate-900/15 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50'
+const showGeneralMenu = ref(false)
+const navButtonClass = 'inline-flex h-11 min-w-[140px] items-center justify-center gap-2 rounded-2xl border border-slate-900/15 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 whitespace-nowrap'
 const mobileButtonClass = 'flex w-full items-center gap-3 rounded-2xl border border-slate-900/10 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm'
 type NotificationItem = { type: string; message: string; count: number }
 type StoreSummary = { notifications?: NotificationItem[] }
@@ -372,6 +433,7 @@ watch(
   () => {
     showMobileNav.value = false
     showNotifications.value = false
+    showGeneralMenu.value = false
   }
 )
 </script>

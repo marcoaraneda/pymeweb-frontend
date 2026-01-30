@@ -447,9 +447,11 @@ const fetchMarketplace = async () => {
 
 const productImage = (product: any) => product?.images?.[0]?.image || 'https://via.placeholder.com/400x240?text=Producto'
 
-const addToCart = (product: any) => {
+const addToCart = async (product: any) => {
   if (!product) return
+  cart.setContext('marketplace')
   cart.addProduct(product)
+  await router.push('/marketplace/carrito')
 }
 
 const fetchMyStores = async () => {
