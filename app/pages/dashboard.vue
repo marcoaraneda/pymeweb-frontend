@@ -83,23 +83,6 @@
             />
           </div>
 
-          <div class="mt-6">
-            <h3 class="text-lg font-semibold text-white">Reseñas de mis productos</h3>
-            <div v-if="ownerReviewsLoading" class="text-white/70 mt-2">Cargando reseñas...</div>
-            <div v-else-if="!ownerReviews.length" class="mt-2 text-white/70">No hay reseñas aún.</div>
-            <div v-else class="mt-3 space-y-3">
-              <article v-for="r in ownerReviews" :key="r.id" class="rounded-xl border border-white/10 bg-white/5 p-3">
-                <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <p class="text-sm font-semibold text-white">{{ r.product.name }}</p>
-                    <p class="text-xs text-white/70">{{ r.customer_name || 'Anónimo' }} — {{ new Date(r.created_at).toLocaleString() }}</p>
-                    <p class="mt-2 text-sm text-white/80">{{ r.comment }}</p>
-                  </div>
-                  <div class="text-sm text-amber-200 font-semibold">{{ r.rating }} ★</div>
-                </div>
-              </article>
-            </div>
-          </div>
           <div class="mt-6 flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-white/80">
             <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">
               <Lightbulb class="h-5 w-5" aria-hidden="true" />
@@ -433,39 +416,6 @@ const recentReviews = ref<ReviewFeedItem[]>([])
 const loadingReviews = ref(false)
 const REVIEW_EVENT = 'pymeweb:review-created'
 
-type OwnerReview = {
-  id: number | string
-  rating: number
-  comment: string
-  customer_name: string
-  created_at: string
-  product: { name: string; slug?: string }
-}
-
-const ownerReviews = ref<OwnerReview[]>([])
-const ownerReviewsLoading = ref(false)
-
-const loadOwnerReviews = async () => {
-  if (!auth.token) {
-    ownerReviews.value = []
-    return
-  }
-  ownerReviewsLoading.value = true
-  const params: Record<string, any> = {}
-  if (selectedStore.value !== 'all') params.store = selectedStore.value
-  try {
-    ownerReviews.value = await $fetch<OwnerReview[]>(`${apiBase}/resenas/owner/reviews/` as any, {
-      headers: { Authorization: `Bearer ${auth.token}` },
-      params,
-    })
-  } catch (error) {
-    console.warn('No se pudieron cargar reseñas del dueño', error)
-    ownerReviews.value = []
-  } finally {
-    ownerReviewsLoading.value = false
-  }
-}
-
 type ReviewFeedItem = {
   id: number | string
   rating: number
@@ -546,7 +496,7 @@ const loadData = async () => {
   if (storesMine.value.length && selectedStore.value === 'all') {
     selectedStore.value = 'all'
   }
-  await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets(), loadRecentReviews(), loadOwnerReviews()])
+  await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets(), loadRecentReviews()])
   loading.value = false
 }
 
@@ -654,23 +604,13 @@ const loadRecentReviews = async () => {
   const params: Record<string, any> = {}
   if (selectedStore.value !== 'all') params.store = selectedStore.value
   try {
-    // Primary: try support dashboard reviews endpoint
     recentReviews.value = await $fetch<ReviewFeedItem[]>(`${apiBase}/support/dashboard/reviews/` as any, {
       headers: { Authorization: `Bearer ${auth.token}` },
       params,
     })
   } catch (error) {
-    console.warn('No se pudieron cargar reseñas desde support dashboard, intentando owner endpoint', error)
-    // Fallback: try owner-aggregated reviews endpoint (created in backend)
-    try {
-      recentReviews.value = await $fetch<ReviewFeedItem[]>(`${apiBase}/resenas/owner/reviews/` as any, {
-        headers: { Authorization: `Bearer ${auth.token}` },
-        params,
-      })
-    } catch (err2) {
-      console.warn('No se pudieron cargar reseñas desde owner endpoint', err2)
-      recentReviews.value = []
-    }
+    console.warn('No se pudieron cargar reseñas', error)
+    recentReviews.value = []
   } finally {
     loadingReviews.value = false
   }
@@ -799,6 +739,6 @@ onBeforeUnmount(() => {
 watch(selectedStore, async () => {
   pendingPage.value = 1
   deliveredPage.value = 1
-  await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets(), loadRecentReviews(), loadOwnerReviews()])
+  await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets(), loadRecentReviews()])
 })
 </script>

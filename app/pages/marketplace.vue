@@ -334,9 +334,13 @@
                     v-if="actionMenuId === item.id"
                     class="absolute right-0 top-11 z-10 w-44 rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
                   >
-                      <button @click="() => { toggleSubmissionMenu(null); navigateTo(`/marketplace/productos/${item.slug || item.id}`) }" class="block w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-50">Ver detalle</button>
-                      <button @click="() => { toggleSubmissionMenu(null); navigateTo('/marketplace#mis-productos') }" class="block w-full text-left px-3 py-2 text-slate-700 hover:bg-slate-50">Editar</button>
-                      <button @click="() => { toggleSubmissionMenu(null); /* eliminar: implementar lógica si se desea */ }" class="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50">Eliminar</button>
+                    <NuxtLink
+                      :to="`/marketplace/productos/${item.slug || item.id}`"
+                      class="block px-3 py-2 text-slate-700 hover:bg-slate-50"
+                      @click="toggleSubmissionMenu(null)"
+                    >
+                      Ver detalle / editar
+                    </NuxtLink>
                   </div>
                 </div>
               </div>

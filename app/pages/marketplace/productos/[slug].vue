@@ -8,7 +8,7 @@
         <div v-else-if="error" class="text-red-600">{{ error }}</div>
         <div v-else-if="!product" class="text-slate-600">Producto no encontrado.</div>
         <div v-else class="grid gap-6 md:grid-cols-[1.3fr,1fr] md:items-start">
-            <div class="space-y-3">
+          <div class="space-y-3">
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">{{ product.category?.name || 'General' }}</p>
             <h1 class="text-2xl font-bold text-slate-900">{{ product.name }}</h1>
             <p class="text-sm text-slate-600 whitespace-pre-line">{{ product.description }}</p>
@@ -92,87 +92,6 @@
             <p v-if="saveError" class="text-sm text-red-600">{{ saveError }}</p>
           </div>
         </div>
-      
-      <section class="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Reseñas</p>
-            <h2 class="text-lg font-semibold text-slate-900">Opiniones y valoración</h2>
-          </div>
-        </div>
-
-        <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
-          <label class="text-sm font-semibold text-slate-700">Deja tu reseña</label>
-          <div class="grid gap-2 sm:grid-cols-2">
-            <input v-model="reviewForm.customer_name" type="text" placeholder="Tu nombre" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-            <div class="flex flex-col gap-1">
-              <span class="text-xs uppercase tracking-wide text-slate-500">Tu valoración</span>
-              <div class="flex items-center gap-1">
-                <button
-                  v-for="star in 5"
-                  :key="star"
-                  type="button"
-                  class="transition"
-                  @mouseenter="reviewHover = star"
-                  @mouseleave="reviewHover = 0"
-                  @click="selectRating(star)"
-                  :aria-label="`Asignar ${star} estrellas`"
-                >
-                  <Star
-                    class="h-5 w-5 transition"
-                    :class="star <= (reviewHover || reviewForm.rating)
-                      ? 'text-amber-500 fill-amber-500 stroke-amber-500'
-                      : 'text-slate-300 fill-transparent stroke-slate-300'"
-                  />
-                </button>
-                <span class="text-xs text-slate-500">
-                  {{ reviewHover || reviewForm.rating ? ((reviewHover || reviewForm.rating) + ' / 5') : 'Selecciona una valoración' }}
-                </span>
-              </div>
-            </div>
-          </div>
-          <textarea v-model="reviewForm.comment" rows="3" placeholder="Escribe tu comentario" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"></textarea>
-          <div class="flex flex-wrap items-center gap-3">
-            <button
-              class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow disabled:opacity-50"
-              :style="accentStyle"
-              :disabled="sendingReview || !canSubmitReview"
-              @click="sendReview"
-            >
-              {{ sendingReview ? 'Enviando…' : 'Publicar reseña' }}
-            </button>
-            <span class="text-xs text-slate-500">Tu reseña se publica abajo de inmediato.</span>
-            <p v-if="reviewMessage" class="text-sm" :class="reviewStatus === 'error' ? 'text-red-600' : 'text-green-600'">{{ reviewMessage }}</p>
-          </div>
-        </div>
-
-        <div class="space-y-3">
-          <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Reseñas recientes</p>
-          <div class="space-y-3" v-if="reviews.length">
-            <article v-for="review in reviews" :key="review.id" class="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-              <div class="flex flex-col gap-1 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex items-center gap-2">
-                  <span class="font-semibold">{{ review.customer_name || 'Cliente' }}</span>
-                  <span v-if="review.pending" class="text-[11px] font-semibold uppercase tracking-widest text-amber-600">Pendiente</span>
-                </div>
-                <div class="flex items-center gap-1 text-amber-500">
-                  <Star
-                    v-for="star in 5"
-                    :key="`${review.id}-star-${star}`"
-                    class="h-4 w-4"
-                    :class="star <= Number(review.rating)
-                      ? 'text-amber-500 fill-amber-500 stroke-amber-500'
-                      : 'text-slate-300 fill-transparent stroke-slate-300'"
-                  />
-                </div>
-              </div>
-              <p class="mt-1 text-sm text-slate-600">{{ review.comment }}</p>
-              <p class="text-xs text-slate-400">{{ new Date(review.created_at).toLocaleDateString() }}</p>
-            </article>
-          </div>
-          <p v-else class="text-sm text-slate-600">Aún no hay reseñas.</p>
-        </div>
-      </section>
       </div>
     </div>
   </div>
@@ -184,13 +103,12 @@ import { useRoute } from 'vue-router'
 import { useRuntimeConfig } from 'nuxt/app'
 import { definePageMeta } from '#imports'
 import { useCartStore } from '~/stores/cart'
-import { useNotificationStore } from '~/stores/notifications'
 import { useTenantStore } from '~/stores/tenant'
 import { useThemeStore } from '~/stores/theme'
 import { useAuthStore } from '~/stores/auth'
 import { useImages } from '~/composables/useImages'
 
-definePageMeta({ layout: 'store' })
+definePageMeta({ layout: 'default' })
 
 const route = useRoute()
 const slugParam = route.params.slug as string
@@ -200,8 +118,6 @@ const tenantStore = useTenantStore()
 const theme = useThemeStore()
 const auth = useAuthStore()
 const { getProductImage } = useImages()
-const notificationStore = useNotificationStore()
-const REVIEW_EVENT = 'pymeweb:review-created'
 
 const product = ref<any | null>(null)
 const loading = ref(true)
@@ -217,100 +133,6 @@ const canEdit = computed(() => {
   const userId = (auth.user as any)?.id
   return Boolean(userId && product.value?.submitted_by === userId)
 })
-
-const reviews = ref<any[]>([])
-const sendingReview = ref(false)
-const reviewMessage = ref('')
-const reviewStatus = ref<'ok' | 'error'>('ok')
-const reviewForm = ref({ rating: 0, comment: '', customer_name: '' })
-const reviewHover = ref(0)
-const canSubmitReview = computed(() => reviewForm.value.rating > 0 && reviewForm.value.comment.trim().length > 0)
-
-const withPendingFlag = (review: any = {}) => ({
-  ...review,
-  pending: review?.status ? review.status !== 'APPROVED' : false,
-})
-
-const fetchReviews = async () => {
-  if (!product.value) return
-  try {
-    if (product.value?.store?.slug) {
-      const data = await $fetch<any[]>(`${config.public.apiBase}/store/${product.value.store.slug}/resenas/reviews/product/${product.value.slug}/`)
-      reviews.value = (data || []).map(withPendingFlag)
-    } else {
-      // Fallback: marketplace-specific reviews endpoint (if available)
-      const idOrSlug = product.value.slug || product.value.id
-      const data = await $fetch<any[]>(`${config.public.apiBase}/marketplace/products/${encodeURIComponent(idOrSlug)}/reviews/`)
-      reviews.value = (data || []).map(withPendingFlag)
-    }
-  } catch (error) {
-    reviews.value = []
-  }
-}
-
-const sendReview = async () => {
-  if (!product.value) return
-  if (reviewForm.value.rating <= 0) {
-    reviewStatus.value = 'error'
-    reviewMessage.value = 'Selecciona una valoración antes de enviar.'
-    return
-  }
-  sendingReview.value = true
-  reviewMessage.value = ''
-  try {
-    let created: any = null
-    if (product.value?.store?.slug) {
-      created = await $fetch<any>(`${config.public.apiBase}/store/${product.value.store.slug}/resenas/reviews/product/${product.value.slug}/create/`, {
-        method: 'POST',
-        body: {
-          rating: reviewForm.value.rating,
-          comment: reviewForm.value.comment,
-          customer_name: reviewForm.value.customer_name,
-          product_slug: product.value.slug,
-        },
-      })
-    } else {
-      const idOrSlug = product.value.slug || product.value.id
-      created = await $fetch<any>(`${config.public.apiBase}/marketplace/products/${encodeURIComponent(idOrSlug)}/reviews/create/`, {
-        method: 'POST',
-        body: {
-          rating: reviewForm.value.rating,
-          comment: reviewForm.value.comment,
-          customer_name: reviewForm.value.customer_name,
-          product_slug: idOrSlug,
-        },
-      })
-    }
-    const pendingReview = withPendingFlag(created)
-    reviewMessage.value = 'Gracias, tu reseña ya aparece para otros compradores.'
-    reviewStatus.value = 'ok'
-    reviewForm.value = { rating: 0, comment: '', customer_name: '' }
-    reviewHover.value = 0
-    reviews.value = [pendingReview, ...reviews.value]
-    // Notificar al dueño de la tienda si aplica
-    notificationStore.pushNotification({
-      type: 'review:new',
-      message: `Nueva reseña para ${product.value?.name}`,
-      count: 1,
-      store: product.value?.store?.slug,
-      product_slug: pendingReview.product_slug || product.value?.slug,
-    })
-    if (process.client) {
-      window.dispatchEvent(new CustomEvent(REVIEW_EVENT, { detail: { store: product.value?.store?.slug, product: pendingReview.product_slug || product.value?.slug } }))
-    }
-  } catch (error: any) {
-    reviewMessage.value = error?.response?._data || 'No pudimos enviar la reseña'
-    reviewStatus.value = 'error'
-  } finally {
-    sendingReview.value = false
-  }
-}
-
-const selectRating = (value: number) => {
-  reviewForm.value.rating = value
-  reviewMessage.value = ''
-  reviewStatus.value = 'ok'
-}
 
 const loadProduct = async () => {
   loading.value = true
@@ -402,6 +224,5 @@ onMounted(async () => {
   theme.loadFromStorage()
   auth.restoreFromCookies()
   await loadProduct()
-  await fetchReviews()
 })
 </script>
