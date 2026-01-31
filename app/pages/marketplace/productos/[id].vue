@@ -63,7 +63,7 @@ import { useTenantStore } from '~/stores/tenant'
 import { useThemeStore } from '~/stores/theme'
 import { useImages } from '~/composables/useImages'
 
-definePageMeta({ layout: 'default' })
+definePageMeta({ layout: 'store' })
 
 const route = useRoute()
 const idParam = route.params.id as string

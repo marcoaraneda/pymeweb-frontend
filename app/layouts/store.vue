@@ -59,7 +59,7 @@
             <span v-if="canEditBrand" class="absolute inset-0 flex items-center justify-center bg-black/40 text-[11px] font-semibold text-white opacity-0 transition hover:opacity-100">Cambiar</span>
           </button>
           <div>
-            <NuxtLink :to="`/store/${slug}`" class="text-xl font-semibold leading-tight text-slate-900 hover:underline">
+            <NuxtLink :to="basePath" class="text-xl font-semibold leading-tight text-slate-900 hover:underline">
               {{ brandName }}
             </NuxtLink>
             <p class="text-xs text-slate-600">Catálogo en vivo</p>
@@ -69,19 +69,19 @@
         <nav class="hidden flex-1 flex-nowrap items-center justify-center gap-3 md:flex overflow-x-auto">
           <template v-if="hasStoreContext">
             <div class="flex flex-nowrap items-center gap-3">
-              <NuxtLink :to="`/store/${slug}`" :class="navButtonClass">
+              <NuxtLink :to="basePath" :class="navButtonClass">
                 <Home class="h-4 w-4" aria-hidden="true" />
                 Inicio
               </NuxtLink>
-              <NuxtLink :to="`/store/${slug}/productos`" :class="navButtonClass">
+              <NuxtLink :to="`${basePath}/productos`" :class="navButtonClass">
                 <ShoppingBag class="h-4 w-4" aria-hidden="true" />
                 Productos
               </NuxtLink>
-              <NuxtLink :to="`/store/${slug}/acerca`" :class="navButtonClass">
+              <NuxtLink :to="`${basePath}/acerca`" :class="navButtonClass">
                 <Info class="h-4 w-4" aria-hidden="true" />
                 Acerca de
               </NuxtLink>
-              <NuxtLink :to="`/store/${slug}/soporte`" :class="navButtonClass">
+              <NuxtLink :to="`${basePath}/soporte`" :class="navButtonClass">
                 <Headset class="h-4 w-4" aria-hidden="true" />
                 Soporte
               </NuxtLink>
@@ -190,19 +190,19 @@
           </div>
           <div v-if="hasStoreContext" class="space-y-2">
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Esta tienda</p>
-            <NuxtLink :to="`/store/${slug}`" :class="mobileButtonClass">
+            <NuxtLink :to="basePath" :class="mobileButtonClass">
               <Home class="h-4 w-4" aria-hidden="true" />
               <span>Inicio</span>
             </NuxtLink>
-            <NuxtLink :to="`/store/${slug}/productos`" :class="mobileButtonClass">
+            <NuxtLink :to="`${basePath}/productos`" :class="mobileButtonClass">
               <ShoppingBag class="h-4 w-4" aria-hidden="true" />
               <span>Productos</span>
             </NuxtLink>
-            <NuxtLink :to="`/store/${slug}/acerca`" :class="mobileButtonClass">
+            <NuxtLink :to="`${basePath}/acerca`" :class="mobileButtonClass">
               <Info class="h-4 w-4" aria-hidden="true" />
               <span>Acerca de</span>
             </NuxtLink>
-            <NuxtLink :to="`/store/${slug}/soporte`" :class="mobileButtonClass">
+            <NuxtLink :to="`${basePath}/soporte`" :class="mobileButtonClass">
               <Headset class="h-4 w-4" aria-hidden="true" />
               <span>Soporte</span>
             </NuxtLink>
@@ -299,20 +299,28 @@ const router = useRouter()
 const slug = computed(() => route.params.slug as string)
 
 const tenantStore = useTenantStore()
+const isMarketplace = computed(() => route.path?.startsWith?.('/marketplace') || false)
 const cart = useCartStore()
 const auth = useAuthStore()
 const theme = useThemeStore()
 const config = useRuntimeConfig()
 
-const brandName = computed(() => tenantStore.data?.name || 'Tu tienda')
+const brandName = computed(() => {
+  if (isMarketplace.value) return 'Marketplace'
+  return tenantStore.data?.name || 'Tu tienda'
+})
 const brandInitials = computed(() => (brandName.value || 'T')[0]?.toUpperCase?.() || 'T')
-const brandLogo = computed(() => tenantStore.data?.logo_url || tenantStore.data?.logo?.url || tenantStore.data?.logo || '')
+const brandLogo = computed(() => {
+  if (isMarketplace.value) return '/marketplace-logo.svg'
+  return tenantStore.data?.logo_url || tenantStore.data?.logo?.url || tenantStore.data?.logo || ''
+})
 const avatarUrl = computed(() => auth.user?.avatar_url || null)
 const userInitials = computed(() => (auth.user?.username || 'U').slice(0, 2).toUpperCase())
 const accentColor = computed(() => theme.accent || '#2563eb')
 const gradientStyle = computed(() => ({ backgroundImage: `linear-gradient(120deg, ${theme.gradientFrom}, ${theme.gradientTo})`, opacity: 0.18 }))
 const hasStores = computed(() => ((auth.user as any)?.memberships || []).length > 0)
-const hasStoreContext = computed(() => Boolean(slug.value))
+const hasStoreContext = computed(() => Boolean(slug.value) || isMarketplace.value)
+const basePath = computed(() => (isMarketplace.value ? '/marketplace' : `/store/${slug.value}`))
 const showMobileNav = ref(false)
 const showGeneralMenu = ref(false)
 const navButtonClass = 'inline-flex h-11 min-w-[140px] items-center justify-center gap-2 rounded-2xl border border-slate-900/15 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 whitespace-nowrap'
@@ -325,6 +333,7 @@ const notificationsCount = computed(() => notifications.value.reduce((acc, n) =>
 const showNotifications = ref(false)
 
 const canEditBrand = computed(() => {
+  if (isMarketplace.value) return false
   const membership = (auth.user as any)?.memberships || []
   return membership.some((m: any) => m?.store?.slug === slug.value && (m.roles || []).includes('ADMIN'))
 })

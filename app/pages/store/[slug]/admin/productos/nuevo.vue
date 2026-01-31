@@ -169,7 +169,10 @@ const save = async () => {
       await auth.refreshTokens()
     }
 
-    await doSave()
+    const created = await doSave()
+    // El producto ya se creó en la tienda; si tiene is_marketplace=true
+    // aparecerá automáticamente en el listado global de marketplace porque
+    // el backend filtra por `is_marketplace`.
     message.value = 'Producto creado'
     messageType.value = 'ok'
     router.push(`/store/${slug}/productos`)
