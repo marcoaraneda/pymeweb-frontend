@@ -9,6 +9,7 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@nuxtjs/tailwindcss'
   ],
+  css: ['~/assets/css/global.css'],
 
   // 2. Ajusta la ruta de los stores (ahora están en app/stores)
   imports: {

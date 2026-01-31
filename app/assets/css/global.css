@@ -1,0 +1,28 @@
+/* Global button hover/animation styles to match layout buttons */
+
+button,
+a[role="button"],
+a[class*="rounded-2xl"],
+a[class*="rounded-lg"],
+.nuxt-link-button,
+.btn {
+  transition: transform 150ms ease-in-out, box-shadow 150ms ease-in-out, background-color 150ms ease-in-out;
+  will-change: transform;
+}
+
+button:hover,
+a[role="button"]:hover,
+a[class*="rounded-2xl"]:hover,
+a[class*="rounded-lg"]:hover,
+.nuxt-link-button:hover,
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.12);
+}
+
+/* Keep focus styles accessible */
+button:focus,
+a:focus {
+  outline: 3px solid rgba(37,99,235,0.18);
+  outline-offset: 2px;
+}
