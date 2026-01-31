@@ -26,26 +26,15 @@
           <h2 class="text-lg font-semibold text-slate-900">Recientes</h2>
           <span class="text-sm text-slate-500">{{ unread.length }} pendientes</span>
         </div>
-        <div class="mt-4">
-          <template v-if="unread.length">
-            <ul class="space-y-3">
-              <li v-for="(n, idx) in unread" :key="`unread-${idx}`" class="rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-center gap-3">
-                <span v-if="n.type?.includes('ticket')" class="inline-block h-3 w-3 rounded-full bg-blue-500"></span>
-                <span v-else-if="n.type?.includes('order')" class="inline-block h-3 w-3 rounded-full bg-green-500"></span>
-                <span v-else-if="n.type?.includes('review')" class="inline-block h-3 w-3 rounded-full bg-amber-500"></span>
-                <span v-else class="inline-block h-3 w-3 rounded-full bg-slate-400"></span>
-                <div>
-                  <p class="text-sm font-semibold text-slate-900">{{ n.message }}</p>
-                  <p class="text-xs text-slate-500">Tipo: {{ n.type }}</p>
-                </div>
-              </li>
-            </ul>
-          </template>
-          <p v-else class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">No tienes notificaciones nuevas.</p>
+        <div v-if="!unread.length" class="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+          No tienes notificaciones nuevas.
         </div>
-        <button type="button" class="mt-4 block text-xs font-semibold text-blue-600 hover:underline w-full text-left" @click="refreshUnread">
-          Actualizar notificaciones
-        </button>
+        <ul v-else class="mt-4 space-y-3">
+          <li v-for="(n, idx) in unread" :key="`unread-${idx}`" class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p class="text-sm font-semibold text-slate-900">{{ n.message }}</p>
+            <p class="text-xs text-slate-500">Tipo: {{ n.type }}</p>
+          </li>
+        </ul>
       </section>
 
       <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -55,26 +44,18 @@
             Limpiar historial
           </button>
         </div>
-        <div class="mt-4">
-          <template v-if="history.length">
-            <ul class="space-y-3">
-              <li v-for="item in history" :key="item.id" class="rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-center gap-3">
-                <span v-if="item.type?.includes('ticket')" class="inline-block h-3 w-3 rounded-full bg-blue-500"></span>
-                <span v-else-if="item.type?.includes('order')" class="inline-block h-3 w-3 rounded-full bg-green-500"></span>
-                <span v-else-if="item.type?.includes('review')" class="inline-block h-3 w-3 rounded-full bg-amber-500"></span>
-                <span v-else class="inline-block h-3 w-3 rounded-full bg-slate-400"></span>
-                <div class="flex-1">
-                  <div class="flex items-center justify-between">
-                    <p class="text-sm font-semibold text-slate-900">{{ item.message }}</p>
-                    <span class="text-xs text-slate-500">{{ formatDate(item.readAt) }}</span>
-                  </div>
-                  <p class="text-xs text-slate-500">Tipo: {{ item.type }} 2 Veces: {{ item.count }}</p>
-                </div>
-              </li>
-            </ul>
-          </template>
-          <p v-else class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Aan no tienes historial.</p>
+        <div v-if="!history.length" class="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+          Aún no tienes historial.
         </div>
+        <ul v-else class="mt-4 space-y-3">
+          <li v-for="item in history" :key="item.id" class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div class="flex items-center justify-between">
+              <p class="text-sm font-semibold text-slate-900">{{ item.message }}</p>
+              <span class="text-xs text-slate-500">{{ formatDate(item.readAt) }}</span>
+            </div>
+            <p class="text-xs text-slate-500">Tipo: {{ item.type }} • Veces: {{ item.count }}</p>
+          </li>
+        </ul>
       </section>
     </div>
   </div>

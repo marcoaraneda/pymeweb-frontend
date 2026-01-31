@@ -101,24 +101,23 @@
               </NuxtLink>
       </div>
 
-      <!-- Reseñas: ahora abajo de todo, mejor visual -->
-      <section class="mt-12 space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <section class="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between">
           <div>
-            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Opiniones y valoraciones</p>
-            <h2 class="text-lg font-semibold text-slate-900">Reseñas de clientes</h2>
+            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Reseñas</p>
+            <h2 class="text-lg font-semibold text-slate-900">Opiniones y valoración</h2>
           </div>
-          <span class="flex items-center gap-1 text-base font-semibold text-amber-600" v-if="averageRating">
-            <Star class="h-5 w-5" aria-hidden="true" />
-            {{ averageRating }} / 5
+          <span class="flex items-center gap-1 text-sm font-semibold text-amber-600" v-if="averageRating">
+            <Star class="h-4 w-4" aria-hidden="true" />
+            {{ averageRating }}
           </span>
         </div>
 
-        <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-4">
+        <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
           <label class="text-sm font-semibold text-slate-700">Deja tu reseña</label>
-          <div class="flex flex-col md:flex-row gap-4">
-            <input v-model="reviewForm.customer_name" type="text" placeholder="Tu nombre" class="rounded-xl border border-slate-200 px-3 py-2 text-sm flex-1" />
-            <div class="flex flex-col gap-1 items-start">
+          <div class="grid gap-2 sm:grid-cols-2">
+            <input v-model="reviewForm.customer_name" type="text" placeholder="Tu nombre" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            <div class="flex flex-col gap-1">
               <span class="text-xs uppercase tracking-wide text-slate-500">Tu valoración</span>
               <div class="flex items-center gap-1">
                 <button
@@ -132,13 +131,13 @@
                   :aria-label="`Asignar ${star} estrellas`"
                 >
                   <Star
-                    class="h-6 w-6 transition"
+                    class="h-5 w-5 transition"
                     :class="star <= (reviewHover || reviewForm.rating)
-                      ? 'text-amber-500 fill-amber-500 stroke-amber-500 scale-110 drop-shadow-md'
+                      ? 'text-amber-500 fill-amber-500 stroke-amber-500'
                       : 'text-slate-300 fill-transparent stroke-slate-300'"
                   />
                 </button>
-                <span class="text-xs text-slate-500 ml-2">
+                <span class="text-xs text-slate-500">
                   {{ reviewHover || reviewForm.rating ? ((reviewHover || reviewForm.rating) + ' / 5') : 'Selecciona una valoración' }}
                 </span>
               </div>
@@ -162,22 +161,24 @@
         <div class="space-y-3">
           <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Reseñas recientes</p>
           <div class="space-y-3" v-if="reviews.length">
-            <article v-for="review in reviews" :key="review.id" class="rounded-xl border border-slate-100 bg-white p-4 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div class="flex items-center gap-2">
-                <span class="font-semibold">{{ review.customer_name || 'Cliente' }}</span>
-                <span v-if="review.pending" class="text-[11px] font-semibold uppercase tracking-widest text-amber-600">Pendiente</span>
+            <article v-for="review in reviews" :key="review.id" class="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+              <div class="flex flex-col gap-1 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold">{{ review.customer_name || 'Cliente' }}</span>
+                  <span v-if="review.pending" class="text-[11px] font-semibold uppercase tracking-widest text-amber-600">Pendiente</span>
+                </div>
+                <div class="flex items-center gap-1 text-amber-500">
+                  <Star
+                    v-for="star in 5"
+                    :key="`${review.id}-star-${star}`"
+                    class="h-4 w-4"
+                    :class="star <= Number(review.rating)
+                      ? 'text-amber-500 fill-amber-500 stroke-amber-500'
+                      : 'text-slate-300 fill-transparent stroke-slate-300'"
+                  />
+                </div>
               </div>
-              <div class="flex items-center gap-1 text-amber-500">
-                <Star
-                  v-for="star in 5"
-                  :key="`${review.id}-star-${star}`"
-                  class="h-5 w-5"
-                  :class="star <= Number(review.rating)
-                    ? 'text-amber-500 fill-amber-500 stroke-amber-500'
-                    : 'text-slate-300 fill-transparent stroke-slate-300'"
-                />
-              </div>
-              <p class="mt-1 text-sm text-slate-600 w-full sm:w-auto">{{ review.comment }}</p>
+              <p class="mt-1 text-sm text-slate-600">{{ review.comment }}</p>
               <p class="text-xs text-slate-400">{{ new Date(review.created_at).toLocaleDateString() }}</p>
             </article>
           </div>

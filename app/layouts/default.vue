@@ -92,25 +92,20 @@
                   <button class="text-xs text-slate-600 underline hover:text-slate-900" @click.stop="clearNotifications">Limpiar</button>
                 </div>
                 <div class="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                  <template v-if="unreadNotifications.length">
-                    <button
-                      v-for="(n, idx) in unreadNotifications"
-                      :key="idx"
-                      class="w-full text-left rounded-lg border border-slate-100 px-2 py-1 text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                      @click="handleNotification(n)"
-                    >
-                      <span v-if="n.type?.includes('ticket')" class="inline-block h-2 w-2 rounded-full bg-blue-500"></span>
-                      <span v-else-if="n.type?.includes('order')" class="inline-block h-2 w-2 rounded-full bg-green-500"></span>
-                      <span v-else-if="n.type?.includes('review')" class="inline-block h-2 w-2 rounded-full bg-amber-500"></span>
-                      <span v-else class="inline-block h-2 w-2 rounded-full bg-slate-400"></span>
-                      <span class="truncate">{{ n.message }}</span>
-                    </button>
-                  </template>
-                  <p v-else class="text-slate-500">No tienes notificaciones nuevas.</p>
+                  <p v-if="!unreadNotifications.length" class="text-slate-500">Sin notificaciones.</p>
+                  <button
+                    v-else
+                    v-for="(n, idx) in unreadNotifications"
+                    :key="idx"
+                    class="w-full text-left rounded-lg border border-slate-100 px-2 py-1 text-slate-700 hover:bg-slate-50"
+                    @click="handleNotification(n)"
+                  >
+                    {{ n.message }}
+                  </button>
                 </div>
                 <button
                   type="button"
-                  class="mt-3 block text-xs font-semibold text-blue-600 hover:underline w-full text-left"
+                  class="mt-3 block text-xs font-semibold text-blue-600 hover:underline"
                   @click="goNotifications"
                 >
                   Ver notificaciones
@@ -239,7 +234,6 @@ const loadNotifications = async () => {
 const clearNotifications = () => {
   notificationStore.markAllAsRead()
   showNotifications.value = false
-  // No recargar notificaciones hasta que llegue una nueva (no llamar loadNotifications aquí)
 }
 
 const goNotifications = async () => {
@@ -314,5 +308,9 @@ watch(
   }
 )
 
-// Ya no se marca como leído al cerrar el panel, solo al limpiar
+watch(showNotifications, (open, prev) => {
+  if (!open && prev) {
+    notificationStore.markAllAsRead()
+  }
+})
 </script>
