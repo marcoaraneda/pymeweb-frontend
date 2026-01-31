@@ -604,13 +604,24 @@ const loadRecentReviews = async () => {
   const params: Record<string, any> = {}
   if (selectedStore.value !== 'all') params.store = selectedStore.value
   try {
-    recentReviews.value = await $fetch<ReviewFeedItem[]>(`${apiBase}/support/dashboard/reviews/` as any, {
-      headers: { Authorization: `Bearer ${auth.token}` },
-      params,
-    })
-  } catch (error) {
-    console.warn('No se pudieron cargar reseñas', error)
-    recentReviews.value = []
+    // Try owner-aggregated reviews endpoint first (some deployments don't have support/dashboard/reviews)
+      try {
+        recentReviews.value = await $fetch<ReviewFeedItem[]>(`${apiBase}/resenas/owner/reviews/` as any, {
+          headers: { Authorization: `Bearer ${auth.token}` },
+          params,
+        })
+      } catch (ownerErr) {
+        console.warn('No se pudieron cargar reseñas desde owner endpoint, intentando support endpoint', ownerErr)
+        try {
+          recentReviews.value = await $fetch<ReviewFeedItem[]>(`${apiBase}/support/dashboard/reviews/` as any, {
+            headers: { Authorization: `Bearer ${auth.token}` },
+            params,
+          })
+        } catch (supportErr) {
+          console.warn('No se pudieron cargar reseñas desde support endpoint', supportErr)
+          recentReviews.value = []
+        }
+      }
   } finally {
     loadingReviews.value = false
   }

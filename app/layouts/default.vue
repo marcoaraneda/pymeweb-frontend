@@ -2,8 +2,8 @@
   <div class="min-h-screen bg-slate-50 text-slate-900">
     <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/85 backdrop-blur">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <NuxtLink to="/" class="flex items-center gap-2 font-semibold text-slate-900">
-          <span class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">PW</span>
+        <NuxtLink to="/" class="flex items-center gap-3 font-semibold text-slate-900">
+          <img src="/logoPW.png" alt="Pymeweb" class="h-9 w-9 rounded-full object-contain" />
           <div>
             <p class="leading-none">Pymeweb</p>
             <p class="text-xs text-slate-500">Marketplace multi-tienda</p>
@@ -25,6 +25,14 @@
             <ShoppingBag class="h-4 w-4" aria-hidden="true" />
             Ver tiendas
           </NuxtLink>
+          <NuxtLink
+            v-if="auth.isAuthenticated && hasStores"
+            to="/dashboard"
+            class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
+          >
+            <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
+            Dashboard
+          </NuxtLink>
         </nav>
 
         <div class="flex items-center gap-3">
@@ -33,11 +41,11 @@
             class="relative hidden h-11 w-11 items-center justify-center rounded-xl text-white shadow md:inline-flex"
             :style="{ backgroundColor: '#f59e0b' }"
             aria-label="Carrito marketplace"
-            @click.prevent="handleMarketplaceCartClick"
+            @click="handleMarketplaceCartClick"
           >
             <ShoppingCart class="h-5 w-5" aria-hidden="true" />
             <span
-              v-if="cart.totalItems > 0"
+              v-if="isClient && cart.totalItems > 0"
               class="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-900 px-1 text-xs font-semibold text-white"
             >
               {{ cart.totalItems }}
@@ -49,14 +57,7 @@
           >
             Menú
           </button>
-          <NuxtLink
-            v-if="auth.isAuthenticated && hasStores"
-            to="/dashboard"
-            class="hidden items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-md transition hover:-translate-y-0.5 hover:bg-slate-50 md:inline-flex"
-          >
-            <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
-            Dashboard
-          </NuxtLink>
+          
 
           <NuxtLink
             v-if="!auth.isAuthenticated"
@@ -144,7 +145,7 @@
         <div class="flex flex-col gap-2">
           <NuxtLink to="/marketplace" class="rounded-lg px-3 py-2 hover:bg-slate-100">Marketplace</NuxtLink>
           <NuxtLink to="/tiendas" class="rounded-lg px-3 py-2 hover:bg-slate-100">Ver tiendas</NuxtLink>
-          <NuxtLink to="/marketplace/carrito" class="rounded-lg px-3 py-2 hover:bg-slate-100 text-amber-700" @click.prevent="handleMarketplaceCartClick">Carrito marketplace</NuxtLink>
+          <NuxtLink to="/marketplace/carrito" class="rounded-lg px-3 py-2 hover:bg-slate-100 text-amber-700" @click="handleMarketplaceCartClick">Carrito marketplace</NuxtLink>
           <NuxtLink v-if="!auth.isAuthenticated" to="/login" class="rounded-lg px-3 py-2 hover:bg-slate-100">Iniciar sesión</NuxtLink>
           <template v-else>
             <NuxtLink to="/profile" class="rounded-lg px-3 py-2 hover:bg-slate-100">Editar perfil</NuxtLink>
@@ -166,6 +167,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
@@ -180,11 +182,16 @@ const theme = useThemeStore()
 const cart = useCartStore()
 // Corrige warning: handleMarketplaceCartClick no estaba definido
 const handleMarketplaceCartClick = () => {
-  cart.setContext('marketplace')
-  navigateTo('/marketplace/carrito')
+  try {
+    console.debug('[UI] handleMarketplaceCartClick invoked')
+    cart.setContext('marketplace')
+  } catch (e) {
+    console.warn('[UI] handleMarketplaceCartClick error', e)
+  }
 }
 const config = useRuntimeConfig()
 const route = useRoute()
+const router = useRouter()
 const showMenu = ref(false)
 const showMenuMobile = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
@@ -198,6 +205,7 @@ const notificationStore = useNotificationStore()
 const unreadNotifications = computed(() => notificationStore.unread)
 const notificationsCount = computed(() => notificationStore.totalUnread)
 const showNotifications = ref(false)
+const isClient = typeof window !== 'undefined'
 
 const handleOutside = (event: MouseEvent) => {
   if (!menuRef.value) return
@@ -276,6 +284,15 @@ onMounted(async () => {
   theme.resetToBase()
   await loadNotifications()
   document.addEventListener('click', handleOutside)
+  // debug: log navigations
+  try {
+    router.afterEach((to, from) => {
+      // eslint-disable-next-line no-console
+      console.debug('[router] afterEach', { to: to.fullPath, from: from.fullPath })
+    })
+  } catch (e) {
+    /* ignore */
+  }
 })
 
 onBeforeUnmount(() => {

@@ -85,6 +85,11 @@ const cart = useCartStore()
 const placeholder = 'https://via.placeholder.com/300x200?text=Producto'
 
 onMounted(() => {
+  // debug logs to trace mount/hang issues
+  try {
+    // eslint-disable-next-line no-console
+    console.debug('[marketplace/carrito] onMounted')
+  } catch (_) {}
   cart.loadFromStorage()
   cart.setContext('marketplace')
 })
