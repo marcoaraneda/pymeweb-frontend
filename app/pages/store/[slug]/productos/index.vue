@@ -45,79 +45,14 @@
         {{ tenantStore.productos.length ? 'No encontramos productos con los filtros aplicados.' : 'No hay productos para esta tienda todavía.' }}
       </div>
       <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <article
+        <ProductCard
           v-for="product in filteredProducts"
           :key="product.id"
-          class="relative group flex h-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-        >
-          <div class="relative h-44 w-full overflow-hidden rounded-t-2xl bg-slate-100">
-            <img :src="getProductImage(product)" :alt="product.name" class="h-full w-full object-cover" />
-            <div v-if="canManageStore" class="absolute right-3 top-3">
-              <button
-                class="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-slate-700 text-lg shadow hover:bg-white"
-                @click.stop="toggleMenu(product.id)"
-                aria-label="Acciones"
-              >
-                ⋮
-              </button>
-              <div
-                v-if="actionMenu === product.id"
-                class="absolute right-0 top-11 z-10 w-40 rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
-                @click.stop
-              >
-                <NuxtLink
-                  :to="`/store/${slug}/admin/productos/${product.slug}/editar`"
-                  class="block px-3 py-2 text-slate-700 hover:bg-slate-50"
-                >
-                  Editar
-                </NuxtLink>
-                <button
-                  class="block w-full px-3 py-2 text-left text-red-600 hover:bg-slate-50"
-                  @click="deleteProduct(product)"
-                >
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="flex flex-1 flex-col p-4 space-y-3">
-            <p class="text-xs uppercase text-slate-500">{{ product.category?.name || 'General' }}</p>
-            <h2 class="text-lg font-semibold text-slate-900 group-hover:text-slate-700">{{ product.name }}</h2>
-            <p class="text-sm text-slate-600 line-clamp-2">{{ product.description }}</p>
-
-            <div class="flex flex-wrap items-center gap-2">
-              <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
-              <span v-else-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta</span>
-              <span v-if="product.is_marketplace" class="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-800">Marketplace</span>
-            </div>
-
-            <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">
-              <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
-              ${{ product.offer_price || product.price }}
-            </p>
-
-            <p class="text-sm text-slate-600">
-              <span class="font-semibold">Stock:</span>
-              <span :class="formatStockClass(product.stock_available)">{{ formatStockLabel(product.stock_available) }}</span>
-            </p>
-
-            <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
-              <button
-                class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow min-w-[110px]"
-                :style="accentStyle"
-                @click="cart.addProduct(product)"
-              >
-                Agregar
-              </button>
-              <NuxtLink
-                :to="`/store/${slug}/productos/${product.slug}`"
-                class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900"
-              >
-                Ver producto
-              </NuxtLink>
-            </div>
-          </div>
-        </article>
+          :product="product"
+          :accent="accentColor"
+          :canManage="canManageStore"
+          :onDelete="deleteProduct"
+        />
       </div>
     </div>
   </div>
@@ -147,7 +82,6 @@ const theme = useThemeStore()
 const auth = useAuthStore()
 const { getProductImage } = useImages()
 
-const actionMenu = ref<number | null>(null)
 const selectedCategory = ref('')
 const searchQuery = ref('')
 const canManageStore = computed(() => {
@@ -157,6 +91,7 @@ const canManageStore = computed(() => {
 
 const accentColor = computed(() => theme.accent || '#2563eb')
 const accentStyle = computed(() => ({ backgroundColor: accentColor.value, color: '#fff' }))
+const storeGlowStyle = computed(() => ({ background: `radial-gradient(circle at 30% 20%, ${accentColor.value}1a, transparent 40%)` }))
 const filteredProducts = computed(() => {
   const term = searchQuery.value.trim().toLowerCase()
   if (!term) return tenantStore.productos
@@ -170,16 +105,9 @@ onMounted(async () => {
   tenantStore.setSlug(slug)
   await tenantStore.fetchCategories()
   await tenantStore.fetchProductos()
-  document.addEventListener('click', handleOutside)
 })
 
-onBeforeUnmount(() => {
-  document.removeEventListener('click', handleOutside)
-})
-
-const toggleMenu = (id: number) => {
-  actionMenu.value = actionMenu.value === id ? null : id
-}
+// admin menu handled inside ProductCard
 
 const deleteProduct = async (product: any) => {
   if (!auth.token || !product?.id) {
@@ -196,7 +124,7 @@ const deleteProduct = async (product: any) => {
 
   try {
     await doDelete()
-    actionMenu.value = null
+    // ProductCard will close its menu; refresh list
     await tenantStore.fetchProductos()
   } catch (error: any) {
     const code = error?.response?._data?.code
@@ -205,7 +133,6 @@ const deleteProduct = async (product: any) => {
       if (refreshed) {
         try {
           await doDelete()
-          actionMenu.value = null
           await tenantStore.fetchProductos()
           return
         } catch (e) {
@@ -256,9 +183,5 @@ watch(
   }
 )
 
-const handleOutside = () => {
-  if (actionMenu.value !== null) {
-    actionMenu.value = null
-  }
-}
+// no-op: ProductCard handles its own menus
 </script>

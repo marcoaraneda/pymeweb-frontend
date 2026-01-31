@@ -267,71 +267,7 @@
           No hay productos de marketplace publicados todavía.
         </div>
         <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <article
-            v-for="product in displayMarketplaceProducts"
-            :key="product.id"
-            class="group relative flex h-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-          >
-            <button
-              type="button"
-              class="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border bg-white text-sm font-semibold text-slate-500 shadow transition hover:text-rose-500"
-              :class="isProductFavorite(product) ? 'border-rose-200 text-rose-600' : 'border-slate-200'"
-              @click.stop="toggleProductFavorite(product)"
-              :aria-pressed="isProductFavorite(product)"
-              aria-label="Marcar producto como favorito"
-            >
-              <Heart
-                class="h-4 w-4"
-                :class="isProductFavorite(product) ? 'fill-current text-rose-600' : 'text-slate-500'"
-              />
-            </button>
-            <div class="h-44 w-full overflow-hidden rounded-t-2xl bg-slate-100">
-              <img :src="productImage(product)" :alt="product.name" class="h-full w-full object-cover" />
-            </div>
-            <div class="flex flex-1 flex-col p-4 space-y-3">
-              <div class="flex items-center justify-between">
-                <p class="text-xs uppercase text-slate-500">{{ product.category?.name || 'General' }}</p>
-                <span class="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">{{ product.store?.slug || 'tienda' }}</span>
-              </div>
-              <h3 class="text-lg font-semibold text-slate-900 group-hover:text-slate-700 line-clamp-1">{{ product.name }}</h3>
-              <p class="text-sm text-slate-600 line-clamp-2">{{ product.description }}</p>
-
-              <div class="flex flex-wrap items-center gap-2">
-                <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
-                <span v-else-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta</span>
-                <span class="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700">Marketplace</span>
-              </div>
-
-              <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : ''" :style="product.offer_price ? {} : { color: theme.accent }">
-                <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
-                ${{ product.offer_price || product.price }}
-              </p>
-
-              <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
-                <button
-                  class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
-                  :style="{ backgroundColor: '#f59e0b' }"
-                  @click="addToCart(product)"
-                >
-                  Agregar al carrito
-                </button>
-                <NuxtLink
-                  :to="asAnyTo(productDetailPath(product))"
-                  class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
-                  :style="{ backgroundColor: '#f59e0b' }"
-                >
-                  Ver producto
-                </NuxtLink>
-                <NuxtLink
-                  v-if="product.store?.slug && !product.store_is_marketplace"
-                  :to="asAnyTo(storePath(product))"
-                  class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900"
-                >
-                  Ver tienda
-                </NuxtLink>
-              </div>
-            </div>
-          </article>
+          <ProductCard v-for="product in displayMarketplaceProducts" :key="product.id" :product="product" :isMarketplace="true" />
         </div>
       </section>
 
@@ -345,6 +281,7 @@
 
 <script setup lang="ts">
 import { ChevronRight, Heart, Star } from 'lucide-vue-next'
+import ProductCard from '~/components/ProductCard.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRuntimeConfig } from 'nuxt/app'
@@ -519,6 +456,11 @@ const displayMarketplaceProducts = computed(() => {
   const filtered = showFavoriteProductsOnly.value ? base.filter((p: any) => isProductFavorite(p)) : base
   return [...filtered].sort((a: any, b: any) => Number(isProductFavorite(b)) - Number(isProductFavorite(a)))
 })
+
+// Marketplace accent and styles
+const MARKET_ACCENT = '#f59e0b'
+const marketGlowStyle = computed(() => ({ background: `radial-gradient(circle at 30% 20%, ${MARKET_ACCENT}1a, transparent 40%)` }))
+const marketBadgeClass = computed(() => 'bg-amber-100 text-amber-800')
 
 onMounted(async () => {
   theme.loadFromStorage()

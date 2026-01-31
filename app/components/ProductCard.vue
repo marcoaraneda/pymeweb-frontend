@@ -1,0 +1,167 @@
+<template>
+  <article
+    class="group relative flex h-full flex-col rounded-2xl border border-slate-300 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+    :style="{ overflow: 'hidden' }"
+  >
+    <!-- Glow overlay -->
+    <!-- Detalle de color: barra vertical -->
+    <div
+      v-if="!isMarketplace"
+      class="absolute left-0 top-0 h-full w-1.5 rounded-l-2xl"
+      :style="{ background: accentColor, zIndex: 2 }"
+      aria-hidden="true"
+    />
+    <div
+      v-else
+      class="absolute left-0 top-0 h-full w-1.5 rounded-l-2xl bg-amber-400"
+      style="z-index:2;"
+      aria-hidden="true"
+    />
+
+    <button
+      v-if="canManage"
+      type="button"
+      class="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-lg font-semibold text-slate-700 shadow transition hover:bg-white"
+      @click.stop="toggleMenu"
+      aria-label="Acciones"
+    >
+      ⋮
+    </button>
+
+    <button
+      v-else
+      type="button"
+      class="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border bg-white text-sm font-semibold text-slate-500 shadow transition hover:text-rose-500"
+      :class="isFavorite ? 'border-rose-200 text-rose-600' : 'border-slate-200'"
+      @click.stop="toggleFavorite"
+      :aria-pressed="isFavorite"
+      aria-label="Marcar producto como favorito"
+    >
+      <Heart class="h-4 w-4" :class="isFavorite ? 'fill-current text-rose-600' : 'text-slate-500'" />
+    </button>
+
+    <div class="h-44 w-full overflow-hidden rounded-t-2xl bg-slate-100 relative">
+      <img :src="imageSrc" :alt="product.name" class="h-full w-full object-cover" />
+    </div>
+
+    <div class="flex flex-1 flex-col p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <p class="text-xs uppercase tracking-wide font-semibold text-slate-500">
+          {{ product.category?.name || 'General' }}
+        </p>
+        <span
+          class="rounded-full px-2 py-1 text-[11px] font-semibold shadow"
+          :class="isMarketplace ? 'bg-amber-100 text-amber-800' : ''"
+          :style="!isMarketplace ? `background:${accentColor}22;color:${accentColor}` : ''"
+        >
+          {{ product.store?.slug || 'tienda' }}
+        </span>
+      </div>
+
+      <h3
+        class="text-lg font-bold group-hover:text-slate-700 line-clamp-1"
+        :style="isMarketplace ? 'color:#f59e0b' : ''"
+      >
+        {{ product.name }}
+      </h3>
+      <p class="text-sm text-slate-600 line-clamp-2">{{ product.description }}</p>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
+        <span v-else-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta</span>
+        <span v-else-if="isMarketplace" class="rounded-full px-2 py-1 text-[11px] font-semibold" :class="marketBadgeClass">Marketplace</span>
+      </div>
+
+      <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : ''" :style="product.offer_price ? {} : { color: accentColor }">
+        <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
+        ${{ product.offer_price || product.price }}
+      </p>
+
+      <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
+        <button class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow" :style="{ backgroundColor: accentColor }" @click="handleAddToCart">
+          {{ isMarketplace ? 'Agregar al carrito' : 'Agregar' }}
+        </button>
+
+        <NuxtLink :to="productDetailPath" class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow" :style="{ backgroundColor: accentColor }">Ver producto</NuxtLink>
+
+        <NuxtLink v-if="product.store?.slug && !product.store_is_marketplace" :to="storePath" class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900">Ver tienda</NuxtLink>
+      </div>
+    </div>
+    <div v-if="canManage && menuOpen" class="absolute right-4 top-14 z-10 w-40 rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg" @click.stop>
+      <a v-if="editUrl" :href="editUrl" class="block px-3 py-2 text-slate-700 hover:bg-slate-50">Editar</a>
+      <button class="block w-full px-3 py-2 text-left text-red-600 hover:bg-slate-50" @click="handleDelete">Eliminar</button>
+    </div>
+  </article>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { Heart } from 'lucide-vue-next'
+import { useCartStore } from '~/stores/cart'
+import { useThemeStore } from '~/stores/theme'
+import { useAuthStore } from '~/stores/auth'
+import { useRouter } from 'vue-router'
+import { makeProductFavoriteKey, useFavorites } from '~/composables/useFavorites'
+
+const props = defineProps<{ product: any; isMarketplace?: boolean; accent?: string; canManage?: boolean; onDelete?: Function; editUrl?: string }>()
+
+const product = props.product
+const isMarketplace = computed(() => Boolean(props.isMarketplace))
+const cart = useCartStore()
+const theme = useThemeStore()
+const auth = useAuthStore()
+const router = useRouter()
+
+const MARKET_ACCENT = '#f59e0b'
+const accentColor = computed(() => (isMarketplace.value ? MARKET_ACCENT : props.accent || theme.accent || '#2563eb'))
+const glowStyle = computed(() => ({ background: `radial-gradient(circle at 30% 20%, ${accentColor.value}1a, transparent 40%)` }))
+const marketBadgeClass = computed(() => (isMarketplace.value ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'))
+const imageSrc = computed(() => product?.images?.[0]?.image || product?.image || 'https://via.placeholder.com/400x240?text=Producto')
+
+const { isProductFavoriteKey, toggleProductFavoriteKey } = useFavorites()
+const productFavoriteKey = (p: any) => makeProductFavoriteKey(p?.store?.slug, p?.slug || p?.id)
+const isFavorite = computed(() => isProductFavoriteKey(productFavoriteKey(product)))
+const toggleFavorite = () => toggleProductFavoriteKey(productFavoriteKey(product))
+
+const menuOpen = ref(false)
+const canManage = computed(() => Boolean(props.canManage))
+const editUrl = computed(() => props.editUrl || (product?.store?.slug ? `/store/${product.store.slug}/admin/productos/${product.slug}/editar` : ''))
+const handleDelete = async () => {
+  if (typeof props.onDelete === 'function') {
+    await props.onDelete(product)
+  } else if (confirm('¿Eliminar este producto?')) {
+    // fallback: try to call an endpoint if no handler provided (best-effort)
+    try {
+      // no-op here; prefer parent to provide onDelete
+    } catch (e) {
+      console.error('delete fallback failed', e)
+    }
+  }
+  menuOpen.value = false
+}
+const toggleMenu = () => {
+  menuOpen.value = !menuOpen.value
+}
+
+const handleAddToCart = async () => {
+  try {
+    cart.setContext(isMarketplace.value ? 'marketplace' : product.store?.slug || 'marketplace')
+    cart.addProduct(product)
+    if (isMarketplace.value) await router.push('/marketplace/carrito')
+  } catch (e) {
+    console.error('addToCart error', e)
+  }
+}
+
+const productDetailPath = computed(() => {
+  const id = product?.slug || product?.id
+  if (!id) return '/marketplace'
+  if (product?.store?.slug && !product?.store_is_marketplace) return `/store/${product.store.slug}/productos/${id}`
+  return `/marketplace/productos/${id}`
+})
+
+const storePath = computed(() => (product?.store?.slug ? `/store/${product.store.slug}` : '/tiendas'))
+
+// script setup exposes bindings directly to the template
+
+</script>
