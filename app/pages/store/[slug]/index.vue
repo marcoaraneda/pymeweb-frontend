@@ -19,9 +19,133 @@
               </svg>
             </button>
           </div>
-          <p class="max-w-2xl text-lg text-white/80">
+          <div class="relative w-full max-w-xl mx-auto rounded-2xl overflow-hidden border border-white/20 bg-white/10 shadow-lg">
+            <div v-if="storeImages.length" class="relative h-56 md:h-64">
+              <img
+                :src="storeImages[activeImage].url"
+                :alt="storeImages[activeImage].caption || 'Imagen de tienda'"
+                class="absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-700"
+                :style="{ opacity: 1 }"
+              />
+              <div class="absolute bottom-0 left-0 w-full bg-black/50 p-4 flex flex-col gap-2">
+                <h2 class="text-xl font-bold text-white">{{ tenantStore.data?.name }}</h2>
+                <div class="flex items-center gap-2">
+                  <input
+                    v-if="canEditTheme"
+                    v-model="storeImages[activeImage].caption"
+                    class="rounded px-2 py-1 text-sm w-full max-w-xs text-black"
+                    placeholder="Texto de la imagen (ej: promoción, mensaje, etc)"
+                  />
+                  <span v-else class="text-white/90">{{ storeImages[activeImage].caption }}</span>
+                </div>
+              </div>
+              <button v-if="storeImages.length > 1" @click="prevImage" class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white rounded-full p-2"><svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M13 15l-5-5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button v-if="storeImages.length > 1" @click="nextImage" class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white rounded-full p-2"><svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M7 5l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div>
+            <div v-else class="flex flex-col items-center justify-center h-56 md:h-64 text-white/70">
+              <p class="mb-2">Puedes subir hasta 5 imágenes para tu portada.</p>
+              <p class="mb-2 text-xs">Resolución recomendada: 1200x400px o mayor, formato horizontal.</p>
+            </div>
+            <div v-if="canEditTheme" class="absolute top-2 right-2 flex gap-2">
+              <input type="file" accept="image/*" @change="onImageUpload" :disabled="storeImages.length >= 5" class="hidden" ref="fileInput" />
+              <button @click="$refs.fileInput.click()" class="rounded bg-white/80 px-3 py-1 text-xs font-semibold text-slate-800 shadow hover:bg-white">Subir imagen</button>
+              <button v-if="storeImages.length" @click="removeImage" class="rounded bg-red-500/80 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-red-600">Eliminar imagen</button>
+            </div>
+            <div v-if="storeImages.length > 1" class="absolute bottom-2 right-4 flex gap-1">
+              <span v-for="(img, idx) in storeImages" :key="idx" class="inline-block h-2 w-2 rounded-full" :class="{ 'bg-white': idx === activeImage, 'bg-white/40': idx !== activeImage }"></span>
+            </div>
+          </div>
+          <p class="max-w-2xl text-lg text-white/80 mt-4">
             {{ heroDescription }}
           </p>
+            // ...existing code...
+
+import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { useCloudinaryUpload } from '~/composables/useImages'
+import { useRuntimeConfig } from 'nuxt/app'
+import { useAuthStore } from '~/stores/auth'
+
+const config = useRuntimeConfig()
+const auth = useAuthStore()
+const storeImages = ref([])
+const activeImage = ref(0)
+let imageInterval = null
+
+const fetchStoreImages = async () => {
+  try {
+    const data = await $fetch(`${config.public.apiBase}/stores/${slug}/`, {
+      headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+    })
+    storeImages.value = Array.isArray(data.hero_images) ? data.hero_images : []
+    // Si la API devuelve un campo is_admin, úsalo para controlar la edición
+    if (typeof data.is_admin !== 'undefined') {
+      canEditTheme.value = !!data.is_admin
+    }
+  } catch (e) {
+    storeImages.value = []
+  }
+}
+
+const saveStoreImages = async () => {
+  if (!canEditTheme.value) return
+  try {
+    await $fetch(`${config.public.apiBase}/stores/${slug}/`, {
+      method: 'PATCH',
+      headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+      body: { hero_images: storeImages.value.slice(0, 5) },
+    })
+  } catch (e) {
+    // opcional: feedback de error
+  }
+}
+
+const onImageUpload = async (e) => {
+  if (!canEditTheme.value) return
+  const files = e.target.files
+  if (!files || !files[0]) return
+  const file = files[0]
+  const { url } = await useCloudinaryUpload(file)
+  storeImages.value.push({ url, caption: '' })
+  if (storeImages.value.length > 5) storeImages.value = storeImages.value.slice(0, 5)
+  await saveStoreImages()
+}
+
+const removeImage = async () => {
+  if (!canEditTheme.value) return
+  if (storeImages.value.length) {
+    storeImages.value.splice(activeImage.value, 1)
+    if (activeImage.value > 0) activeImage.value--
+    await saveStoreImages()
+  }
+}
+
+const nextImage = () => {
+  activeImage.value = (activeImage.value + 1) % storeImages.value.length
+}
+const prevImage = () => {
+  activeImage.value = (activeImage.value - 1 + storeImages.value.length) % storeImages.value.length
+}
+
+watch(
+  storeImages,
+  async () => {
+    if (canEditTheme.value) await saveStoreImages()
+  },
+  { deep: true }
+)
+
+onMounted(async () => {
+  await fetchStoreImages()
+  if (storeImages.value.length > 1) {
+    imageInterval = setInterval(() => {
+      nextImage()
+    }, 5000)
+  }
+})
+
+onUnmounted(() => {
+  if (imageInterval) clearInterval(imageInterval)
+})
           <div class="flex flex-wrap gap-3">
             <NuxtLink
               :to="`/store/${slug}/productos`"

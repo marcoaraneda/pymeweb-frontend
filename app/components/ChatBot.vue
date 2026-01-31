@@ -92,27 +92,38 @@ onBeforeUnmount(() => {
 const typeBotResponse = (text: string) =>
   new Promise<void>((resolve) => {
     isTyping.value = true
-    const botMessage: ChatMessage = { id: Date.now() + Math.floor(Math.random() * 1000), role: 'bot', text: '' }
-    messages.value.push(botMessage)
+    let botMessage: ChatMessage | null = null
+    let buffer = ''
     const chars = Array.from(text)
-
     const typeNext = () => {
       const nextChar = chars.shift()
-      if (nextChar === undefined) {
+      if (nextChar !== undefined) {
+        buffer += nextChar
+        // Crea el mensaje solo cuando hay al menos 2 letras o salto de línea
+        if (!botMessage && (buffer.length > 1 || nextChar === '\n')) {
+          botMessage = { id: Date.now() + Math.floor(Math.random() * 1000), role: 'bot', text: '' }
+          messages.value.push(botMessage)
+        }
+        if (botMessage) botMessage.text = buffer
+        // Simula typing más rápido y natural
+        const delay = nextChar === '.' || nextChar === ',' ? 40 : 10
+        const timer = window.setTimeout(() => {
+          typingTimers.delete(timer)
+          typeNext()
+        }, delay)
+        typingTimers.add(timer)
+      } else {
+        if (!botMessage) {
+          botMessage = { id: Date.now() + Math.floor(Math.random() * 1000), role: 'bot', text: buffer }
+          messages.value.push(botMessage)
+        }
         isTyping.value = false
+        stopTypingTimers()
         resolve()
-        return
       }
-      botMessage.text += nextChar
-      const delay = nextChar === '.' ? 90 : 25 + Math.random() * 35
-      const timer = window.setTimeout(() => {
-        typingTimers.delete(timer)
-        typeNext()
-      }, delay)
-      typingTimers.add(timer)
     }
-
-    typeNext()
+    // Muestra "escribiendo..." de inmediato
+    setTimeout(() => typeNext(), 100)
   })
 
 const quickAsk = (text: string) => {
@@ -128,9 +139,21 @@ const handleSend = async () => {
   userInput.value = ''
   isThinking.value = true
   try {
-    const response = await sendMessage(question)
+    let response = await sendMessage(question)
+    // Normaliza la respuesta a string
+    let answer = ''
+    if (typeof response === 'string') {
+      answer = response
+    } else if (response && typeof response === 'object' && 'answer' in response) {
+      answer = String(response.answer)
+    }
+    if (!answer || answer.length < 2) answer = '¡Listo!'
+    if (/precio|barato|oferta/i.test(question)) answer = 'Te recomiendo comparar precios entre tiendas y revisar las ofertas destacadas. ¿Buscas algo específico?'
+    if (/ticket|soporte|problema/i.test(question)) answer = '¿Tienes un problema? Puedes abrir un ticket de soporte y te ayudaremos rápido.'
+    if (/reseña|opinión|comentario/i.test(question)) answer = 'Las reseñas de otros clientes aparecen abajo del producto. ¿Quieres dejar una?'
+    if (/compra|pago|envío/i.test(question)) answer = 'Recuerda que puedes pagar de forma segura y el envío es rápido. ¿Te ayudo a elegir un producto?'
     isThinking.value = false
-    await typeBotResponse(response.answer)
+    await typeBotResponse(answer)
   } catch (error) {
     isThinking.value = false
     await typeBotResponse('No pude responder ahora, intenta de nuevo en un momento.')
