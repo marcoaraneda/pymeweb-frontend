@@ -146,11 +146,11 @@
           <NuxtLink to="/marketplace" class="rounded-lg px-3 py-2 hover:bg-slate-100">Marketplace</NuxtLink>
           <NuxtLink to="/tiendas" class="rounded-lg px-3 py-2 hover:bg-slate-100">Ver tiendas</NuxtLink>
           <NuxtLink to="/marketplace/carrito" class="rounded-lg px-3 py-2 hover:bg-slate-100 text-amber-700" @click="handleMarketplaceCartClick">Carrito marketplace</NuxtLink>
+          <div class="my-2 border-t border-slate-200" />
+          <NuxtLink v-if="auth.isAuthenticated && hasStores" to="/dashboard" class="rounded-lg px-3 py-2 hover:bg-slate-100">Dashboard</NuxtLink>
+          <NuxtLink v-if="auth.isAuthenticated" to="/profile" class="rounded-lg px-3 py-2 hover:bg-slate-100">Editar perfil</NuxtLink>
+          <button v-if="auth.isAuthenticated" class="rounded-lg px-3 py-2 text-left text-red-600 hover:bg-slate-100" @click="handleLogout">Cerrar sesión</button>
           <NuxtLink v-if="!auth.isAuthenticated" to="/login" class="rounded-lg px-3 py-2 hover:bg-slate-100">Iniciar sesión</NuxtLink>
-          <template v-else>
-            <NuxtLink to="/profile" class="rounded-lg px-3 py-2 hover:bg-slate-100">Editar perfil</NuxtLink>
-            <button class="rounded-lg px-3 py-2 text-left text-red-600 hover:bg-slate-100" @click="handleLogout">Cerrar sesión</button>
-          </template>
         </div>
       </div>
     </header>

@@ -97,18 +97,44 @@ export const useChat = () => {
   const fallbackAnswer = () =>
     'Estoy lista para comparar precios, recomendar tiendas o listar productos por categoría. Intenta con preguntas como "¿Qué tienda vende más barato hoy?" o "Muéstrame notebooks disponibles".'
 
+
+  /**
+   * Prompt base: El asistente solo responde sobre productos, tiendas, compras, ayuda de uso de la web y temas relacionados a Pymeweb. Si la pregunta no es relevante, responde que solo puede ayudar con temas de la página.
+   */
   const sendMessage = async (message: string) => {
     const lower = message.toLowerCase()
     let answer = ''
 
+    // Preguntas frecuentes y comandos clave
     if (lower.includes('barat') || lower.includes('econom')) {
       answer = await cheapestProductAnswer()
     } else if (/comput|pc|laptop|notebook/.test(lower)) {
       answer = await computersAnswer()
     } else if (lower.includes('tienda') || lower.includes('store')) {
       answer = await storesAnswer()
+    } else if (lower.includes('ayuda') || lower.includes('cómo funciona') || lower.includes('uso')) {
+      answer = 'Puedes buscar productos, comparar precios, ver tiendas y comprar directamente desde la plataforma. Pregúntame por productos o tiendas para empezar.'
+    } else if (lower.includes('contacto') || lower.includes('soporte')) {
+      answer = 'Para soporte o contacto, utiliza el formulario de contacto en la web o revisa la sección de ayuda.'
+    } else if (lower.match(/(hola|buenas|buenos días|buenas tardes|buenas noches)/)) {
+      answer = '¡Hola! ¿En qué puedo ayudarte hoy? Puedes preguntarme por productos, precios o tiendas.'
+    } else if (lower.match(/(quién eres|quien eres|tu nombre|eres humano|eres una ia)/)) {
+      answer = 'Soy Aurora, la asistente virtual de Pymeweb. Te ayudo a encontrar productos, comparar precios y resolver dudas sobre la plataforma.'
+    } else if (lower.match(/(gracias|muchas gracias|te agradezco)/)) {
+      answer = '¡De nada! Si tienes otra pregunta, aquí estaré.'
+    } else if (lower.match(/(chiste|cuéntame un chiste|cuentame un chiste)/)) {
+      answer = '¿Por qué el computador fue al doctor? ¡Porque tenía un virus!'
+    } else if (lower.match(/(quién hizo|quien hizo|quién creó|quien creo|quién desarrolló|quien desarrollo)/)) {
+      answer = 'Esta plataforma fue desarrollada por el equipo de Pymeweb para ayudarte a encontrar y comparar productos de distintas tiendas.'
+    } else if (lower.match(/(no encuentro|no hay|no aparece)/)) {
+      answer = 'Si no encuentras un producto o tienda, puede que aún no esté disponible. ¡Sigue buscando o vuelve más tarde!'
+    } else if (lower.match(/(categoría|categorias|categorías)/)) {
+      answer = 'Puedes buscar productos por categoría usando el buscador o preguntándome por el tipo de producto que te interesa.'
+    } else if (lower.match(/(envío|envios|envíos|despacho|despachos)/)) {
+      answer = 'El envío depende de cada tienda. Consulta la página de la tienda para ver opciones y tiempos de despacho.'
     } else {
-      answer = fallbackAnswer()
+      // Si la pregunta no es relevante, responde con el prompt base
+      answer = 'Solo puedo responder preguntas sobre productos, tiendas, compras y el uso de Pymeweb. Intenta preguntarme por precios, productos o ayuda sobre la plataforma.'
     }
 
     return { answer }

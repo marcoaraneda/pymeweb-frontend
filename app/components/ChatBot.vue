@@ -89,30 +89,23 @@ onBeforeUnmount(() => {
   stopTypingTimers()
 })
 
+// Typing optimizado: muestra "escribiendo" y luego el mensaje completo, sin letras sueltas
 const typeBotResponse = (text: string) =>
   new Promise<void>((resolve) => {
     isTyping.value = true
     const botMessage: ChatMessage = { id: Date.now() + Math.floor(Math.random() * 1000), role: 'bot', text: '' }
     messages.value.push(botMessage)
-    const chars = Array.from(text)
-
-    const typeNext = () => {
-      const nextChar = chars.shift()
-      if (nextChar === undefined) {
-        isTyping.value = false
-        resolve()
-        return
-      }
-      botMessage.text += nextChar
-      const delay = nextChar === '.' ? 90 : 25 + Math.random() * 35
-      const timer = window.setTimeout(() => {
-        typingTimers.delete(timer)
-        typeNext()
-      }, delay)
-      typingTimers.add(timer)
-    }
-
-    typeNext()
+    // Simula "escribiendo" según la longitud del mensaje, pero nunca más de 1.5s
+    const minDelay = 400
+    const maxDelay = 1500
+    const delay = Math.min(maxDelay, Math.max(minDelay, text.length * 18))
+    const timer = window.setTimeout(() => {
+      botMessage.text = text
+      isTyping.value = false
+      typingTimers.delete(timer)
+      resolve()
+    }, delay)
+    typingTimers.add(timer)
   })
 
 const quickAsk = (text: string) => {

@@ -171,40 +171,12 @@
         <NuxtLink :to="`/store/${slug}/productos`" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Ver todo</NuxtLink>
       </div>
       <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <article
+        <ProductCard
           v-for="product in featuredProducts"
           :key="product.id"
-          class="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-        >
-          <div class="h-40 w-full overflow-hidden rounded-t-2xl bg-slate-100">
-            <img :src="getProductImage(product)" :alt="product.name" class="h-full w-full object-cover" />
-          </div>
-          <div class="flex flex-1 flex-col p-4 space-y-3">
-            <p class="text-xs uppercase text-slate-500">{{ product.category?.name || 'General' }}</p>
-            <h3 class="text-lg font-semibold text-slate-900 group-hover:text-slate-700 line-clamp-1">{{ product.name }}</h3>
-            <p class="text-sm text-slate-600 line-clamp-2">{{ product.description }}</p>
-
-            <div class="flex flex-wrap items-center gap-2">
-              <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
-              <span v-else-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta</span>
-              <span v-if="product.is_marketplace" class="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-800">Marketplace</span>
-            </div>
-
-            <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">
-              <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
-              ${{ product.offer_price || product.price }}
-            </p>
-
-            <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
-              <button class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow" :style="accentStyle" @click="cart.addProduct(product)">
-                Agregar
-              </button>
-              <NuxtLink :to="`/store/${slug}/productos/${product.slug}`" class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900">
-                Ver detalle
-              </NuxtLink>
-            </div>
-          </div>
-        </article>
+          :product="product"
+          :accent="accentColor"
+        />
         <p v-if="!featuredProducts.length" class="text-slate-600">No hay productos destacados todavía.</p>
       </div>
     </section>
@@ -239,53 +211,19 @@
         Aún no hay productos cargados en esta tienda.
       </div>
       <div v-else class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <article
+        <ProductCard
           v-for="product in filteredCatalog"
           :key="product.id"
-          class="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-        >
-          <div class="h-44 w-full overflow-hidden rounded-t-2xl bg-slate-100">
-            <img :src="getProductImage(product)" :alt="product.name" class="h-full w-full object-cover" />
-          </div>
-          <div class="flex flex-1 flex-col p-4 space-y-3">
-            <p class="text-xs uppercase text-slate-500">{{ product.category?.name || 'General' }}</p>
-            <h3 class="text-lg font-semibold text-slate-900 group-hover:text-slate-700 line-clamp-1">{{ product.name }}</h3>
-            <p class="text-sm text-slate-600 line-clamp-2">{{ product.description }}</p>
-
-            <div class="flex flex-wrap items-center gap-2">
-              <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
-              <span v-else-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta</span>
-              <span v-if="product.is_marketplace" class="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-800">Marketplace</span>
-            </div>
-
-            <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">
-              <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
-              ${{ product.offer_price || product.price }}
-            </p>
-
-            <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
-              <button
-                class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow"
-                :style="accentStyle"
-                @click="cart.addProduct(product)"
-              >
-                Agregar
-              </button>
-              <NuxtLink
-                :to="`/store/${slug}/productos/${product.slug}`"
-                class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900"
-              >
-                Ver
-              </NuxtLink>
-            </div>
-          </div>
-        </article>
+          :product="product"
+          :accent="accentColor"
+        />
       </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
+import ProductCard from '~/components/ProductCard.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { definePageMeta } from '#imports'
