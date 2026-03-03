@@ -24,6 +24,16 @@
           <Search class="h-4 w-4" aria-hidden="true" />
           Ver grande
         </button>
+        <button
+          v-if="isStoreOwner"
+          type="button"
+          class="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-800 shadow"
+          @click.stop="startEdit('image')"
+          aria-label="Editar imagen principal"
+        >
+          <Pencil class="h-4 w-4" aria-hidden="true" />
+          Editar imagen
+        </button>
       </div>
       <div class="flex items-center gap-3 overflow-x-auto pb-2">
         <button
@@ -36,14 +46,38 @@
         >
           <img :src="image" :alt="`Miniatura ${index + 1}`" class="h-full w-full object-cover" />
         </button>
-        <NuxtLink
-          v-if="canEditProduct && product.store?.slug"
-          :to="`/store/${product.store.slug}/admin/productos/${product.slug}/editar?tab=imagenes`"
-          class="inline-flex h-20 w-32 shrink-0 items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 text-sm font-semibold text-slate-600 hover:border-slate-400"
-        >
-          <Plus class="h-4 w-4" aria-hidden="true" />
-          Agregar fotos
-        </NuxtLink>
+      </div>
+      <div
+        v-if="isStoreOwner && editing.image"
+        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3"
+      >
+        <label class="text-sm font-semibold text-slate-700">URL de imagen principal</label>
+        <input
+          v-model="form.image_url"
+          type="url"
+          placeholder="https://..."
+          class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+        />
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
+            :style="{ backgroundColor: accentColor }"
+            :disabled="savingField === 'image'"
+            @click="saveImage"
+          >
+            {{ savingField === 'image' ? 'Guardando...' : 'Guardar imagen' }}
+          </button>
+          <button
+            type="button"
+            class="rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            @click="cancelEdit('image')"
+          >
+            Cancelar
+          </button>
+          <p v-if="updateMessage && savingField === 'image'" class="text-sm" :class="updateStatus === 'error' ? 'text-red-600' : 'text-emerald-600'">
+            {{ updateMessage }}
+          </p>
+        </div>
       </div>
     </div>
 
@@ -54,12 +88,101 @@
         <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
       </div>
 
-      <h1 class="text-4xl font-bold text-slate-900">{{ product.name }}</h1>
-      <p class="text-slate-600">{{ product.description }}</p>
+      <div class="flex items-start gap-2">
+        <div class="flex-1">
+          <div class="flex items-start gap-2">
+            <h1 v-if="!editing.name" class="text-4xl font-bold text-slate-900">{{ product.name }}</h1>
+            <div v-else class="w-full max-w-xl space-y-2">
+              <input v-model="form.name" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-lg font-semibold text-slate-900" />
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
+                  :style="{ backgroundColor: accentColor }"
+                  :disabled="savingField === 'name'"
+                  @click="saveName"
+                >
+                  {{ savingField === 'name' ? 'Guardando...' : 'Guardar' }}
+                </button>
+                <button type="button" class="rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" @click="cancelEdit('name')">Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button
+          v-if="isStoreOwner && !editing.name"
+          type="button"
+          class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+          @click="startEdit('name')"
+          aria-label="Editar nombre"
+        >
+          <Pencil class="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
 
-      <div class="flex items-center gap-3 text-2xl font-bold">
-        <span v-if="product.offer_price" class="text-slate-400 line-through text-xl">${{ product.price }}</span>
-        <span :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">${{ product.offer_price || product.price }}</span>
+      <div class="flex items-start gap-2">
+        <p v-if="!editing.description" class="flex-1 text-slate-600">{{ product.description }}</p>
+        <div v-else class="w-full space-y-2">
+          <textarea v-model="form.description" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"></textarea>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
+              :style="{ backgroundColor: accentColor }"
+              :disabled="savingField === 'description'"
+              @click="saveDescription"
+            >
+              {{ savingField === 'description' ? 'Guardando...' : 'Guardar' }}
+            </button>
+            <button type="button" class="rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" @click="cancelEdit('description')">Cancelar</button>
+          </div>
+        </div>
+        <button
+          v-if="isStoreOwner && !editing.description"
+          type="button"
+          class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+          @click="startEdit('description')"
+          aria-label="Editar descripción"
+        >
+          <Pencil class="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center gap-3 text-2xl font-bold" v-if="!editing.price">
+          <span v-if="product.offer_price" class="text-slate-400 line-through text-xl">${{ product.price }}</span>
+          <span :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">${{ product.offer_price || product.price }}</span>
+          <button
+            v-if="isStoreOwner"
+            type="button"
+            class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 text-sm shadow-sm hover:bg-slate-50"
+            @click="startEdit('price')"
+            aria-label="Editar precios"
+          >
+            <Pencil class="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+        <div v-else class="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="space-y-1">
+              <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Precio</label>
+              <input v-model.number="form.price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Precio oferta</label>
+              <input v-model.number="form.offer_price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
+              :style="{ backgroundColor: accentColor }"
+              :disabled="savingField === 'price'"
+              @click="savePrice"
+            >
+              {{ savingField === 'price' ? 'Guardando...' : 'Guardar precios' }}
+            </button>
+            <button type="button" class="rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" @click="cancelEdit('price')">Cancelar</button>
+          </div>
+        </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-2 text-sm font-semibold" :class="stockDescriptor.tone">
@@ -92,14 +215,11 @@
         >
           Ir a la tienda
         </NuxtLink>
-              <NuxtLink
-                v-if="canEditProduct && product.store?.slug"
-                :to="`/store/${product.store.slug}/admin/productos/${product.slug}/editar`"
-                class="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-800 hover:border-slate-300"
-              >
-                Editar producto
-              </NuxtLink>
       </div>
+
+      <p v-if="updateMessage" class="text-sm" :class="updateStatus === 'error' ? 'text-red-600' : 'text-emerald-600'">
+        {{ updateMessage }}
+      </p>
 
       <section class="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div class="flex items-center justify-between">
@@ -213,7 +333,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, reactive } from 'vue'
 import { useRoute } from 'vue-router'
 import { useProducts } from '~/composables/useProducts'
 import { useCartStore } from '~/stores/cart'
@@ -222,7 +342,7 @@ import { useThemeStore } from '~/stores/theme'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useTenantStore } from '~/stores/tenant'
-import { ShoppingCart, Star, Search, Plus, X } from 'lucide-vue-next'
+import { ShoppingCart, Star, Search, Pencil, X } from 'lucide-vue-next'
 import { useNotificationStore } from '~/stores/notifications'
 
 const route = useRoute()
@@ -234,6 +354,8 @@ const tenantStore = useTenantStore()
 const { getProductBySlug } = useProducts()
 const { getProductImage, optimizeCloudinary } = useImages()
 const notificationStore = useNotificationStore()
+
+type EditableField = 'name' | 'description' | 'price' | 'image'
 
 const product = ref<any>(null)
 const reviews = ref<any[]>([])
@@ -247,6 +369,25 @@ const REVIEW_EVENT = 'pymeweb:review-created'
 const placeholderImage = 'https://via.placeholder.com/640x640.png?text=Producto'
 const zoomed = ref(false)
 const zoomCoords = ref({ x: 50, y: 50 })
+const form = reactive({
+  name: '',
+  description: '',
+  price: 0,
+  offer_price: null as number | null,
+  image_url: '',
+})
+const editing = reactive<Record<EditableField, boolean>>({ name: false, description: false, price: false, image: false })
+const savingField = ref<EditableField | null>(null)
+const updateMessage = ref('')
+const updateStatus = ref<'ok' | 'error'>('ok')
+const isStoreOwner = computed(() => {
+  const memberships = (auth.user as any)?.memberships || []
+  const storeSlug = product.value?.store?.slug || (route.params.slug as string)
+  return memberships.some((m: any) => {
+    const roles = (m?.roles || []).map((r: any) => r?.code || r)?.map((r: string) => r?.toLowerCase?.())
+    return m?.store?.slug === storeSlug && roles.some((r: string) => ['admin', 'owner', 'manager'].includes(r))
+  })
+})
 const galleryImages = computed(() => {
   if (!product.value) return [placeholderImage]
   const raw = (product.value.images || [])
@@ -264,11 +405,6 @@ const averageRating = computed(() => {
   return avg.toFixed(1)
 })
 const canSubmitReview = computed(() => reviewForm.value.rating > 0 && reviewForm.value.comment.trim().length > 0)
-const canEditProduct = computed(() => {
-  const memberships = (auth.user as any)?.memberships || []
-  const storeSlug = product.value?.store?.slug || (route.params.slug as string)
-  return memberships.some((m: any) => m?.store?.slug === storeSlug && (m.roles || []).some((r: string) => r?.toLowerCase?.() === 'admin'))
-})
 
 const describeStock = (value: number) => {
   if (value <= 0) {
@@ -298,6 +434,132 @@ const availableStock = computed(() => {
 })
 const stockDescriptor = computed(() => describeStock(availableStock.value))
 const canAddToCart = computed(() => availableStock.value > 0)
+
+const hydrateForm = (data: any) => {
+  form.name = data?.name || ''
+  form.description = data?.description || ''
+  form.price = Number(data?.price || 0)
+  form.offer_price = data?.offer_price ?? null
+  form.image_url = data?.images?.[0]?.image || data?.image || ''
+}
+
+const resetMessages = () => {
+  updateMessage.value = ''
+  updateStatus.value = 'ok'
+}
+
+const refreshProduct = async () => {
+  const data = await getProductBySlug(route.params.product_slug as string)
+  product.value = data
+  hydrateForm(data)
+}
+
+const updateProduct = async (payload: Record<string, any>) => {
+  if (!isStoreOwner.value) {
+    updateStatus.value = 'error'
+    updateMessage.value = 'Solo el dueño puede editar este producto'
+    return false
+  }
+  if (!product.value?.id) {
+    updateStatus.value = 'error'
+    updateMessage.value = 'Producto no cargado'
+    return false
+  }
+  if (!auth.token) {
+    updateStatus.value = 'error'
+    updateMessage.value = 'Inicia sesión para editar'
+    return false
+  }
+
+  const endpoint = `${config.public.apiBase}/store/${route.params.slug}/admin/catalogo/products/${product.value.id}/`
+  const doPatch = (tokenOverride?: string) =>
+    $fetch(endpoint, {
+      method: 'PATCH',
+      body: payload,
+      headers: { Authorization: `Bearer ${tokenOverride || auth.token}` },
+    })
+
+  try {
+    resetMessages()
+    await doPatch()
+    await refreshProduct()
+    updateStatus.value = 'ok'
+    updateMessage.value = 'Cambios guardados'
+    return true
+  } catch (error: any) {
+    const code = error?.response?._data?.code
+    if (code === 'token_not_valid' && auth.refreshToken) {
+      const refreshed = await auth.refreshTokens()
+      if (refreshed) {
+        try {
+          await doPatch(refreshed)
+          await refreshProduct()
+          updateStatus.value = 'ok'
+          updateMessage.value = 'Cambios guardados'
+          return true
+        } catch (retryErr) {
+          console.error('Retry after refresh failed', retryErr)
+        }
+      }
+    }
+    updateStatus.value = 'error'
+    const apiError = error?.response?._data
+    updateMessage.value = typeof apiError === 'string' ? apiError : 'No pudimos guardar los cambios'
+    console.error('Update product failed', error)
+    return false
+  } finally {
+    savingField.value = null
+  }
+}
+
+const startEdit = (field: EditableField) => {
+  if (!isStoreOwner.value) return
+  resetMessages()
+  editing[field] = true
+}
+
+const cancelEdit = (field: EditableField) => {
+  editing[field] = false
+  hydrateForm(product.value)
+  resetMessages()
+}
+
+const saveName = async () => {
+  if (!form.name.trim()) {
+    updateStatus.value = 'error'
+    updateMessage.value = 'El nombre no puede estar vacío'
+    return
+  }
+  savingField.value = 'name'
+  const ok = await updateProduct({ name: form.name.trim() })
+  if (ok) editing.name = false
+}
+
+const saveDescription = async () => {
+  savingField.value = 'description'
+  const ok = await updateProduct({ description: form.description })
+  if (ok) editing.description = false
+}
+
+const savePrice = async () => {
+  savingField.value = 'price'
+  const payload: any = { price: form.price, offer_price: form.offer_price }
+  const ok = await updateProduct(payload)
+  if (ok) editing.price = false
+}
+
+const saveImage = async () => {
+  savingField.value = 'image'
+  const ok = await updateProduct({ image_url: form.image_url })
+  if (ok) {
+    editing.image = false
+    // Mantén la imagen principal actualizada en memoria para el slider
+    if (form.image_url) {
+      const existing = product.value?.images || []
+      product.value.images = [{ image: form.image_url }, ...existing]
+    }
+  }
+}
 
 const withPendingFlag = (review: any = {}) => ({
   ...review,
@@ -415,9 +677,15 @@ watch(
 onMounted(async () => {
   try {
     const slug = route.params.slug as string
+    auth.restoreFromCookies()
+    if (auth.token && !auth.user) {
+      await auth.fetchProfile()
+    }
     tenantStore.setSlug(slug)
+    theme.loadFromStorage()
     theme.applyStoreTheme(slug)
-    product.value = await getProductBySlug(route.params.product_slug as string)
+    await tenantStore.fetchTienda()
+    await refreshProduct()
     await fetchReviews()
     activeImageIndex.value = 0
   } catch (e) {

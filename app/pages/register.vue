@@ -81,6 +81,24 @@ const loading = ref(false)
 const form = reactive({ username: '', email: '', password: '', first_name: '', last_name: '' })
 
 const submit = async () => {
+  auth.error = null
+  const usernameOk = form.username.trim().length >= 3
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+  const passwordOk = form.password.length >= 6
+
+  if (!usernameOk) {
+    auth.error = 'El usuario debe tener al menos 3 caracteres.'
+    return
+  }
+  if (!emailOk) {
+    auth.error = 'Ingresa un email válido.'
+    return
+  }
+  if (!passwordOk) {
+    auth.error = 'La contraseña debe tener al menos 6 caracteres.'
+    return
+  }
+
   loading.value = true
   try {
     await auth.register(form)

@@ -41,7 +41,7 @@
 </template>
 
 <script setup>
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: ['tenant', 'auth'], requiresAuth: true })
 const { getStock } = useInventory()
 const inventory = ref([])
 

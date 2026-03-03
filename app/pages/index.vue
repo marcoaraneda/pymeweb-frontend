@@ -195,7 +195,7 @@
             <div v-if="loadingAll" class="text-slate-500">Cargando tiendas...</div>
             <div v-else-if="error" class="text-red-500">{{ error }}</div>
             <div v-else-if="filteredStoresAll.length === 0" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
-              No hay tiendas que coincidan con tu búsqueda.
+              {{ emptyStoresMessage }}
             </div>
             <div v-else class="grid gap-4 sm:grid-cols-2">
               <StoreCard v-for="store in paginatedStores" :key="store.slug" :store="store" :accent="theme.accent" />
@@ -349,6 +349,12 @@ const filteredStoresAll = computed(() => {
   })
 })
 
+const emptyStoresMessage = computed(() =>
+  filterQuery.value.trim()
+    ? 'No hay tiendas que coincidan con tu búsqueda.'
+    : 'No hay tiendas disponibles.'
+)
+
 const storesTotalPages = computed(() => Math.max(1, Math.ceil(filteredStoresAll.value.length / storesPerPage)))
 const paginatedStores = computed(() => {
   const start = (storesPage.value - 1) * storesPerPage
@@ -363,7 +369,9 @@ const fetchAllStores = async () => {
     storesPage.value = 1
   } catch (err) {
     console.error(err)
-    error.value = 'Error al cargar las tiendas'
+    // Evitamos mostrar error rojo; dejamos el estado vacío
+    storesAll.value = []
+    error.value = ''
   } finally {
     loadingAll.value = false
   }

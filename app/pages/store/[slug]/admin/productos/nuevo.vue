@@ -92,7 +92,7 @@ import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { useTenantStore } from '~/stores/tenant'
 
-definePageMeta({ layout: 'store' })
+definePageMeta({ layout: 'store', middleware: ['tenant', 'auth'], requiresAuth: true })
 
 const route = useRoute()
 const router = useRouter()
@@ -124,10 +124,33 @@ const categories = ref<any[]>([])
 
 const accentStyle = computed(() => ({ backgroundColor: theme.accent || 'var(--accent,#2563eb)', color: '#fff' }))
 
+const authedFetch = async <T>(url: string, options: Record<string, any> = {}) => {
+  if (!auth.token) throw new Error('No autenticado')
+  const doFetch = (token: string) =>
+    $fetch<T>(url as any, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+  try {
+    return await doFetch(auth.token)
+  } catch (error: any) {
+    const code = error?.response?._data?.code
+    if (code === 'token_not_valid' && auth.refreshToken) {
+      const refreshed = await auth.refreshTokens()
+      if (refreshed) return doFetch(refreshed)
+    }
+    throw error
+  }
+}
+
 const loadCategories = async () => {
   try {
     tenantStore.setSlug(slug)
-    categories.value = await $fetch(`${config.public.apiBase}/store/${slug}/catalogo/categories/`)
+    categories.value = await authedFetch(`${config.public.apiBase}/store/${slug}/catalogo/categories/`)
   } catch (error) {
     categories.value = []
   }

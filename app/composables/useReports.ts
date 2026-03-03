@@ -8,7 +8,9 @@ export const useReports = () => {
   const tenant = useTenantStore();
 
   const downloadReport = async (reportType: 'inventory' | 'sales' | 'reviews', opts: { storeSlug?: string; start?: string; end?: string } = {}) => {
-    try {
+    if (!auth.token) throw new Error('No autenticado');
+    if (!tenant.data?.slug && !opts.storeSlug) throw new Error('Tienda no definida');
+    const doFetch = async (token: string) => {
       const params: Record<string, any> = {
         store_id: tenant.data?.id,
         store_slug: opts.storeSlug || tenant.data?.slug,
@@ -19,12 +21,11 @@ export const useReports = () => {
 
       const response = await $fetch(`${config.public.apiBase}/reports/export/`, {
         method: 'GET',
-        headers: { Authorization: `Bearer ${auth.token}` },
+        headers: { Authorization: `Bearer ${token}` },
         params,
-        responseType: 'blob' // Fundamental para archivos
+        responseType: 'blob'
       });
 
-      // Crear un enlace temporal para la descarga
       const url = window.URL.createObjectURL(new Blob([response as any]));
       const link = document.createElement('a');
       link.href = url;
@@ -32,7 +33,16 @@ export const useReports = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
+    }
+
+    try {
+      return await doFetch(auth.token)
     } catch (error: any) {
+      const code = error.response?._data?.code
+      if (code === 'token_not_valid' && auth.refreshToken) {
+        const refreshed = await auth.refreshTokens()
+        if (refreshed) return doFetch(refreshed)
+      }
       const msg = error.response?._data?.detail || "Error al generar el reporte";
       throw new Error(msg);
     }

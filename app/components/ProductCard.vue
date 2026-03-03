@@ -125,7 +125,11 @@ const toggleFavorite = () => toggleProductFavoriteKey(productFavoriteKey(product
 
 const menuOpen = ref(false)
 const canManage = computed(() => Boolean(props.canManage))
-const editUrl = computed(() => props.editUrl || (product?.store?.slug ? `/store/${product.store.slug}/admin/productos/${product.slug}/editar` : ''))
+const editUrl = computed(() => {
+  if (props.editUrl) return props.editUrl
+  if (product?.store?.slug && !isMarketplace.value) return `/store/${product.store.slug}/productos/${product.slug}`
+  return product?.slug ? `/marketplace/productos/${product.slug}` : ''
+})
 const handleDelete = async () => {
   if (typeof props.onDelete === 'function') {
     await props.onDelete(product)

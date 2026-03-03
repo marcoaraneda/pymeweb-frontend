@@ -77,13 +77,17 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from '#app'
+import { definePageMeta, useRoute } from '#app'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
+import { useTenantStore } from '~/stores/tenant'
+
+definePageMeta({ layout: 'admin', middleware: ['tenant', 'auth'], requiresAuth: true })
 
 const route = useRoute()
 const config = useRuntimeConfig()
 const auth = useAuthStore()
+const tenantStore = useTenantStore()
 const slug = route.params.slug as string
 const id = route.params.id as string
 
@@ -127,10 +131,33 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   }, 2800)
 }
 
+const authedFetch = async <T>(url: string, options: Record<string, any> = {}) => {
+  if (!auth.token) throw new Error('No autenticado')
+  const doFetch = (token: string) =>
+    $fetch<T>(url as any, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+  try {
+    return await doFetch(auth.token)
+  } catch (error: any) {
+    const code = error?.response?._data?.code
+    if (code === 'token_not_valid' && auth.refreshToken) {
+      const refreshed = await auth.refreshTokens()
+      if (refreshed) return doFetch(refreshed)
+    }
+    throw error
+  }
+}
+
 const loadOrder = async () => {
   loading.value = true
   try {
-    order.value = await $fetch(`${config.public.apiBase}/orders/${id}/`)
+    order.value = await authedFetch(`${config.public.apiBase}/orders/${id}/`)
     selectedStatus.value = order.value?.status || 'pending'
   } catch (e) {
     console.error('Error cargando pedido', e)
@@ -143,10 +170,9 @@ const loadOrder = async () => {
 const updateStatus = async () => {
   if (!selectedStatus.value) return
   try {
-    await $fetch(`${config.public.apiBase}/orders/${id}/`, {
+    await authedFetch(`${config.public.apiBase}/orders/${id}/`, {
       method: 'PATCH',
       body: { status: selectedStatus.value },
-      headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : undefined,
     })
     if (order.value) {
       order.value.status = selectedStatus.value
@@ -163,6 +189,7 @@ onMounted(async () => {
   if (auth.token && !auth.user) {
     await auth.fetchProfile()
   }
+  tenantStore.setSlug(slug)
   await loadOrder()
 })
 

@@ -30,8 +30,9 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     restoreFromCookies() {
-      const tokenCookie = useCookie<string | null>('auth_token')
-      const refreshCookie = useCookie<string | null>('refresh_token')
+      const secure = process.env.NODE_ENV === 'production'
+      const tokenCookie = useCookie<string | null>('auth_token', { secure })
+      const refreshCookie = useCookie<string | null>('refresh_token', { secure })
       this.token = tokenCookie.value || null
       this.refreshToken = refreshCookie.value || null
     },
@@ -50,8 +51,9 @@ export const useAuthStore = defineStore('auth', {
         this.token = data.access
         this.refreshToken = data.refresh
 
-        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax' }).value = data.access
-        useCookie('refresh_token', { maxAge: 60 * 60 * 24 * 7, sameSite: 'lax' }).value = data.refresh
+        const secure = process.env.NODE_ENV === 'production'
+        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax', secure }).value = data.access
+        useCookie('refresh_token', { maxAge: 60 * 60 * 24 * 7, sameSite: 'lax', secure }).value = data.refresh
 
         await this.fetchProfile()
       } catch (error: any) {
@@ -78,8 +80,9 @@ export const useAuthStore = defineStore('auth', {
         this.refreshToken = data.refresh
         this.user = data.user
 
-        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax' }).value = data.access
-        useCookie('refresh_token', { maxAge: 60 * 60 * 24 * 7, sameSite: 'lax' }).value = data.refresh
+        const secure = process.env.NODE_ENV === 'production'
+        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax', secure }).value = data.access
+        useCookie('refresh_token', { maxAge: 60 * 60 * 24 * 7, sameSite: 'lax', secure }).value = data.refresh
       } catch (error: any) {
         const detail = error?.response?._data?.detail || error?.response?._data || 'No pudimos registrar tu cuenta'
         this.error = detail
@@ -131,7 +134,8 @@ export const useAuthStore = defineStore('auth', {
         })
 
         this.token = data.access
-        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax' }).value = data.access
+        const secure = process.env.NODE_ENV === 'production'
+        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax', secure }).value = data.access
         return data.access
       } catch (error) {
         this.logout()
@@ -165,13 +169,23 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    logout() {
+    logout(options?: { redirectTo?: string }) {
+      // Decide destino antes de limpiar el estado para no perder el slug
+      const fallbackSlug = this.user?.memberships?.[0]?.store?.slug
+      const redirect = options?.redirectTo
+        ? options.redirectTo
+        : fallbackSlug
+          ? `/store/${fallbackSlug}/admin/login`
+          : '/'
+
       this.token = null
       this.refreshToken = null
       this.user = null
-      useCookie('auth_token').value = null
-      useCookie('refresh_token').value = null
-      navigateTo('/')
+      const secure = process.env.NODE_ENV === 'production'
+      useCookie('auth_token', { secure }).value = null
+      useCookie('refresh_token', { secure }).value = null
+
+      navigateTo(redirect)
     },
   },
 })

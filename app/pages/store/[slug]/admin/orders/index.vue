@@ -112,13 +112,15 @@ import { definePageMeta, useRoute } from '#app'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
+import { useTenantStore } from '~/stores/tenant'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: ['tenant', 'auth'], requiresAuth: true })
 
 const route = useRoute()
 const config = useRuntimeConfig()
 const auth = useAuthStore()
 const theme = useThemeStore()
+const tenantStore = useTenantStore()
 const slug = route.params.slug as string
 
 interface Order {
@@ -171,12 +173,34 @@ const statusBadge = (status: string) => {
   return map[status] || { label: status, classes: 'bg-slate-100 text-slate-700' }
 }
 
+const authedFetch = async <T>(url: string, options: Record<string, any> = {}) => {
+  if (!auth.token) throw new Error('No autenticado')
+  const doFetch = (token: string) =>
+    $fetch<T>(url as any, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+  try {
+    return await doFetch(auth.token)
+  } catch (error: any) {
+    const code = error?.response?._data?.code
+    if (code === 'token_not_valid' && auth.refreshToken) {
+      const refreshed = await auth.refreshTokens()
+      if (refreshed) return doFetch(refreshed)
+    }
+    throw error
+  }
+}
+
 const loadOrders = async () => {
   loading.value = true
   try {
-    orders.value = await $fetch(`${config.public.apiBase}/orders/`, {
+    orders.value = await authedFetch(`${config.public.apiBase}/orders/`, {
       params: { store: slug },
-      headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : undefined,
     })
     page.value = 1
     pendingPage.value = 1
@@ -195,6 +219,7 @@ onMounted(async () => {
   }
   theme.loadFromStorage()
   theme.applyStoreTheme(slug)
+  tenantStore.setSlug(slug)
   await loadOrders()
 })
 

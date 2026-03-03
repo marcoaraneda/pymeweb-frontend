@@ -204,7 +204,7 @@ import { useReports } from '~/composables/useReports'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useRoute } from '#app'
 
-definePageMeta({ layout: 'admin', middleware: 'auth' })
+definePageMeta({ layout: 'admin', middleware: ['tenant', 'auth'], requiresAuth: true })
 
 const tenant = useTenantStore()
 const auth = useAuthStore()
@@ -213,6 +213,7 @@ const { downloadReport } = useReports()
 const config = useRuntimeConfig()
 const route = useRoute()
 const routeSlug = route.params.slug as string
+const apiBase = String(config.public.apiBase || '')
 
 const accentColor = computed(() => theme.accent || '#2563eb')
 
@@ -222,6 +223,29 @@ const chart = ref<{ label: string; value: number }[]>([])
 const topCategories = ref<{ name: string; count: number; revenue: number }[]>([])
 const topProducts = ref<{ id: number; name: string; sales: number; revenue: number }[]>([])
 const orders = ref<any[]>([])
+
+const authedFetch = async <T>(url: string, options: Record<string, any> = {}) => {
+  if (!auth.token) throw new Error('No autenticado')
+  const doFetch = (token: string) =>
+    $fetch<T>(url as any, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+  try {
+    return await doFetch(auth.token)
+  } catch (error: any) {
+    const code = error?.response?._data?.code
+    if (code === 'token_not_valid' && auth.refreshToken) {
+      const refreshed = await auth.refreshTokens()
+      if (refreshed) return doFetch(refreshed)
+    }
+    throw error
+  }
+}
 
 const storeOptions = computed(() => {
   const stores = (auth.user as any)?.memberships?.map((m: any) => m.store) || []
@@ -278,9 +302,7 @@ const handleExport = async (type: 'sales' | 'inventory') => {
 const fetchTopProducts = async () => {
   if (!filters.store) return
   try {
-    const data = await $fetch<any[]>(`${config.public.apiBase}/orders/store/${filters.store}/top-products/`, {
-      headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : undefined,
-    })
+    const data = await authedFetch<any[]>(`${apiBase}/orders/store/${filters.store}/top-products/`)
     topProducts.value = data.map((p: any, idx: number) => ({
       id: p.id || idx,
       name: p.name,
@@ -312,9 +334,8 @@ const applyFilters = async () => {
     (async () => {
       if (!filters.store) return
       try {
-        const data = await $fetch<any[]>(`${config.public.apiBase}/orders/`, {
+        const data = await authedFetch<any[]>(`${apiBase}/orders/`, {
           params: { store: filters.store },
-          headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : undefined,
         })
         orders.value = data.map((o) => ({
           id: o.id,

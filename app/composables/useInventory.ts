@@ -8,6 +8,9 @@ export const useInventory = () => {
   const tenant = useTenantStore()
 
   const getStock = async () => {
+    if (!tenant.data?.id) {
+      throw new Error("Tienda no cargada")
+    }
     try {
       return await $fetch(`${config.public.apiBase}/inventory/stock/`, {
         headers: { Authorization: `Bearer ${auth.token}` },
@@ -20,6 +23,9 @@ export const useInventory = () => {
   }
 
   const updateStock = async (payload: { variant_id: number, quantity: number, type: string }) => {
+    if (!tenant.data?.id) {
+      throw new Error("Tienda no cargada")
+    }
     try {
       return await $fetch(`${config.public.apiBase}/inventory/movements/`, {
         method: 'POST',
@@ -27,6 +33,17 @@ export const useInventory = () => {
         body: { ...payload, store_id: tenant.data.id }
       })
     } catch (error: any) {
+      const code = error.response?._data?.code
+      if (code === 'token_not_valid' && auth.refreshToken) {
+        const refreshed = await auth.refreshTokens()
+        if (refreshed) {
+          return await $fetch(`${config.public.apiBase}/inventory/movements/`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${refreshed}` },
+            body: { ...payload, store_id: tenant.data.id }
+          })
+        }
+      }
       const errorMessage = error.response?._data?.detail || "Error al obtener inventario"
       console.error(errorMessage)
       throw new Error(errorMessage)

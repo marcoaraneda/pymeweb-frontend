@@ -73,6 +73,7 @@
               <button
                 class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm glass-btn"
                 aria-label="Notificaciones"
+                ref="notifBtnRef"
                 @click.stop="showNotifications = !showNotifications"
               >
                 <Bell class="h-5 w-5" aria-hidden="true" />
@@ -83,34 +84,46 @@
                   {{ notificationsCount }}
                 </span>
               </button>
-              <div
-                v-if="showNotifications"
-                class="absolute right-0 top-12 w-64 rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-lg"
-              >
-                <div class="flex items-center justify-between">
-                  <p class="font-semibold text-slate-800">Notificaciones</p>
-                  <button class="text-xs text-slate-600 underline hover:text-slate-900" @click.stop="clearNotifications">Limpiar</button>
-                </div>
-                <div class="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                  <p v-if="!unreadNotifications.length" class="text-slate-500">Sin notificaciones.</p>
-                  <button
-                    v-else
-                    v-for="(n, idx) in unreadNotifications"
-                    :key="idx"
-                    class="w-full text-left rounded-lg border border-slate-100 px-2 py-1 text-slate-700 hover:bg-slate-50"
-                    @click="handleNotification(n)"
+              <teleport to="body">
+                <div v-if="showNotifications">
+                  <div class="fixed inset-0 z-[99999]" @click="showNotifications = false"></div>
+                  <div
+                    class="fixed w-64 rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-lg z-[100000]"
+                    :style="notifMenuStyle"
                   >
-                    {{ n.message }}
-                  </button>
+                    <div class="flex items-center justify-between">
+                      <p class="font-semibold text-slate-800">Notificaciones</p>
+                    </div>
+                    <div class="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                      <p v-if="!unreadNotifications.length" class="text-slate-500">Sin notificaciones.</p>
+                      <div
+                        v-else
+                        v-for="(n, idx) in unreadNotifications"
+                        :key="idx"
+                        class="w-full rounded-lg border border-slate-100 px-2 py-1 text-slate-700"
+                      >
+                        {{ n.message }}
+                      </div>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        class="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-800 hover:border-slate-300"
+                        @click="clearNotifications"
+                      >
+                        Borrar notificaciones
+                      </button>
+                      <button
+                        type="button"
+                        class="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                        @click="goNotifications"
+                      >
+                        Ver notificaciones
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  class="mt-3 block text-xs font-semibold text-blue-600 hover:underline"
-                  @click="goNotifications"
-                >
-                  Ver notificaciones
-                </button>
-              </div>
+              </teleport>
             </div>
             <button
               class="flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-800 glass-btn"
@@ -166,7 +179,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, computed, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
@@ -202,6 +215,8 @@ const hasStores = computed(() => ((auth.user as any)?.memberships || []).length 
 type NotificationItem = { type: string; message: string; count: number; store?: string }
 type DashboardSummary = { notifications?: NotificationItem[] }
 const notificationStore = useNotificationStore()
+const notifBtnRef = ref<HTMLElement | null>(null)
+const notifMenuStyle = ref('')
 const unreadNotifications = computed(() => notificationStore.unread)
 const notificationsCount = computed(() => notificationStore.totalUnread)
 const showNotifications = ref(false)
@@ -231,39 +246,25 @@ const loadNotifications = async () => {
   }
 }
 
+const positionNotifMenu = async () => {
+  if (!showNotifications.value) return
+  await nextTick()
+  if (notifBtnRef.value) {
+    const rect = notifBtnRef.value.getBoundingClientRect()
+    notifMenuStyle.value = `top: ${rect.bottom + 8}px; left: ${rect.left}px;`
+  }
+}
+
 const clearNotifications = () => {
   notificationStore.markAllAsRead()
+  notificationStore.clearHistory()
+  notificationStore.setUnread([])
   showNotifications.value = false
 }
 
 const goNotifications = async () => {
   showNotifications.value = false
   await navigateTo('/notificaciones')
-}
-
-const handleNotification = async (n: any) => {
-  showNotifications.value = false
-  if (n?.type?.startsWith('review') && n?.store) {
-    const targetProduct = n.product_slug || n.productSlug
-    if (targetProduct) {
-      await navigateTo(`/store/${n.store}/productos/${targetProduct}`)
-      return
-    }
-    await navigateTo(`/store/${n.store}`)
-    return
-  }
-  if (n?.type === 'ticket_detail' && n?.store) {
-    await navigateTo(`/store/${n.store}/soporte`)
-    return
-  }
-  if (n?.type?.startsWith('ticket')) {
-    await navigateTo('/dashboard/tickets')
-    return
-  }
-  if (n?.type?.startsWith('order')) {
-    await navigateTo('/dashboard')
-    return
-  }
 }
 
 const handleLogout = () => {
@@ -284,6 +285,7 @@ onMounted(async () => {
   theme.resetToBase()
   await loadNotifications()
   document.addEventListener('click', handleOutside)
+  window.addEventListener('resize', positionNotifMenu)
   // debug: log navigations
   try {
     router.afterEach((to, from) => {
@@ -297,6 +299,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleOutside)
+  window.removeEventListener('resize', positionNotifMenu)
 })
 
 watch(
@@ -308,9 +311,11 @@ watch(
   }
 )
 
-watch(showNotifications, (open, prev) => {
-  if (!open && prev) {
-    notificationStore.markAllAsRead()
+watch(
+  () => showNotifications.value,
+  (isOpen) => {
+    if (isOpen) positionNotifMenu()
   }
-})
+)
+
 </script>

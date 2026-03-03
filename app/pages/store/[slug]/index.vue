@@ -234,7 +234,7 @@ import { useThemeStore } from '~/stores/theme'
 import { useImages } from '~/composables/useImages'
 import { useAuthStore } from '~/stores/auth'
 
-definePageMeta({ layout: 'store' })
+definePageMeta({ layout: 'store', middleware: ['tenant'] })
 
 const route = useRoute()
 const router = useRouter()

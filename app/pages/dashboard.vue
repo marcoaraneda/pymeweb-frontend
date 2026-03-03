@@ -339,12 +339,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
-import { navigateTo, useRuntimeConfig } from 'nuxt/app'
+import { navigateTo, useRuntimeConfig, definePageMeta } from 'nuxt/app'
 import StoreCard from '~/components/StoreCard.vue'
 import StatCard from '~/components/StatCard.vue'
 import { Building2, Eye, ShoppingCart, Headset, Lightbulb, MessageSquare, Star as StarIcon } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
+
+definePageMeta({ middleware: ['auth'], requiresAuth: true })
 
 type TicketItem = {
   id: number
@@ -369,6 +371,29 @@ const pageSize = 6
 const config = useRuntimeConfig()
 const apiBase = String(config.public.apiBase || '')
 const deletingStore = ref(false)
+
+const authedFetch = async <T>(url: string, options: Record<string, any> = {}) => {
+  if (!auth.token) throw new Error('No autenticado')
+  const doFetch = (token: string) =>
+    $fetch<T>(url as any, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+  try {
+    return await doFetch(auth.token)
+  } catch (error: any) {
+    const code = error?.response?._data?.code
+    if (code === 'token_not_valid' && auth.refreshToken) {
+      const refreshed = await auth.refreshTokens()
+      if (refreshed) return doFetch(refreshed)
+    }
+    throw error
+  }
+}
 
 type DashboardSummary = {
   active_stores: number
@@ -506,9 +531,8 @@ const confirmDeleteStore = async (store: any) => {
   if (!ok) return
   deletingStore.value = true
   try {
-    await $fetch(`${apiBase}/stores/${store.slug}/` as any, {
+    await authedFetch(`${apiBase}/stores/${store.slug}/`, {
       method: 'DELETE',
-      headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
     })
     await loadData()
     alert('Tienda eliminada')
@@ -533,9 +557,7 @@ const loadTopProducts = async () => {
   try {
     const results = await Promise.all(
       targetSlugs.map((slug) =>
-        $fetch(`${apiBase}/orders/store/${slug}/top-products/` as any, {
-          headers: { Authorization: `Bearer ${auth.token}` },
-        }).catch(() => [])
+        authedFetch(`${apiBase}/orders/store/${slug}/top-products/`, {}).catch(() => [])
       )
     )
 
@@ -562,10 +584,7 @@ const loadOrders = async () => {
   const params: Record<string, any> = {}
   if (selectedStore.value !== 'all') params.store = selectedStore.value
   try {
-    orders.value = await $fetch<any[]>(`${apiBase}/orders/` as any, {
-      params,
-      headers: { Authorization: `Bearer ${auth.token}` },
-    })
+    orders.value = await authedFetch<any[]>(`${apiBase}/orders/`, { params })
     pendingPage.value = 1
     deliveredPage.value = 1
   } catch (error) {
@@ -583,10 +602,7 @@ const loadTickets = async () => {
   const params: Record<string, any> = { status: 'open' }
   if (selectedStore.value !== 'all') params.store = selectedStore.value
   try {
-    tickets.value = await $fetch<TicketItem[]>(`${apiBase}/support/tickets/` as any, {
-      headers: { Authorization: `Bearer ${auth.token}` },
-      params,
-    })
+    tickets.value = await authedFetch<TicketItem[]>(`${apiBase}/support/tickets/`, { params })
   } catch (error) {
     console.warn('No se pudieron cargar tickets', error)
     tickets.value = []
@@ -606,17 +622,11 @@ const loadRecentReviews = async () => {
   try {
     // Try owner-aggregated reviews endpoint first (some deployments don't have support/dashboard/reviews)
       try {
-        recentReviews.value = await $fetch<ReviewFeedItem[]>(`${apiBase}/resenas/owner/reviews/` as any, {
-          headers: { Authorization: `Bearer ${auth.token}` },
-          params,
-        })
+        recentReviews.value = await authedFetch<ReviewFeedItem[]>(`${apiBase}/resenas/owner/reviews/`, { params })
       } catch (ownerErr) {
         console.warn('No se pudieron cargar reseñas desde owner endpoint, intentando support endpoint', ownerErr)
         try {
-          recentReviews.value = await $fetch<ReviewFeedItem[]>(`${apiBase}/support/dashboard/reviews/` as any, {
-            headers: { Authorization: `Bearer ${auth.token}` },
-            params,
-          })
+          recentReviews.value = await authedFetch<ReviewFeedItem[]>(`${apiBase}/support/dashboard/reviews/`, { params })
         } catch (supportErr) {
           console.warn('No se pudieron cargar reseñas desde support endpoint', supportErr)
           recentReviews.value = []
@@ -651,10 +661,9 @@ const saveTicket = async () => {
     if (newComment.value.trim()) {
       body.description = `${selectedTicket.value.description}\n\n[Admin] ${newComment.value.trim()}`
     }
-    const updated = await $fetch<TicketItem>(`${apiBase}/support/tickets/${selectedTicket.value.id}/` as any, {
+    const updated = await authedFetch<TicketItem>(`${apiBase}/support/tickets/${selectedTicket.value.id}/`, {
       method: 'PATCH',
       body,
-      headers: { Authorization: `Bearer ${auth.token}` },
     })
     // refresh list locally
     tickets.value = tickets.value.map((t) => (t.id === updated.id ? updated : t))
@@ -673,10 +682,7 @@ const loadSummary = async () => {
   const params: Record<string, any> = {}
   if (selectedStore.value !== 'all') params.store = selectedStore.value
   try {
-    const summary = await $fetch<DashboardSummary>(`${apiBase}/support/dashboard/summary/` as any, {
-      headers: { Authorization: `Bearer ${auth.token}` },
-      params,
-    })
+    const summary = await authedFetch<DashboardSummary>(`${apiBase}/support/dashboard/summary/`, { params })
     analytics.value = {
       visits: summary?.visits_last_7d || 0,
       conversions: summary?.conversions || 0,

@@ -13,8 +13,8 @@
             Carrito
           </NuxtLink>
           <NuxtLink
-            v-if="auth.isAuthenticated"
-            :to="`/store/${slug}/admin/productos/nuevo`"
+            v-if="isStoreOwner"
+            :to="`/store/${slug}/productos/crear`"
             class="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:border-slate-300"
           >
             + Agregar producto
@@ -50,8 +50,9 @@
           :key="product.id"
           :product="product"
           :accent="accentColor"
-          :canManage="canManageStore"
+          :canManage="isStoreOwner"
           :onDelete="deleteProduct"
+          :editUrl="productDetailPath(product)"
         />
       </div>
     </div>
@@ -84,10 +85,16 @@ const { getProductImage } = useImages()
 
 const selectedCategory = ref('')
 const searchQuery = ref('')
-const canManageStore = computed(() => {
+const isStoreOwner = computed(() => {
   const memberships = (auth.user as any)?.memberships || []
-  return memberships.some((m: any) => m?.store?.slug === slug && (m.roles || []).some((r: string) => r?.toLowerCase?.() === 'admin'))
+  return memberships.some((m: any) => {
+    const storeSlug = m?.store?.slug
+    const roles = (m?.roles || []).map((r: any) => r?.code || r)?.map((r: string) => r?.toLowerCase?.())
+    return storeSlug === slug && roles.some((r: string) => ['admin', 'owner', 'manager'].includes(r))
+  })
 })
+
+const productDetailPath = (product: any) => (product?.slug ? `/store/${slug}/productos/${product.slug}` : `/store/${slug}/productos`)
 
 const accentColor = computed(() => theme.accent || '#2563eb')
 const accentStyle = computed(() => ({ backgroundColor: accentColor.value, color: '#fff' }))
@@ -103,6 +110,7 @@ onMounted(async () => {
   theme.loadFromStorage()
   theme.applyStoreTheme(slug)
   tenantStore.setSlug(slug)
+  await tenantStore.fetchTienda()
   await tenantStore.fetchCategories()
   await tenantStore.fetchProductos()
 })
@@ -110,6 +118,10 @@ onMounted(async () => {
 // admin menu handled inside ProductCard
 
 const deleteProduct = async (product: any) => {
+  if (!isStoreOwner.value) {
+    window.alert('Solo el dueño puede eliminar productos')
+    return
+  }
   if (!auth.token || !product?.id) {
     window.alert('Inicia sesión para eliminar productos')
     return

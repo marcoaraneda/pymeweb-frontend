@@ -107,6 +107,14 @@ const loading = ref(false)
 const credentials = reactive({ username: '', password: '' })
 
 const submit = async () => {
+  auth.error = null
+  const userOk = credentials.username.trim().length >= 3
+  const passOk = credentials.password.length >= 6
+  if (!userOk || !passOk) {
+    auth.error = !userOk ? 'Ingresa un usuario o email válido (3+ caracteres).' : 'La contraseña debe tener al menos 6 caracteres.'
+    return
+  }
+
   loading.value = true
   try {
     await auth.login(credentials)

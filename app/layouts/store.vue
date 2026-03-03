@@ -140,18 +140,32 @@
                   >
                     <div class="flex items-center justify-between">
                       <p class="font-semibold text-slate-800">Notificaciones</p>
-                      <button class="text-xs text-slate-600 underline hover:text-slate-900" @click.stop="clearNotifications">Limpiar</button>
                     </div>
                     <div class="mt-2 space-y-2 max-h-60 overflow-y-auto">
                       <p v-if="!notifications.length" class="text-slate-500">Sin notificaciones.</p>
-                      <button
+                      <div
                         v-else
                         v-for="(n, idx) in notifications"
                         :key="idx"
-                        class="w-full text-left rounded-lg border border-slate-100 px-2 py-1 text-slate-700 hover:bg-slate-50"
-                        @click="handleNotification(n)"
+                        class="w-full rounded-lg border border-slate-100 px-2 py-1 text-slate-700"
                       >
                         {{ n.message }}
+                      </div>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        class="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-800 hover:border-slate-300"
+                        @click="clearNotifications"
+                      >
+                        Borrar notificaciones
+                      </button>
+                      <button
+                        type="button"
+                        class="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                        @click="viewNotifications"
+                      >
+                        Ver notificaciones
                       </button>
                     </div>
                   </div>
@@ -293,6 +307,7 @@ import { useTenantStore } from '~/stores/tenant'
 import { useCartStore } from '~/stores/cart'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
+import { useNotificationStore } from '~/stores/notifications'
 
 const route = useRoute()
 const router = useRouter()
@@ -317,11 +332,9 @@ const showMobileNav = ref(false)
 const showGeneralMenu = ref(false)
 const navButtonClass = 'inline-flex h-11 min-w-[140px] items-center justify-center gap-2 rounded-2xl border border-slate-900/15 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 whitespace-nowrap'
 const mobileButtonClass = 'flex w-full items-center gap-3 rounded-2xl border border-slate-900/10 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm'
-type NotificationItem = { type: string; message: string; count: number }
-type StoreSummary = { notifications?: NotificationItem[] }
-
-const notifications = ref<NotificationItem[]>([])
-const notificationsCount = computed(() => notifications.value.reduce((acc, n) => acc + (Number(n.count) || 0), 0))
+const notificationStore = useNotificationStore()
+const notifications = computed(() => notificationStore.unread)
+const notificationsCount = computed(() => notificationStore.totalUnread)
 const showNotifications = ref(false)
 
 const canEditBrand = computed(() => {
@@ -343,40 +356,34 @@ const ensureStoreData = async () => {
 
 const loadNotifications = async () => {
   if (!auth.token) {
-    notifications.value = []
+    notificationStore.setUnread([])
     return
   }
   try {
-    const data = await $fetch<StoreSummary>(`${config.public.apiBase}/support/dashboard/summary/`, {
-      headers: { Authorization: `Bearer ${auth.token}` },
-      params: slug.value ? { store: slug.value } : {},
-    })
-    notifications.value = data?.notifications || []
+    const data = await $fetch<{ notifications?: { type: string; message: string; count: number }[] }>(
+      `${config.public.apiBase}/support/dashboard/summary/`,
+      {
+        headers: { Authorization: `Bearer ${auth.token}` },
+        params: slug.value ? { store: slug.value } : {},
+      }
+    )
+    notificationStore.setUnread(data?.notifications || [])
   } catch (error) {
     console.warn('No se pudieron cargar notificaciones', error)
-    notifications.value = []
+    notificationStore.setUnread([])
   }
 }
 
 const clearNotifications = () => {
-  notifications.value = []
+  notificationStore.markAllAsRead()
+  notificationStore.clearHistory()
+  notificationStore.setUnread([])
   showNotifications.value = false
 }
 
-const goTickets = async () => {
+const viewNotifications = async () => {
   showNotifications.value = false
-  await navigateTo('/dashboard/tickets')
-}
-
-const handleNotification = async (n: any) => {
-  showNotifications.value = false
-  if (n?.type === 'ticket_detail') {
-    await navigateTo(`/store/${slug.value}/soporte`)
-    return
-  }
-  if (n?.type?.startsWith('ticket')) {
-    await navigateTo('/dashboard/tickets')
-  }
+  await navigateTo('/notificaciones')
 }
 
 const openLogoPrompt = async () => {

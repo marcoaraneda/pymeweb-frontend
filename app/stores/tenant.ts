@@ -24,7 +24,10 @@ export const useTenantStore = defineStore('tenant', {
         const theme = useThemeStore()
         theme.loadFromStorage()
         theme.applyStoreTheme(this.slug)
-      } catch (error) { console.error("Error tienda:", error) }
+      } catch (error) {
+        console.error("Error tienda:", error)
+        throw error
+      }
     },
     async fetchProductos(params: Record<string, any> = {}) {
       if (!this.slug) return

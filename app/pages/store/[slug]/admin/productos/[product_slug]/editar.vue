@@ -132,7 +132,7 @@ import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { useTenantStore } from '~/stores/tenant'
 
-definePageMeta({ layout: 'store' })
+definePageMeta({ layout: 'store', middleware: ['tenant', 'auth'], requiresAuth: true })
 const route = useRoute() as any
 const params = (route?.params || {}) as Record<string, string>
 const config = useRuntimeConfig()
@@ -169,6 +169,29 @@ const variants = ref<any[]>([])
 const accentStyle = computed(() => ({ backgroundColor: theme.accent, color: '#fff' }))
 const categories = ref<any[]>([])
 
+const authedFetch = async <T>(url: string, options: Record<string, any> = {}) => {
+  if (!auth.token) throw new Error('No autenticado')
+  const doFetch = (token: string) =>
+    $fetch<T>(url as any, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+  try {
+    return await doFetch(auth.token)
+  } catch (error: any) {
+    const code = error?.response?._data?.code
+    if (code === 'token_not_valid' && auth.refreshToken) {
+      const refreshed = await auth.refreshTokens()
+      if (refreshed) return doFetch(refreshed)
+    }
+    throw error
+  }
+}
+
 const normalizeStock = (value: any) => {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : 0
@@ -193,7 +216,7 @@ const totalStock = computed(() => variants.value.reduce((acc, variant) => acc + 
 const loadCategories = async () => {
   try {
     tenantStore.setSlug(slug)
-    categories.value = await $fetch(`${config.public.apiBase}/store/${slug}/catalogo/categories/`)
+    categories.value = await authedFetch(`${config.public.apiBase}/store/${slug}/catalogo/categories/`)
   } catch (error) {
     categories.value = []
   }
@@ -201,7 +224,7 @@ const loadCategories = async () => {
 
 const load = async () => {
   try {
-    const data = await $fetch<any>(`${config.public.apiBase}/store/${slug}/catalogo/products/${productSlug}/`)
+    const data = await authedFetch<any>(`${config.public.apiBase}/store/${slug}/catalogo/products/${productSlug}/`)
     form.id = data.id
     form.name = data.name
     form.slug = data.slug
@@ -231,9 +254,8 @@ const removeProduct = async () => {
   deleting.value = true
   message.value = ''
   try {
-    await $fetch(`${config.public.apiBase}/store/${slug}/admin/catalogo/products/${form.id}/`, {
+    await authedFetch(`${config.public.apiBase}/store/${slug}/admin/catalogo/products/${form.id}/`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${auth.token}` },
     })
     await navigateTo({ path: backPath.value })
   } catch (error: any) {
@@ -268,10 +290,9 @@ const save = async () => {
     if (form.image_url) payload.image_url = form.image_url
     if (form.category) payload.category = form.category
 
-    await $fetch(`${config.public.apiBase}/store/${slug}/admin/catalogo/products/${form.id}/`, {
+    await authedFetch(`${config.public.apiBase}/store/${slug}/admin/catalogo/products/${form.id}/`, {
       method: 'PATCH',
       body: payload,
-      headers: { Authorization: `Bearer ${auth.token}` },
     })
     message.value = 'Producto actualizado'
     messageType.value = 'ok'
@@ -285,6 +306,11 @@ const save = async () => {
 }
 
 onMounted(async () => {
+  auth.restoreFromCookies()
+  if (auth.token && !auth.user) {
+    await auth.fetchProfile()
+  }
+  tenantStore.setSlug(slug)
   theme.loadFromStorage()
   theme.applyStoreTheme(slug)
   await Promise.all([load(), loadCategories()])
