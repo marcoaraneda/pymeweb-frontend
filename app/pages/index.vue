@@ -9,6 +9,18 @@
       class="relative z-10 bg-slate-950 text-white reveal"
       :style="heroStyle"
     >
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 pt-6">
+        <div class="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/80 shadow-lg shadow-blue-900/30">
+          Panel principal
+          <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+        </div>
+        <div class="flex flex-wrap items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-900/30 backdrop-blur">
+          <NuxtLink to="/marketplace" class="rounded-full px-3 py-1 hover:bg-white/20">Marketplace</NuxtLink>
+          <NuxtLink to="/tiendas" class="rounded-full px-3 py-1 hover:bg-white/20">Tiendas</NuxtLink>
+          <NuxtLink to="/login" class="rounded-full px-3 py-1 hover:bg-white/20">Acceder</NuxtLink>
+          <NuxtLink to="/register" class="rounded-full px-3 py-1 hover:bg-white/20">Crear cuenta</NuxtLink>
+        </div>
+      </div>
       <div class="max-w-6xl mx-auto px-6 py-16 lg:py-24 grid lg:grid-cols-[1.1fr,0.9fr] gap-12 items-center">
         <div>
           <p class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.2em]">
@@ -80,6 +92,46 @@
               <p class="text-sm">Explora las tiendas disponibles y compra sin registrar.</p>
               <p class="text-xs text-white/60">Inicia sesión para administrar tus propias tiendas.</p>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="relative z-10 max-w-6xl mx-auto px-6 py-12 space-y-6 reveal" style="animation-delay: 0.03s;">
+      <div class="grid gap-6 lg:grid-cols-1">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Últimas novedades</p>
+              <h3 class="text-lg font-semibold text-slate-900">Lo más nuevo de las tiendas, con su color</h3>
+            </div>
+            <NuxtLink to="/marketplace" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Marketplace</NuxtLink>
+          </div>
+          <div v-if="loadingStoreProducts" class="text-slate-500 mt-3">Cargando productos de tiendas...</div>
+          <div v-else-if="storeProductsError" class="text-red-600 mt-3">{{ storeProductsError }}</div>
+          <div v-else-if="!featuredStoreProducts.length" class="text-slate-600 mt-3">Sin productos recientes publicados.</div>
+          <div v-else class="mt-3 space-y-3">
+            <NuxtLink
+              v-for="product in featuredStoreProducts"
+              :key="product.id"
+              :to="productDetailPath(product)"
+              class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 transition hover:-translate-y-0.5 hover:shadow"
+            >
+              <img :src="product.images?.[0]?.image || product.image || productImage(product)" :alt="product.name" class="h-16 w-16 rounded-xl object-cover" />
+              <div class="flex-1">
+                <p class="text-xs uppercase tracking-wide text-slate-500">{{ product.category?.name || 'General' }}</p>
+                <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ product.name }}</p>
+                <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                  <span
+                    class="rounded-full px-2 py-1"
+                    :style="{ backgroundColor: `${storeAccent(product)}22`, color: storeAccent(product) }"
+                  >
+                    {{ product.store?.slug || 'tienda' }}
+                  </span>
+                  <span class="text-slate-500">${{ product.offer_price || product.price }}</span>
+                </div>
+              </div>
+            </NuxtLink>
           </div>
         </div>
       </div>
@@ -310,6 +362,9 @@ const loadingMine = ref(false)
 const marketplaceProducts = ref<any[]>([])
 const loadingMarketplace = ref(true)
 const marketplaceError = ref('')
+const latestStoreProducts = ref<any[]>([])
+const loadingStoreProducts = ref(true)
+const storeProductsError = ref('')
 const error = ref('')
 const newStoreName = ref('')
 const creating = ref(false)
@@ -325,13 +380,13 @@ const heroStyle = computed(() => ({
   backgroundImage: `linear-gradient(120deg, ${theme.gradientFrom}, ${theme.gradientTo})`,
 }))
 
+const toggleFavoriteProductFilter = () => {
+  showFavoriteProductsOnly.value = !showFavoriteProductsOnly.value
+}
+
 const toggleFavoriteStoreFilter = () => {
   showFavoriteStoresOnly.value = !showFavoriteStoresOnly.value
   storesPage.value = 1
-}
-
-const toggleFavoriteProductFilter = () => {
-  showFavoriteProductsOnly.value = !showFavoriteProductsOnly.value
 }
 
 const filteredStoresAll = computed(() => {
@@ -390,6 +445,46 @@ const fetchMarketplace = async () => {
   }
 }
 
+const fetchLatestStoreProducts = async () => {
+  loadingStoreProducts.value = true
+  storeProductsError.value = ''
+  const candidates = [
+    `${apiBase}/products/latest/?limit=6&ordering=-created_at`,
+    `${apiBase}/marketplace/products/?store_only=true&limit=6&ordering=-created_at`,
+  ]
+  for (const url of candidates) {
+    try {
+      const data = await $fetch<any[]>(url as any)
+      if (data?.length) {
+        latestStoreProducts.value = data
+        loadingStoreProducts.value = false
+        return
+      }
+    } catch (err) {
+      // try next endpoint
+    }
+  }
+  // Fallback: usa los productos de marketplace que pertenezcan a tiendas (no marketplace)
+  const fallback = (marketplaceProducts.value || [])
+    .filter((p: any) => !p.store_is_marketplace)
+    .sort((a: any, b: any) => new Date(b.created_at || b.created || b.id).getTime() - new Date(a.created_at || a.created || a.id).getTime())
+  latestStoreProducts.value = fallback.slice(0, 6)
+  storeProductsError.value = ''
+  loadingStoreProducts.value = false
+}
+
+const storeAccent = (product: any) => product?.store?.color || product?.store?.brand_color || theme.accent
+const featuredStoreProducts = computed(() => (latestStoreProducts.value || []).slice(0, 3))
+
+const productFavoriteKey = (product: any) => makeProductFavoriteKey(product?.store?.slug, product?.slug || product?.id)
+const isProductFavorite = (product: any) => isProductFavoriteKey(productFavoriteKey(product))
+const toggleProductFavorite = (product: any) => toggleProductFavoriteKey(productFavoriteKey(product))
+const displayMarketplaceProducts = computed(() => {
+  const base = marketplaceProducts.value || []
+  const filtered = showFavoriteProductsOnly.value ? base.filter((p: any) => isProductFavorite(p)) : base
+  return [...filtered].sort((a: any, b: any) => Number(isProductFavorite(b)) - Number(isProductFavorite(a)))
+})
+
 const productImage = (product: any) => product?.images?.[0]?.image || 'https://via.placeholder.com/400x240?text=Producto'
 
 const addToCart = async (product: any) => {
@@ -441,10 +536,6 @@ const createStore = async () => {
   }
 }
 
-const productFavoriteKey = (product: any) => makeProductFavoriteKey(product?.store?.slug, product?.slug || product?.id)
-const isProductFavorite = (product: any) => isProductFavoriteKey(productFavoriteKey(product))
-const toggleProductFavorite = (product: any) => toggleProductFavoriteKey(productFavoriteKey(product))
-
 const productDetailPath = (product: any) => {
   const id = product?.slug || product?.id
   if (!id) return '/marketplace'
@@ -459,12 +550,6 @@ const storePath = (product: any) => {
   return storeSlug ? `/store/${storeSlug}` : '/tiendas'
 }
 
-const displayMarketplaceProducts = computed(() => {
-  const base = marketplaceProducts.value || []
-  const filtered = showFavoriteProductsOnly.value ? base.filter((p: any) => isProductFavorite(p)) : base
-  return [...filtered].sort((a: any, b: any) => Number(isProductFavorite(b)) - Number(isProductFavorite(a)))
-})
-
 // Marketplace accent and styles
 const MARKET_ACCENT = '#f59e0b'
 const marketGlowStyle = computed(() => ({ background: `radial-gradient(circle at 30% 20%, ${MARKET_ACCENT}1a, transparent 40%)` }))
@@ -478,6 +563,7 @@ onMounted(async () => {
   }
   await fetchAllStores()
   await fetchMarketplace()
+  await fetchLatestStoreProducts()
   if (auth.token) {
     await fetchMyStores()
   }

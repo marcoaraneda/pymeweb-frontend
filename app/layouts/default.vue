@@ -29,6 +29,7 @@
             v-if="auth.isAuthenticated && hasStores"
             to="/dashboard"
             class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
+            @click.prevent="goDashboard"
           >
             <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
             Dashboard
@@ -160,7 +161,7 @@
           <NuxtLink to="/tiendas" class="rounded-lg px-3 py-2 hover:bg-slate-100">Ver tiendas</NuxtLink>
           <NuxtLink to="/marketplace/carrito" class="rounded-lg px-3 py-2 hover:bg-slate-100 text-amber-700" @click="handleMarketplaceCartClick">Carrito marketplace</NuxtLink>
           <div class="my-2 border-t border-slate-200" />
-          <NuxtLink v-if="auth.isAuthenticated && hasStores" to="/dashboard" class="rounded-lg px-3 py-2 hover:bg-slate-100">Dashboard</NuxtLink>
+          <NuxtLink v-if="auth.isAuthenticated && hasStores" to="/dashboard" class="rounded-lg px-3 py-2 hover:bg-slate-100" @click.prevent="goDashboard">Dashboard</NuxtLink>
           <NuxtLink v-if="auth.isAuthenticated" to="/profile" class="rounded-lg px-3 py-2 hover:bg-slate-100">Editar perfil</NuxtLink>
           <button v-if="auth.isAuthenticated" class="rounded-lg px-3 py-2 text-left text-red-600 hover:bg-slate-100" @click="handleLogout">Cerrar sesión</button>
           <NuxtLink v-if="!auth.isAuthenticated" to="/login" class="rounded-lg px-3 py-2 hover:bg-slate-100">Iniciar sesión</NuxtLink>
@@ -236,10 +237,8 @@ const loadNotifications = async () => {
     return
   }
   try {
-    const data = await $fetch<DashboardSummary>(`${config.public.apiBase}/support/dashboard/summary/`, {
-      headers: { Authorization: `Bearer ${auth.token}` },
-    })
-    notificationStore.setUnread(data?.notifications || [])
+    // API de notificaciones no disponible aún; evita 404 en consola
+    notificationStore.setUnread([])
   } catch (error) {
     console.warn('No se pudieron cargar notificaciones', error)
     notificationStore.setUnread([])
@@ -260,6 +259,13 @@ const clearNotifications = () => {
   notificationStore.clearHistory()
   notificationStore.setUnread([])
   showNotifications.value = false
+}
+
+const goDashboard = async () => {
+  showMenu.value = false
+  showMenuMobile.value = false
+  showNotifications.value = false
+  await navigateTo('/dashboard')
 }
 
 const goNotifications = async () => {

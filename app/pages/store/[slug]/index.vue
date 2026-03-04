@@ -308,11 +308,7 @@ const safeProducts = computed(() => Array.isArray(tenantStore.productos) ? tenan
 
 const featuredProducts = computed(() => {
   const all = safeProducts.value
-  const weekly = all.filter((p: any) => p?.product_of_week)
-  if (weekly.length) return weekly
-  const highlighted = all.filter((p: any) => p?.is_featured)
-  if (highlighted.length) return highlighted
-  return all.slice(0, 3)
+  return all.filter((p: any) => p?.product_of_week)
 })
 
 const previewProducts = computed(() => safeProducts.value.slice(0, 4))

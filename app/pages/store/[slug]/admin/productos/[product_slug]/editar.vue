@@ -40,6 +40,16 @@
               <input v-model.number="form.offer_price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </div>
           </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="space-y-2">
+              <label class="text-sm text-slate-600">Stock disponible</label>
+              <input v-model.number="form.stock_available" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm text-slate-600">Stock mínimo</label>
+              <input v-model.number="form.stock_minimum" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+          </div>
           <div class="space-y-2">
             <label class="text-sm text-slate-600">Categoría</label>
             <select v-model="form.category" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
@@ -72,6 +82,7 @@
               <div>
                 <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Inventario registrado</p>
                 <p class="text-lg font-semibold text-slate-900">{{ totalStock }} unidades</p>
+                <p v-if="!variants.length" class="text-xs text-slate-500">Stock base del producto (sin variantes).</p>
               </div>
               <NuxtLink
                 :to="`/store/${slug}/admin/inventario`"
@@ -91,7 +102,7 @@
                 </p>
               </div>
             </div>
-            <p v-else class="text-sm text-slate-600">Aún no hay variantes con stock registrado en Inventario.</p>
+            <p v-else class="text-sm text-slate-600">Sin variantes; el stock editable está arriba.</p>
           </div>
           <div class="space-y-2">
             <label class="text-sm text-slate-600">Imagen (URL)</label>
@@ -158,6 +169,8 @@ const form = reactive({
   image_url: '',
   is_marketplace: false,
   category: '' as string | number,
+  stock_available: 0,
+  stock_minimum: 0,
 })
 
 const saving = ref(false)
@@ -211,7 +224,11 @@ const variantStockClass = (value: any) => {
   return 'text-emerald-600'
 }
 
-const totalStock = computed(() => variants.value.reduce((acc, variant) => acc + normalizeStock(variant.stock_available), 0))
+const totalStock = computed(() => {
+  // Si no hay variantes, usar el stock base del producto editable arriba.
+  if (!variants.value.length) return normalizeStock(form.stock_available)
+  return variants.value.reduce((acc, variant) => acc + normalizeStock(variant.stock_available), 0)
+})
 
 const loadCategories = async () => {
   try {
@@ -237,6 +254,8 @@ const load = async () => {
     form.is_marketplace = data.is_marketplace
     form.image_url = data.images?.[0]?.image || ''
     form.category = data.category?.id || ''
+    form.stock_available = data.stock_available ?? 0
+    form.stock_minimum = data.stock_minimum ?? 0
     variants.value = data.variants || []
   } catch (error) {
     message.value = 'No pudimos cargar el producto'
@@ -285,6 +304,8 @@ const save = async () => {
       product_of_week: form.product_of_week,
       is_active: form.is_active,
       is_marketplace: form.is_marketplace,
+      stock_available: Number(form.stock_available) || 0,
+      stock_minimum: Number(form.stock_minimum) || 0,
     }
 
     if (form.image_url) payload.image_url = form.image_url

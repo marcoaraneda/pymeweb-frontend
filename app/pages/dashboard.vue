@@ -30,11 +30,34 @@
         </div>
       </header>
 
+      <Transition name="fade">
+        <div
+          v-if="toast"
+          class="fixed left-1/2 top-6 sm:top-8 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg"
+          :class="toast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'"
+        >
+          {{ toast.text }}
+        </div>
+      </Transition>
+
+      <div v-if="loadError" class="rounded-2xl border border-red-400/40 bg-red-500/15 px-4 py-3 text-sm text-red-100">
+        {{ loadError }}
+      </div>
+
       <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Tiendas activas" :value="storesMine.length" :icon="Building2" :accent="theme.accent" />
-        <StatCard title="Visitantes (7d)" :value="analytics.visits" :icon="Eye" :accent="theme.accent" />
-        <StatCard title="Conversiones" :value="analytics.conversions" :icon="ShoppingCart" :accent="theme.accent" />
-        <StatCard title="Tickets abiertos" :value="analytics.support" :icon="Headset" :accent="theme.accent" />
+        <template v-if="statsLoading">
+          <div v-for="n in 4" :key="n" class="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div class="h-4 w-32 rounded bg-white/20 animate-pulse" />
+            <div class="mt-3 h-7 w-16 rounded bg-white/30 animate-pulse" />
+            <div class="mt-3 h-6 w-24 rounded bg-white/10 animate-pulse" />
+          </div>
+        </template>
+        <template v-else>
+          <StatCard title="Pedidos totales" :value="analytics.totalOrders" :icon="ShoppingCart" :accent="theme.accent" />
+          <StatCard title="Pedidos pagados" :value="analytics.paidOrders" :icon="Eye" :accent="theme.accent" />
+          <StatCard title="Ingresos" :value="currency(analytics.revenue)" :icon="Building2" :accent="theme.accent" />
+          <StatCard title="Ticket promedio" :value="currency(analytics.avgTicket)" :icon="Headset" :accent="theme.accent" />
+        </template>
       </section>
 
       <section class="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
@@ -45,15 +68,23 @@
               <h2 class="text-xl font-semibold">Accesos directos</h2>
             </div>
             <button
-              class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5"
+              class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5 disabled:opacity-60"
               :style="{ backgroundColor: theme.accent }"
-              @click="refresh"
+              :disabled="loading"
+              @click="refresh(true)"
             >
-              Actualizar
+              <span v-if="loading">Actualizando...</span>
+              <span v-else>Actualizar</span>
             </button>
           </div>
 
-          <div v-if="loading" class="mt-4 text-white/70">Cargando...</div>
+          <div v-if="loading" class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div v-for="n in 2" :key="n" class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div class="h-4 w-32 rounded bg-white/20 animate-pulse" />
+              <div class="mt-2 h-3 w-24 rounded bg-white/10 animate-pulse" />
+              <div class="mt-4 h-28 w-full rounded-xl bg-white/5 animate-pulse" />
+            </div>
+          </div>
           <div v-else-if="storesMine.length === 0" class="mt-4 rounded-2xl border border-dashed border-white/15 bg-white/5 p-5 text-white/70">
             Aún no tienes tiendas asignadas. Pide acceso o crea una nueva desde administración.
           </div>
@@ -71,17 +102,18 @@
 
         <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
           <p class="text-xs uppercase tracking-[0.2em] text-white/60">Actividad</p>
-          <h2 class="text-xl font-semibold">Visitantes recientes</h2>
-          <p class="text-white/70">Curva suave para los últimos 7 días</p>
+          <h2 class="text-xl font-semibold">Ventas diarias</h2>
+          <p class="text-white/70">Pedidos y montos agregados por día</p>
 
-          <div class="mt-6 flex items-end gap-2">
+          <div class="mt-6 flex items-end gap-2" v-if="sparklineBars.length">
             <div
-              v-for="(day, idx) in sparkline"
+              v-for="(day, idx) in sparklineBars"
               :key="idx"
               class="flex-1 rounded-t-xl bg-white/20"
               :style="{ height: `${day}px`, backgroundColor: barColor(idx) }"
             />
           </div>
+          <div v-else class="mt-6 h-24 rounded-2xl border border-white/10 bg-white/5" />
 
           <div class="mt-6 flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-white/80">
             <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">
@@ -102,36 +134,38 @@
             <h2 class="text-xl font-semibold">Productos con más compras</h2>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <select
-              v-model="topCategoryFilter"
-              class="rounded-lg border border-white/20 bg-white text-sm text-slate-900 px-3 py-1 shadow-sm"
-            >
-              <option value="">Todas las categorías</option>
-              <option v-for="cat in topCategories" :key="cat" :value="cat">{{ cat }}</option>
-            </select>
             <button
               class="rounded-lg border border-white/15 px-3 py-1 text-sm text-white/80 hover:border-white/40"
               @click="exportTopProducts"
-              :disabled="!filteredTopProducts.length"
+              :disabled="!topProducts.length"
             >
               Exportar Excel
             </button>
             <NuxtLink v-if="storesMine[0]" :to="`/store/${storesMine[0].slug}/productos`" class="text-sm font-semibold text-white/80 hover:text-white">Ver catálogo</NuxtLink>
           </div>
         </div>
-        <div v-if="!topProducts.length" class="mt-4 text-white/70">No hay datos aún.</div>
+        <div v-if="topLoading" class="mt-4 space-y-3">
+          <div v-for="n in 3" :key="n" class="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+            <div class="space-y-2">
+              <div class="h-4 w-40 rounded bg-white/20 animate-pulse" />
+              <div class="h-3 w-28 rounded bg-white/10 animate-pulse" />
+            </div>
+            <div class="space-y-2 text-right">
+              <div class="h-4 w-16 rounded bg-white/20 animate-pulse ml-auto" />
+              <div class="h-3 w-24 rounded bg-white/10 animate-pulse ml-auto" />
+            </div>
+          </div>
+        </div>
+        <div v-else-if="!topProducts.length" class="mt-4 text-white/70">No hay datos aún.</div>
         <div v-else class="mt-4 divide-y divide-white/10">
-          <div v-for="prod in filteredTopProducts" :key="prod.id + (prod.store_slug || prod.store?.slug || '')" class="flex items-center justify-between py-3 text-white/80">
+          <div v-for="prod in topProducts" :key="prod.id + (prod.store_slug || prod.store?.slug || '')" class="flex items-center justify-between py-3 text-white/80">
             <div>
               <p class="font-semibold text-white">{{ prod.name }}</p>
-              <p class="text-xs text-white/60">{{ prod.category?.name || 'General' }} • {{ prod.store?.slug || prod.store_slug || 'tienda' }}</p>
+              <p class="text-xs text-white/60">{{ prod.store_slug || 'tienda' }}</p>
             </div>
             <div class="text-right">
               <p class="text-sm">{{ prod.total_quantity }} ventas</p>
-              <p class="text-xs text-white/60">
-                <span v-if="prod.offer_price" class="mr-1 line-through opacity-60">${{ prod.price }}</span>
-                <span :style="{ color: theme.accent }">${{ prod.offer_price || prod.price }}</span>
-              </p>
+              <p class="text-xs text-white/60">Ingresos ${{ prod.revenue || '0' }}</p>
             </div>
           </div>
         </div>
@@ -142,13 +176,22 @@
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p class="text-xs uppercase tracking-[0.2em] text-white/60">Pedidos en proceso</p>
-              <h2 class="text-xl font-semibold">Pendientes / Preparando / En tránsito</h2>
+              <h2 class="text-xl font-semibold">Pendientes de pago</h2>
             </div>
             <div class="flex items-center gap-2">
               <span class="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">{{ pendingOrders.length }}</span>
             </div>
           </div>
-          <div v-if="!pendingOrders.length" class="mt-4 text-white/70">No hay pedidos en proceso.</div>
+          <div v-if="ordersLoading" class="mt-4 space-y-3">
+            <div v-for="n in 3" :key="n" class="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div class="flex items-center justify-between">
+                <div class="h-4 w-32 rounded bg-white/20 animate-pulse" />
+                <div class="h-3 w-20 rounded bg-amber-200/40 animate-pulse" />
+              </div>
+              <div class="mt-2 h-3 w-24 rounded bg-white/10 animate-pulse" />
+            </div>
+          </div>
+          <div v-else-if="!pendingOrders.length" class="mt-4 text-white/70">No hay pedidos en proceso.</div>
           <div v-else class="mt-4 space-y-3">
             <NuxtLink
               v-for="o in pendingPageOrders"
@@ -157,10 +200,10 @@
               class="block rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 transition hover:border-white/30"
             >
               <div class="flex items-center justify-between">
-                <p class="font-semibold text-white">#{{ o.id }} — {{ o.customer }}</p>
-                <span class="text-xs text-white/60">{{ o.date }}</span>
+                <p class="font-semibold text-white">#{{ o.id }} — {{ o.name || 'Cliente' }}</p>
+                <span class="text-xs text-white/60">{{ formatDate(o.created_at) }}</span>
               </div>
-              <p class="text-xs text-white/60">Tracking {{ o.tracking || '—' }}</p>
+              <p class="text-xs text-white/60">{{ o.store_slug || 'tienda' }}</p>
               <div class="mt-1 flex items-center justify-between">
                 <span class="font-semibold" :style="{ color: theme.accent }">{{ currency(o.total) }}</span>
                 <span :class="['rounded-full px-2 py-0.5 text-[11px] font-semibold', statusBadge(o.status).classes]">{{ statusBadge(o.status).label }}</span>
@@ -178,13 +221,22 @@
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p class="text-xs uppercase tracking-[0.2em] text-white/60">Entregados</p>
-              <h2 class="text-xl font-semibold">Llegó a destino / Finalizado</h2>
+              <h2 class="text-xl font-semibold">Pagados</h2>
             </div>
             <div class="flex items-center gap-2">
               <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-100">{{ deliveredOrders.length }}</span>
             </div>
           </div>
-          <div v-if="!deliveredOrders.length" class="mt-4 text-white/70">Sin entregas registradas.</div>
+          <div v-if="ordersLoading" class="mt-4 space-y-3">
+            <div v-for="n in 3" :key="n" class="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div class="flex items-center justify-between">
+                <div class="h-4 w-32 rounded bg-white/20 animate-pulse" />
+                <div class="h-3 w-20 rounded bg-emerald-200/40 animate-pulse" />
+              </div>
+              <div class="mt-2 h-3 w-24 rounded bg-white/10 animate-pulse" />
+            </div>
+          </div>
+          <div v-else-if="!deliveredOrders.length" class="mt-4 text-white/70">No hay pedidos entregados.</div>
           <div v-else class="mt-4 space-y-3">
             <NuxtLink
               v-for="o in deliveredPageOrders"
@@ -193,10 +245,10 @@
               class="block rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 transition hover:border-white/30"
             >
               <div class="flex items-center justify-between">
-                <p class="font-semibold text-white">#{{ o.id }} — {{ o.customer }}</p>
-                <span class="text-xs text-white/60">{{ o.date }}</span>
+                <p class="font-semibold text-white">#{{ o.id }} — {{ o.name || 'Cliente' }}</p>
+                <span class="text-xs text-white/60">{{ formatDate(o.created_at) }}</span>
               </div>
-              <p class="text-xs text-white/60">Tracking {{ o.tracking || '—' }}</p>
+              <p class="text-xs text-white/60">{{ o.store_slug || 'tienda' }}</p>
               <div class="mt-1 flex items-center justify-between">
                 <span class="font-semibold" :style="{ color: theme.accent }">{{ currency(o.total) }}</span>
                 <span :class="['rounded-full px-2 py-0.5 text-[11px] font-semibold', statusBadge(o.status).classes]">{{ statusBadge(o.status).label }}</span>
@@ -219,30 +271,38 @@
           </div>
           <button
             class="inline-flex items-center gap-2 rounded-2xl border border-white/20 px-4 py-2 text-sm font-semibold text-white/80 hover:text-white"
-            @click="loadRecentReviews"
+            @click="loadRecentReviews(true)"
           >
             <MessageSquare class="h-4 w-4" aria-hidden="true" />
             Actualizar
           </button>
         </div>
-        <div v-if="loadingReviews" class="mt-4 text-white/70">Cargando comentarios...</div>
+        <div v-if="loadingReviews" class="mt-4 space-y-3">
+          <div v-for="n in 3" :key="n" class="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div class="flex items-center justify-between">
+              <div class="h-4 w-32 rounded bg-white/20 animate-pulse" />
+              <div class="h-4 w-16 rounded bg-amber-200/30 animate-pulse" />
+            </div>
+            <div class="mt-2 h-3 w-40 rounded bg-white/10 animate-pulse" />
+            <div class="mt-1 h-3 w-52 rounded bg-white/10 animate-pulse" />
+          </div>
+        </div>
         <div v-else-if="!recentReviews.length" class="mt-4 text-white/70">Aún no hay reseñas registradas en tus tiendas.</div>
         <div v-else class="mt-4 space-y-3">
-          <NuxtLink
+          <div
             v-for="review in recentReviews"
             :key="review.id + review.created_at"
-            :to="review.product_slug ? `/store/${review.store_slug}/productos/${review.product_slug}` : `/store/${review.store_slug}`"
-            class="block rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80 transition hover:border-white/40"
+            class="block rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80"
           >
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p class="text-white font-semibold">{{ review.product_name || 'Producto' }}</p>
+                <p class="text-white font-semibold">Producto {{ review.product || '—' }}</p>
                 <p class="text-xs text-white/60">{{ review.customer_name || 'Cliente' }} • {{ review.store_slug }}</p>
               </div>
               <div class="flex items-center gap-1 text-amber-300">
                 <StarIcon
                   v-for="star in 5"
-                  :key="`${review.id}-star-${star}`"
+                  :key="star"
                   class="h-4 w-4"
                   :class="star <= Number(review.rating) ? 'text-amber-400 fill-amber-400 stroke-amber-400' : 'text-white/30 fill-transparent stroke-white/40'"
                 />
@@ -250,11 +310,11 @@
             </div>
             <p class="mt-2 text-white/80">{{ review.comment }}</p>
             <p class="text-[11px] text-white/50">{{ new Date(review.created_at).toLocaleString() }}</p>
-          </NuxtLink>
+          </div>
         </div>
       </section>
 
-      <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+      <section v-if="false" class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-white/60">Soporte</p>
@@ -264,7 +324,13 @@
             <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">{{ tickets.length }}</span>
           </div>
         </div>
-        <div v-if="loadingTickets" class="mt-4 text-white/70">Cargando tickets...</div>
+        <div v-if="loadingTickets" class="mt-4 space-y-3">
+          <div v-for="n in 3" :key="n" class="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <div class="h-4 w-48 rounded bg-white/20 animate-pulse" />
+            <div class="mt-2 h-3 w-32 rounded bg-white/10 animate-pulse" />
+            <div class="mt-2 h-3 w-40 rounded bg-white/10 animate-pulse" />
+          </div>
+        </div>
         <div v-else-if="!tickets.length" class="mt-4 text-white/70">No hay tickets abiertos.</div>
         <div v-else class="mt-4 divide-y divide-white/10">
           <button
@@ -339,7 +405,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
-import { navigateTo, useRuntimeConfig, definePageMeta } from 'nuxt/app'
+import { navigateTo, useRuntimeConfig } from 'nuxt/app'
 import StoreCard from '~/components/StoreCard.vue'
 import StatCard from '~/components/StatCard.vue'
 import { Building2, Eye, ShoppingCart, Headset, Lightbulb, MessageSquare, Star as StarIcon } from 'lucide-vue-next'
@@ -362,9 +428,13 @@ const theme = useThemeStore()
 const storesMine = ref<{ id: number; name: string; slug: string }[]>([])
 const selectedStore = ref<'all' | string>('all')
 const loading = ref(true)
+const loadError = ref('')
+const toast = ref<{ text: string; type: 'success' | 'error' } | null>(null)
+let toastTimer: ReturnType<typeof setTimeout> | null = null
 const topProducts = ref<any[]>([])
-const topCategoryFilter = ref('')
+const topLoading = ref(true)
 const orders = ref<any[]>([])
+const ordersLoading = ref(true)
 const pendingPage = ref(1)
 const deliveredPage = ref(1)
 const pageSize = 6
@@ -396,16 +466,23 @@ const authedFetch = async <T>(url: string, options: Record<string, any> = {}) =>
 }
 
 type DashboardSummary = {
-  active_stores: number
-  visits_last_7d: number
-  conversions: number
-  support_open: number
-  pending_products: number
-  notifications?: { type: string; message: string; count: number }[]
+  total_orders: number
+  paid_orders: number
+  total_revenue: number
+  avg_ticket: number
+  status_counts?: Record<string, number>
 }
 
-const analytics = ref<{ visits: number; conversions: number; support: number; pending_products: number }>({ visits: 0, conversions: 0, support: 0, pending_products: 0 })
-const sparkline = computed(() => [60, 90, 80, 120, 140, 110, 170])
+const analytics = ref<{ totalOrders: number; paidOrders: number; revenue: number; avgTicket: number }>({ totalOrders: 0, paidOrders: 0, revenue: 0, avgTicket: 0 })
+const statsLoading = ref(true)
+const dailyStats = ref<{ day: string; orders: number; revenue: number }[]>([])
+const dailyLoading = ref(true)
+const sparklineBars = computed(() => {
+  const values = dailyStats.value.map((d) => Number(d.revenue) || Number(d.orders) || 0)
+  if (!values.length) return []
+  const max = Math.max(...values, 1)
+  return values.map((v) => 24 + Math.round((v / max) * 120))
+})
 const cartTarget = computed(() => {
   if (selectedStore.value && selectedStore.value !== 'all') {
     return `/store/${selectedStore.value}/carrito`
@@ -417,18 +494,11 @@ const cartTarget = computed(() => {
   // Fallback si no hay tiendas asignadas
   return '/marketplace/carrito'
 })
-const topCategories = computed(() => {
-  const set = new Set<string>()
-  topProducts.value.forEach((p: any) => {
-    const name = p.category?.name || p.category_name
-    if (name) set.add(name)
-  })
-  return Array.from(set).sort((a, b) => a.localeCompare(b))
-})
-const filteredTopProducts = computed(() => {
-  if (!topCategoryFilter.value) return topProducts.value
-  return topProducts.value.filter((p: any) => (p.category?.name || p.category_name) === topCategoryFilter.value)
-})
+const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+  toast.value = { text, type }
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => (toast.value = null), 3200)
+}
 const tickets = ref<TicketItem[]>([])
 const loadingTickets = ref(true)
 const selectedTicket = ref<TicketItem | null>(null)
@@ -448,15 +518,14 @@ type ReviewFeedItem = {
   customer_name: string
   created_at: string
   store_slug: string
-  product_slug?: string
-  product_name?: string
+  product?: number
   status?: string
 }
 
-const barColor = (idx: number) => (idx === sparkline.value.length - 1 ? theme.accent : 'rgba(255,255,255,0.25)')
+const barColor = (idx: number) => (idx === sparklineBars.value.length - 1 ? theme.accent : 'rgba(255,255,255,0.25)')
 
-const pendingOrders = computed(() => orders.value.filter((o) => ['pending', 'preparing', 'in_transit'].includes(o.status)))
-const deliveredOrders = computed(() => orders.value.filter((o) => ['delivered', 'completed'].includes(o.status)))
+const pendingOrders = computed(() => orders.value.filter((o) => ['pending'].includes(o.status)))
+const deliveredOrders = computed(() => orders.value.filter((o) => ['paid'].includes(o.status)))
 
 const pendingTotalPages = computed(() => Math.max(1, Math.ceil(pendingOrders.value.length / pageSize)))
 const deliveredTotalPages = computed(() => Math.max(1, Math.ceil(deliveredOrders.value.length / pageSize)))
@@ -474,10 +543,7 @@ const deliveredPageOrders = computed(() => {
 const statusLabel = (status: string) => {
   const map: Record<string, string> = {
     pending: 'Pendiente',
-    preparing: 'Preparando',
-    in_transit: 'En tránsito',
-    delivered: 'Llegó a destino',
-    completed: 'Finalizado',
+    paid: 'Pagado',
     cancelled: 'Cancelado',
   }
   return map[status] || status
@@ -486,10 +552,7 @@ const statusLabel = (status: string) => {
 const statusBadge = (status: string) => {
   const map: Record<string, { label: string; classes: string }> = {
     pending: { label: statusLabel('pending'), classes: 'bg-amber-100/70 text-amber-900' },
-    preparing: { label: statusLabel('preparing'), classes: 'bg-sky-100/70 text-sky-900' },
-    in_transit: { label: statusLabel('in_transit'), classes: 'bg-indigo-100/70 text-indigo-900' },
-    delivered: { label: statusLabel('delivered'), classes: 'bg-emerald-100/70 text-emerald-900' },
-    completed: { label: statusLabel('completed'), classes: 'bg-slate-200 text-slate-900' },
+    paid: { label: statusLabel('paid'), classes: 'bg-emerald-100/70 text-emerald-900' },
     cancelled: { label: statusLabel('cancelled'), classes: 'bg-red-100 text-red-700' },
   }
   return map[status] || { label: statusLabel(status), classes: 'bg-white/20 text-white' }
@@ -508,6 +571,12 @@ const ticketBadge = (status: string) => {
 const currency = (value: number) =>
   new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(Number(value) || 0)
 
+const formatDate = (value?: string | Date) => {
+  if (!value) return '—'
+  const date = typeof value === 'string' ? new Date(value) : value
+  return date.toLocaleString()
+}
+
 const orderLink = (orderId: number) => {
   const firstStore = storesMine.value[0]
   const slugFromFilter = selectedStore.value !== 'all' ? selectedStore.value : undefined
@@ -517,12 +586,22 @@ const orderLink = (orderId: number) => {
 
 const loadData = async () => {
   loading.value = true
-  storesMine.value = await auth.fetchMyStores()
-  if (storesMine.value.length && selectedStore.value === 'all') {
-    selectedStore.value = 'all'
+  loadError.value = ''
+  let success = true
+  try {
+    storesMine.value = await auth.fetchMyStores()
+    if (storesMine.value.length && selectedStore.value === 'all') {
+      selectedStore.value = 'all'
+    }
+    await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews()])
+  } catch (error) {
+    console.error('No se pudo cargar el dashboard', error)
+    loadError.value = 'No se pudo cargar el dashboard. Intenta actualizar.'
+    success = false
+  } finally {
+    loading.value = false
   }
-  await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets(), loadRecentReviews()])
-  loading.value = false
+  return success
 }
 
 const confirmDeleteStore = async (store: any) => {
@@ -535,60 +614,84 @@ const confirmDeleteStore = async (store: any) => {
       method: 'DELETE',
     })
     await loadData()
-    alert('Tienda eliminada')
+    showToast('Tienda eliminada', 'success')
   } catch (error: any) {
     console.error('No se pudo eliminar', error)
-    alert('No se pudo eliminar la tienda (revisa permisos)')
+    showToast('No se pudo eliminar la tienda (revisa permisos)', 'error')
   } finally {
     deletingStore.value = false
   }
 }
 
-const loadTopProducts = async () => {
-  topProducts.value = []
-  if (!auth.token || !storesMine.value.length) return
-
-  // If filtering by a specific store, fetch its top products. If "all", merge top lists across stores.
-  const targetSlugs = (selectedStore.value === 'all' ? storesMine.value.map((s) => s.slug) : [selectedStore.value]).filter(
-    (slug): slug is string => typeof slug === 'string' && slug.length > 0
-  )
-  if (!targetSlugs.length) return
-
-  try {
-    const results = await Promise.all(
-      targetSlugs.map((slug) =>
-        authedFetch(`${apiBase}/orders/store/${slug}/top-products/`, {}).catch(() => [])
-      )
-    )
-
-    const merged: Record<string, any> = {}
-    results.flat().forEach((prod: any) => {
-      const storeSlug = prod.store?.slug || prod.store_slug || 'na'
-      const key = `${storeSlug}-${prod.id}`
-      if (!merged[key]) {
-        merged[key] = { ...prod, store_slug: storeSlug }
-      } else {
-        merged[key].total_quantity = (merged[key].total_quantity || 0) + (prod.total_quantity || 0)
+const rebuildTopProductsFromOrders = (ordersList: any[]) => {
+  const aggregated: Record<string, any> = {}
+  ordersList.forEach((order) => {
+    const storeSlug = order.store_slug || order.store?.slug || 'tienda'
+    ;(order.items || []).forEach((item: any) => {
+      const key = `${storeSlug}-${item.product}`
+      const qty = Number(item.quantity) || 0
+      const revenue = (Number(item.price) || 0) * qty
+      if (!aggregated[key]) {
+        aggregated[key] = {
+          id: item.product,
+          name: item.product_name || `Producto ${item.product}`,
+          store_slug: storeSlug,
+          total_quantity: 0,
+          revenue: 0,
+        }
       }
+      aggregated[key].total_quantity += qty
+      aggregated[key].revenue = Number((aggregated[key].revenue || 0) + revenue)
     })
+  })
+  topProducts.value = Object.values(aggregated).sort((a: any, b: any) => (b.total_quantity || 0) - (a.total_quantity || 0)).slice(0, 10)
+}
 
-    topProducts.value = Object.values(merged).sort((a: any, b: any) => (b.total_quantity || 0) - (a.total_quantity || 0))
-  } catch (error) {
-    console.warn('No se pudieron cargar los más vendidos')
+const loadTopProducts = async () => {
+  topLoading.value = true
+  try {
+    rebuildTopProductsFromOrders(orders.value)
+  } finally {
+    topLoading.value = false
   }
 }
 
 const loadOrders = async () => {
+  ordersLoading.value = true
+  topLoading.value = true
   orders.value = []
-  if (!auth.token || !storesMine.value.length) return
-  const params: Record<string, any> = {}
-  if (selectedStore.value !== 'all') params.store = selectedStore.value
+  if (!auth.token || !storesMine.value.length) {
+    ordersLoading.value = false
+    return
+  }
+  const targetSlugs = (selectedStore.value === 'all' ? storesMine.value.map((s) => s.slug) : [selectedStore.value]).filter(Boolean)
   try {
-    orders.value = await authedFetch<any[]>(`${apiBase}/orders/`, { params })
+    const collected: any[] = []
+    for (const slug of targetSlugs) {
+      const list = await authedFetch<any[]>(`${apiBase}/orders/`, { params: { store: slug } }).catch(() => [])
+      const detailedIds = list.slice(0, 12).map((o) => o.id)
+      const details = await Promise.all(
+        detailedIds.map((id) => authedFetch<any>(`${apiBase}/orders/${id}/`).catch(() => null))
+      )
+      const detailMap = new Map<number, any>()
+      details.forEach((d) => {
+        if (d?.id) detailMap.set(d.id, d)
+      })
+      list.forEach((o) => {
+        const enriched = detailMap.get(o.id)
+        collected.push({ ...o, ...(enriched || {}), store_slug: slug })
+      })
+    }
+
+    orders.value = collected.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
     pendingPage.value = 1
     deliveredPage.value = 1
+    rebuildTopProductsFromOrders(orders.value)
+    topLoading.value = false
   } catch (error) {
     console.warn('No se pudieron cargar pedidos')
+  } finally {
+    ordersLoading.value = false
   }
 }
 
@@ -611,30 +714,33 @@ const loadTickets = async () => {
   }
 }
 
-const loadRecentReviews = async () => {
+const loadRecentReviews = async (notify = false) => {
   if (!auth.token) {
     recentReviews.value = []
-    return
+    return false
   }
   loadingReviews.value = true
-  const params: Record<string, any> = {}
-  if (selectedStore.value !== 'all') params.store = selectedStore.value
+  let success = false
   try {
-    // Try owner-aggregated reviews endpoint first (some deployments don't have support/dashboard/reviews)
-      try {
-        recentReviews.value = await authedFetch<ReviewFeedItem[]>(`${apiBase}/resenas/owner/reviews/`, { params })
-      } catch (ownerErr) {
-        console.warn('No se pudieron cargar reseñas desde owner endpoint, intentando support endpoint', ownerErr)
-        try {
-          recentReviews.value = await authedFetch<ReviewFeedItem[]>(`${apiBase}/support/dashboard/reviews/`, { params })
-        } catch (supportErr) {
-          console.warn('No se pudieron cargar reseñas desde support endpoint', supportErr)
-          recentReviews.value = []
-        }
-      }
+    const targetSlugs = (selectedStore.value === 'all' ? storesMine.value.map((s) => s.slug) : [selectedStore.value]).filter(Boolean)
+    const aggregated: ReviewFeedItem[] = []
+    for (const slug of targetSlugs) {
+      const rows = await authedFetch<ReviewFeedItem[]>(`${apiBase}/store/${slug}/admin/resenas/reviews/`, { params: {} }).catch(() => [])
+      rows.forEach((r: any) => aggregated.push({ ...r, store_slug: slug } as any))
+    }
+    aggregated.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    recentReviews.value = aggregated.slice(0, 12)
+    success = true
+  } catch (error) {
+    console.warn('No se pudieron cargar reseñas', error)
+    recentReviews.value = []
   } finally {
     loadingReviews.value = false
+    if (notify) {
+      showToast(success ? 'Reseñas actualizadas' : 'No se pudieron cargar reseñas', success ? 'success' : 'error')
+    }
   }
+  return success
 }
 
 const openTicket = (t: any) => {
@@ -670,32 +776,87 @@ const saveTicket = async () => {
     selectedTicket.value = updated
     newComment.value = ''
     showTicketModal.value = false
+    showToast('Ticket actualizado', 'success')
   } catch (error) {
     console.error('No se pudo guardar el ticket', error)
+    showToast('No se pudo guardar el ticket', 'error')
   } finally {
     savingTicket.value = false
   }
 }
 
 const loadSummary = async () => {
-  if (!auth.token) return
+  if (!auth.token) return false
   const params: Record<string, any> = {}
-  if (selectedStore.value !== 'all') params.store = selectedStore.value
+  statsLoading.value = true
+  let success = false
   try {
-    const summary = await authedFetch<DashboardSummary>(`${apiBase}/support/dashboard/summary/`, { params })
-    analytics.value = {
-      visits: summary?.visits_last_7d || 0,
-      conversions: summary?.conversions || 0,
-      support: summary?.support_open || 0,
-      pending_products: summary?.pending_products || 0,
+    const targetSlugs = (selectedStore.value === 'all' ? storesMine.value.map((s) => s.slug) : [selectedStore.value]).filter(Boolean)
+    let totalOrders = 0
+    let paidOrders = 0
+    let revenue = 0
+    let avgTicketSum = 0
+    let avgCount = 0
+
+    for (const slug of targetSlugs) {
+      const summary = await authedFetch<any>(`${apiBase}/store/${slug}/admin/reportes/orders/summary/`, { params: {} }).catch(() => null)
+      if (summary) {
+        totalOrders += Number(summary.total_orders || 0)
+        paidOrders += Number(summary.paid_orders || 0)
+        revenue += Number(summary.total_revenue || 0)
+        if (summary.avg_ticket) {
+          avgTicketSum += Number(summary.avg_ticket)
+          avgCount += 1
+        }
+      }
     }
+
+    analytics.value = {
+      totalOrders,
+      paidOrders,
+      revenue,
+      avgTicket: avgCount ? avgTicketSum / avgCount : 0,
+    }
+    success = true
   } catch (error) {
     console.warn('No se pudo cargar el resumen', error)
+  } finally {
+    statsLoading.value = false
   }
+  return success
 }
 
-const refresh = async () => {
-  await loadData()
+const loadDailyStats = async () => {
+  if (!auth.token) return false
+  dailyLoading.value = true
+  const aggregated: Record<string, { orders: number; revenue: number }> = {}
+  try {
+    const targetSlugs = (selectedStore.value === 'all' ? storesMine.value.map((s) => s.slug) : [selectedStore.value]).filter(Boolean)
+    for (const slug of targetSlugs) {
+      const rows = await authedFetch<any[]>(`${apiBase}/store/${slug}/admin/reportes/orders/daily/`, { params: {} }).catch(() => [])
+      rows.forEach((row: any) => {
+        const day = row.day
+        if (!aggregated[day]) aggregated[day] = { orders: 0, revenue: 0 }
+        aggregated[day].orders += Number(row.orders_count || 0)
+        aggregated[day].revenue += Number(row.revenue || 0)
+      })
+    }
+    dailyStats.value = Object.entries(aggregated)
+      .map(([day, vals]) => ({ day, orders: vals.orders, revenue: vals.revenue }))
+      .sort((a, b) => (a.day > b.day ? 1 : -1))
+  } catch (error) {
+    console.warn('No se pudieron cargar métricas diarias', error)
+  } finally {
+    dailyLoading.value = false
+  }
+  return Boolean(dailyStats.value.length)
+}
+
+const refresh = async (notify = false) => {
+  const ok = await loadData()
+  if (notify) {
+    showToast(ok ? 'Datos actualizados' : 'No se pudo actualizar', ok ? 'success' : 'error')
+  }
 }
 
 const exportCsv = (filename: string, rows: Record<string, any>[], headers: { key: string; label: string }[]) => {
@@ -721,12 +882,11 @@ const exportCsv = (filename: string, rows: Record<string, any>[], headers: { key
 }
 
 const exportTopProducts = () => {
-  exportCsv('top-products', filteredTopProducts.value, [
+  exportCsv('top-products', topProducts.value, [
     { key: 'name', label: 'Producto' },
     { key: 'store_slug', label: 'Tienda' },
     { key: 'total_quantity', label: 'Ventas' },
-    { key: 'price', label: 'Precio' },
-    { key: 'offer_price', label: 'Oferta' },
+    { key: 'revenue', label: 'Ingresos' },
   ])
 }
 
@@ -751,11 +911,12 @@ onBeforeUnmount(() => {
   if (process.client) {
     window.removeEventListener(REVIEW_EVENT, handleReviewEvent as EventListener)
   }
+  if (toastTimer) clearTimeout(toastTimer)
 })
 
 watch(selectedStore, async () => {
   pendingPage.value = 1
   deliveredPage.value = 1
-  await Promise.all([loadTopProducts(), loadOrders(), loadSummary(), loadTickets(), loadRecentReviews()])
+  await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews()])
 })
 </script>

@@ -33,9 +33,32 @@
             <input v-model.number="form.offer_price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
           </div>
           <div class="space-y-2">
+            <label class="text-sm text-slate-600">Categoría</label>
+            <select v-model="form.category" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+              <option value="">Sin categoría</option>
+              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+            </select>
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm text-slate-600">Stock disponible</label>
+            <input v-model.number="form.stock_available" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm text-slate-600">Stock mínimo</label>
+            <input v-model.number="form.stock_minimum" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div class="space-y-2">
             <label class="text-sm text-slate-600">Imagen (URL)</label>
             <input v-model="form.image_url" type="url" placeholder="https://..." class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            <div class="flex items-center gap-3 text-xs text-slate-500">
+              <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 cursor-pointer hover:-translate-y-0.5 transition">
+                <input type="file" accept="image/*" class="hidden" @change="onFileSelect" />
+                <span>{{ uploadingImage ? 'Subiendo...' : 'Subir archivo' }}</span>
+              </label>
+              <span>o pega un enlace</span>
+            </div>
             <p class="text-xs text-slate-500">Opcional; se sube a Cloudinary.</p>
+            <p v-if="uploadError" class="text-xs text-red-600">{{ uploadError }}</p>
           </div>
           <div class="space-y-2 md:col-span-2">
             <label class="text-sm text-slate-600">Descripción</label>
@@ -72,12 +95,31 @@
           </button>
         </div>
 
-        <div v-if="loading" class="mt-4 text-slate-500">Cargando mis productos...</div>
-        <div v-else-if="error" class="mt-4 text-red-600">{{ error }}</div>
+        <div v-if="loading" class="mt-4 grid gap-4 md:grid-cols-2">
+          <div v-for="i in 4" :key="`skeleton-${i}`" class="animate-pulse rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="mb-3 h-4 w-40 rounded bg-slate-200" />
+            <div class="mb-2 h-3 w-24 rounded bg-slate-200" />
+            <div class="mb-2 h-3 w-full rounded bg-slate-200" />
+            <div class="h-8 w-28 rounded bg-slate-200" />
+          </div>
+        </div>
+        <div v-else-if="error" class="mt-4 rounded-xl border border-red-100 bg-red-50 p-4 text-red-700 flex items-center justify-between gap-3">
+          <span>{{ error }}</span>
+          <button
+            class="rounded-lg border border-red-200 px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
+            :disabled="loading"
+            @click="fetchMySubmissions"
+          >
+            Reintentar
+          </button>
+        </div>
         <div v-else-if="!submissions.length" class="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-slate-600">
           Aún no publicas productos en marketplace.
         </div>
         <div v-else class="mt-4 grid gap-4 md:grid-cols-2">
+          <div v-if="toggleError" class="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800 text-sm">
+            {{ toggleError }}
+          </div>
           <article
             v-for="item in submissions"
             :key="item.id"
@@ -144,6 +186,8 @@ import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-vue-next'
 
+definePageMeta({ middleware: ['auth'], requiresAuth: true })
+
 const openMenuId = ref<number|null>(null)
 const openMenu = (id:number) => {
   openMenuId.value = openMenuId.value === id ? null : id
@@ -171,6 +215,10 @@ const loading = ref(false)
 const error = ref('')
 const submitting = ref(false)
 const togglingId = ref<number | null>(null)
+const toggleError = ref('')
+const categories = ref<any[]>([])
+const uploadingImage = ref(false)
+const uploadError = ref('')
 
 const form = reactive({
   name: '',
@@ -179,6 +227,9 @@ const form = reactive({
   description: '',
   image_url: '',
   is_active: true,
+  category: '' as string | number,
+  stock_available: 0,
+  stock_minimum: 0,
 })
 
 const formMessage = ref('')
@@ -186,7 +237,31 @@ const formMessageType = ref<'ok' | 'error'>('ok')
 
 const accentStyle = computed(() => ({ backgroundColor: theme.accent, color: '#fff' }))
 
+const cloudinaryUploadUrl = computed(() => {
+  if (config.public.cloudinaryUploadUrl) return config.public.cloudinaryUploadUrl
+  if (config.public.cloudinaryCloudName) return `https://api.cloudinary.com/v1_1/${config.public.cloudinaryCloudName}/upload`
+  return ''
+})
+
 const authHeader = computed(() => ({ Authorization: `Bearer ${auth.token}` }))
+
+const getErrorMessage = (err: any) => {
+  const detail = err?.response?._data?.detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) return detail.join(', ')
+  if (detail && typeof detail === 'object') return Object.values(detail).flat().join(', ')
+  return err?.message || 'Ocurrió un error'
+}
+
+const isHttpsUrl = (value?: string) => {
+  if (!value) return false
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
 
 const fetchMySubmissions = async () => {
   if (!auth.token) return
@@ -197,7 +272,7 @@ const fetchMySubmissions = async () => {
       headers: authHeader.value,
     })
   } catch (err) {
-    error.value = 'No pudimos cargar tus productos'
+    error.value = getErrorMessage(err) || 'No pudimos cargar tus productos'
   } finally {
     loading.value = false
   }
@@ -210,6 +285,46 @@ const resetForm = () => {
   form.description = ''
   form.image_url = ''
   form.is_active = true
+  form.category = ''
+  form.stock_available = 0
+  form.stock_minimum = 0
+}
+
+const fetchCategories = async () => {
+  try {
+    categories.value = await $fetch(`${config.public.apiBase}/marketplace/categories/`)
+  } catch {
+    categories.value = []
+  }
+}
+
+const uploadToCloudinary = async (fileOrUrl: File | string, folder = 'upload/product') => {
+  if (!cloudinaryUploadUrl.value || !config.public.cloudinaryUploadPreset) {
+    throw new Error('Configura CLOUDINARY_CLOUD_NAME y CLOUDINARY_UPLOAD_PRESET')
+  }
+  const formData = new FormData()
+  formData.append('file', fileOrUrl)
+  formData.append('upload_preset', config.public.cloudinaryUploadPreset)
+  formData.append('folder', folder)
+  return $fetch<any>(cloudinaryUploadUrl.value, { method: 'POST', body: formData })
+}
+
+const onFileSelect = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target?.files?.[0]
+  if (!file) return
+  uploadError.value = ''
+  uploadingImage.value = true
+  try {
+    const result = await uploadToCloudinary(file)
+    if (!result?.secure_url) throw new Error('No pudimos obtener la URL de la imagen')
+    form.image_url = result.secure_url
+  } catch (err: any) {
+    uploadError.value = getErrorMessage(err) || 'No pudimos subir la imagen'
+  } finally {
+    uploadingImage.value = false
+    if (target) target.value = ''
+  }
 }
 
 const submit = async () => {
@@ -217,17 +332,63 @@ const submit = async () => {
     await navigateTo('/login')
     return
   }
+  const name = form.name?.trim()
+  if (!name || name.length < 3) {
+    formMessage.value = 'Ingresa un nombre de al menos 3 caracteres'
+    formMessageType.value = 'error'
+    return
+  }
+  if (!form.price || form.price <= 0) {
+    formMessage.value = 'Ingresa un precio mayor a 0'
+    formMessageType.value = 'error'
+    return
+  }
+  if (form.offer_price != null) {
+    if (form.offer_price <= 0) {
+      formMessage.value = 'La oferta debe ser mayor a 0'
+      formMessageType.value = 'error'
+      return
+    }
+    if (form.offer_price >= form.price) {
+      formMessage.value = 'La oferta debe ser menor al precio'
+      formMessageType.value = 'error'
+      return
+    }
+  }
+  if (form.stock_available != null && form.stock_available < 0) {
+    formMessage.value = 'El stock no puede ser negativo'
+    formMessageType.value = 'error'
+    return
+  }
+  if (form.stock_minimum != null && form.stock_minimum < 0) {
+    formMessage.value = 'El stock mínimo no puede ser negativo'
+    formMessageType.value = 'error'
+    return
+  }
+  if (uploadingImage.value) {
+    formMessage.value = 'Espera a que termine la subida de imagen'
+    formMessageType.value = 'error'
+    return
+  }
+  if (form.image_url && !isHttpsUrl(form.image_url)) {
+    formMessage.value = 'La imagen debe ser un enlace válido con https'
+    formMessageType.value = 'error'
+    return
+  }
   submitting.value = true
   formMessage.value = ''
   try {
     const payload: any = {
-      name: form.name,
+      name,
       price: form.price,
       description: form.description,
       is_active: form.is_active,
+      stock_available: form.stock_available,
+      stock_minimum: form.stock_minimum,
     }
     if (form.offer_price) payload.offer_price = form.offer_price
     if (form.image_url) payload.image_url = form.image_url
+    if (form.category) payload.category = form.category
 
     const created = await $fetch(`${config.public.apiBase}/marketplace/submissions/`, {
       method: 'POST',
@@ -239,7 +400,7 @@ const submit = async () => {
     formMessageType.value = 'ok'
     resetForm()
   } catch (err: any) {
-    formMessage.value = err?.response?._data?.detail || 'No pudimos publicar el producto'
+    formMessage.value = getErrorMessage(err) || 'No pudimos publicar el producto'
     formMessageType.value = 'error'
   } finally {
     submitting.value = false
@@ -252,6 +413,7 @@ const toggleActive = async (item: any) => {
     return
   }
   togglingId.value = item.id
+  toggleError.value = ''
   try {
     const updated = await $fetch(`${config.public.apiBase}/marketplace/submissions/${item.id}/`, {
       method: 'PATCH',
@@ -260,7 +422,7 @@ const toggleActive = async (item: any) => {
     })
     submissions.value = submissions.value.map((s) => (s.id === item.id ? updated : s))
   } catch (err) {
-    // Silenciar, el usuario verá el estado intacto
+    toggleError.value = getErrorMessage(err) || 'No pudimos actualizar el estado'
   } finally {
     togglingId.value = null
   }
@@ -274,6 +436,7 @@ onMounted(async () => {
     await navigateTo('/login')
     return
   }
+  await fetchCategories()
   await fetchMySubmissions()
 })
 </script>

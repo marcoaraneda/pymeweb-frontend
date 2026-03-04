@@ -15,7 +15,13 @@
               :to="auth.isAuthenticated ? '/marketplace/mis-productos' : '/login'"
               class="inline-flex items-center gap-2 rounded-xl border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
             >
-              {{ auth.isAuthenticated ? 'Gestionar mis productos' : 'Iniciar sesión para publicar' }}
+              {{ auth.isAuthenticated ? 'Publicar producto' : 'Iniciar sesión para publicar' }}
+            </NuxtLink>
+            <NuxtLink
+              to="/marketplace/mis-productos"
+              class="inline-flex items-center gap-2 rounded-xl border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+            >
+              Gestionar mis productos
             </NuxtLink>
             <a
               href="#productos"
@@ -56,15 +62,15 @@
             class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
           >
             <option value="">Todas las categorías</option>
-            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+            <option v-for="cat in categories" :key="cat.slug" :value="cat.slug">{{ cat.name }}</option>
           </select>
           <select
             v-model="sortOrder"
             class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
           >
             <option value="">Ordenar por precio</option>
-            <option value="asc">Menor a mayor</option>
-            <option value="desc">Mayor a menor</option>
+            <option value="price_asc">Menor a mayor</option>
+            <option value="price_desc">Mayor a menor</option>
           </select>
           <input
             v-model="productSearch"
@@ -75,10 +81,66 @@
         </div>
       </div>
 
-      <div v-if="loadingProducts" class="text-slate-500">Cargando productos...</div>
-      <div v-else-if="productsError" class="text-red-600">{{ productsError }}</div>
+      <div class="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900 flex flex-wrap items-center gap-3 shadow-sm">
+        <div class="flex-1 min-w-[220px]">
+          <p class="font-semibold">¿Tienes algo para publicar?</p>
+          <p class="text-amber-800/80">Sube productos sin tienda o gestiona los tuyos desde aquí.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <NuxtLink
+            :to="auth.isAuthenticated ? '/marketplace/mis-productos' : '/login'"
+            class="rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-amber-700"
+          >
+            {{ auth.isAuthenticated ? 'Publicar ahora' : 'Iniciar sesión para publicar' }}
+          </NuxtLink>
+          <NuxtLink
+            v-if="auth.isAuthenticated"
+            to="/marketplace/mis-productos"
+            class="rounded-xl border border-amber-200 px-4 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+          >
+            Gestionar mis productos
+          </NuxtLink>
+        </div>
+      </div>
+
+      <div v-if="loadingProducts" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div v-for="i in 6" :key="`skeleton-${i}`" class="animate-pulse rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="mb-3 h-3 w-24 rounded bg-slate-200" />
+          <div class="mb-2 h-4 w-32 rounded bg-slate-200" />
+          <div class="mb-4 h-4 w-full rounded bg-slate-200" />
+          <div class="h-8 w-28 rounded bg-slate-200" />
+        </div>
+      </div>
+      <div v-else-if="productsError" class="rounded-2xl border border-red-100 bg-red-50 p-4 text-red-700">
+        <div class="flex items-center justify-between gap-3">
+          <span>{{ productsError }}</span>
+          <button
+            class="rounded-lg border border-red-200 px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
+            :disabled="loadingProducts"
+            @click="fetchProducts"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
       <div v-else-if="!filteredProducts.length" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
-        No hay productos publicados en marketplace.
+        <p class="font-semibold text-slate-800">No hay productos publicados en marketplace.</p>
+        <p class="text-sm text-slate-600">Sé el primero en publicar un producto.</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <NuxtLink
+            :to="auth.isAuthenticated ? '/marketplace/mis-productos' : '/login'"
+            class="rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-amber-700"
+          >
+            {{ auth.isAuthenticated ? 'Publicar producto' : 'Iniciar sesión para publicar' }}
+          </NuxtLink>
+          <NuxtLink
+            v-if="auth.isAuthenticated"
+            to="/marketplace/mis-productos"
+            class="rounded-xl border border-amber-200 px-4 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+          >
+            Gestionar mis productos
+          </NuxtLink>
+        </div>
       </div>
       <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <ProductCard
@@ -87,6 +149,7 @@
           :product="product"
           :accent="marketplaceAccent"
           :isMarketplace="true"
+          :isMine="isMine(product)"
         />
       </div>
     </section>
@@ -96,7 +159,7 @@
 
 <script setup lang="ts">
 import ProductCard from '~/components/ProductCard.vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useThemeStore } from '~/stores/theme'
 import { useAuthStore } from '~/stores/auth'
@@ -116,40 +179,24 @@ const productsError = ref('')
 const productSearch = ref('')
 const categoryFilter = ref('')
 const sortOrder = ref('')
+const categories = ref<{ slug: string; name: string }[]>([])
 
-const categories = computed(() => {
-  const names = new Set<string>()
-  products.value.forEach((p) => {
-    const name = p.category?.name
-    if (name) names.add(name)
-  })
-  return Array.from(names).sort((a, b) => a.localeCompare(b))
-})
+const filteredProducts = computed(() => products.value)
 
-const filteredProducts = computed(() => {
-  const term = productSearch.value.trim().toLowerCase()
-  let data = products.value
-  if (term) {
-    data = data.filter((p) => p.name.toLowerCase().includes(term) || p.store?.slug?.toLowerCase()?.includes(term))
-  }
-  if (categoryFilter.value) {
-    data = data.filter((p) => p.category?.name === categoryFilter.value)
-  }
-  if (sortOrder.value) {
-    data = [...data].sort((a: any, b: any) => {
-      const pa = Number(a.offer_price || a.price || 0)
-      const pb = Number(b.offer_price || b.price || 0)
-      return sortOrder.value === 'asc' ? pa - pb : pb - pa
-    })
-  }
-  return data
-})
+const isMine = (product: any) => {
+  const userId = (auth.user as any)?.id
+  return Boolean(userId && product?.submitted_by === userId)
+}
 
 const fetchProducts = async () => {
   loadingProducts.value = true
   productsError.value = ''
   try {
-    products.value = await $fetch(`${config.public.apiBase}/marketplace/products/`)
+    const params = new URLSearchParams()
+    if (productSearch.value.trim()) params.append('search', productSearch.value.trim())
+    if (categoryFilter.value) params.append('category', categoryFilter.value)
+    if (sortOrder.value) params.append('order', sortOrder.value)
+    products.value = await $fetch(`${config.public.apiBase}/marketplace/products/?${params.toString()}`)
   } catch (err) {
     productsError.value = 'Error al cargar productos'
   } finally {
@@ -157,12 +204,31 @@ const fetchProducts = async () => {
   }
 }
 
+const fetchCategories = async () => {
+  try {
+    categories.value = await $fetch(`${config.public.apiBase}/marketplace/categories/`)
+  } catch {
+    categories.value = []
+  }
+}
+
+let fetchTimer: any = null
+const scheduleFetch = () => {
+  if (fetchTimer) clearTimeout(fetchTimer)
+  fetchTimer = setTimeout(fetchProducts, 250)
+}
+
+watch([productSearch, categoryFilter, sortOrder], scheduleFetch)
+
 onMounted(async () => {
   theme.loadFromStorage()
   theme.applyTheme()
   auth.restoreFromCookies()
+  if (auth.token && !auth.user) {
+    await auth.fetchProfile().catch(() => {})
+  }
   cart.loadFromStorage()
   cart.setContext('marketplace')
-  await fetchProducts()
+  await Promise.all([fetchProducts(), fetchCategories()])
 })
 </script>

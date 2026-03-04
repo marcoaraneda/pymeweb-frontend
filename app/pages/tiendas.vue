@@ -83,7 +83,16 @@
           <div class="h-9 w-32 rounded-lg bg-slate-200" />
         </div>
       </div>
-      <div v-else-if="error" class="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-red-700">{{ error }}</div>
+      <div v-else-if="error" class="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-red-700 flex items-center justify-between gap-3">
+        <span>{{ error }}</span>
+        <button
+          class="rounded-lg border border-red-200 px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
+          :disabled="loading"
+          @click="fetchStores"
+        >
+          Reintentar
+        </button>
+      </div>
       <div
         v-else-if="filteredStores.length === 0"
         class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600 shadow-sm"
@@ -120,6 +129,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
 import StoreCard from '~/components/StoreCard.vue'
 import { useThemeStore } from '~/stores/theme'
+
+// Listado de tiendas debe ser público
+definePageMeta({})
 
 const config = useRuntimeConfig()
 const theme = useThemeStore()

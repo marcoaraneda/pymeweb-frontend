@@ -18,7 +18,10 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.API_BASE || 'http://127.0.0.1:8000/api'
+      apiBase: process.env.API_BASE || 'http://127.0.0.1:8000/api',
+      cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
+      cloudinaryUploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET || '',
+      cloudinaryUploadUrl: process.env.CLOUDINARY_UPLOAD_URL || '',
     }
   },
 
@@ -37,7 +40,7 @@ export default defineNuxtConfig({
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: https:",
             // Permite API y websockets de desarrollo
-            `connect-src 'self' ${process.env.API_BASE || 'http://127.0.0.1:8000'} http://localhost:8000 http://127.0.0.1:8000 http://192.168.18.61:8000 ws://localhost:* ws://127.0.0.1:* ws://192.168.18.61:*`,
+            `connect-src 'self' ${process.env.API_BASE || 'http://127.0.0.1:8000'} http://localhost:8000 http://127.0.0.1:8000 http://192.168.18.61:8000 ws://localhost:* ws://127.0.0.1:* ws://192.168.18.61:* https://api.cloudinary.com`,
             "frame-ancestors 'none'",
             // Añade dominios externos requeridos via NUXT_CSP_EXTRA (espacio-separados)
             process.env.NUXT_CSP_EXTRA ? `connect-src 'self' ${process.env.API_BASE || 'http://127.0.0.1:8000'} ${process.env.NUXT_CSP_EXTRA}` : null,

@@ -24,27 +24,85 @@
             <div class="grid gap-4 sm:grid-cols-2">
               <div class="space-y-2">
                 <label class="text-sm text-white/80">Nombre</label>
-                <input v-model="form.first_name" type="text" class="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/50 outline-none transition focus:border-white/60" />
+                <input
+                  v-model.trim="form.first_name"
+                  type="text"
+                  autocomplete="given-name"
+                  class="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/50 outline-none transition focus:border-white/60"
+                  inputmode="text"
+                />
               </div>
               <div class="space-y-2">
                 <label class="text-sm text-white/80">Apellido</label>
-                <input v-model="form.last_name" type="text" class="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/50 outline-none transition focus:border-white/60" />
+                <input
+                  v-model.trim="form.last_name"
+                  type="text"
+                  autocomplete="family-name"
+                  class="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/50 outline-none transition focus:border-white/60"
+                  inputmode="text"
+                />
               </div>
             </div>
 
             <div class="space-y-2">
               <label class="text-sm text-white/80">Usuario</label>
-              <input v-model="form.username" type="text" required class="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/50 outline-none transition focus:border-white/60" />
+              <input
+                v-model.trim="form.username"
+                :class="inputClass('username')"
+                type="text"
+                required
+                autocomplete="username"
+                minlength="3"
+                inputmode="text"
+                :aria-invalid="Boolean(validation.username)"
+              />
+              <p v-if="validation.username" class="text-xs text-red-200">{{ validation.username }}</p>
             </div>
 
             <div class="space-y-2">
               <label class="text-sm text-white/80">Email</label>
-              <input v-model="form.email" type="email" required class="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/50 outline-none transition focus:border-white/60" />
+              <input
+                v-model.trim="form.email"
+                :class="inputClass('email')"
+                type="email"
+                required
+                autocomplete="email"
+                inputmode="email"
+                :aria-invalid="Boolean(validation.email)"
+              />
+              <p v-if="validation.email" class="text-xs text-red-200">{{ validation.email }}</p>
             </div>
 
             <div class="space-y-2">
               <label class="text-sm text-white/80">Contraseña</label>
-              <input v-model="form.password" type="password" required class="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-white/50 outline-none transition focus:border-white/60" />
+              <input
+                v-model="form.password"
+                :class="inputClass('password')"
+                type="password"
+                required
+                autocomplete="new-password"
+                minlength="8"
+                pattern="(?=.*[A-Za-z])(?=.*\d).{8,}"
+                :aria-invalid="Boolean(validation.password)"
+              />
+              <div class="flex items-center justify-between text-xs text-white/60">
+                <span>Mínimo 8 caracteres, letras y números.</span>
+                <span :class="passwordStrengthClass">{{ passwordLabel }}</span>
+              </div>
+              <p v-if="validation.password" class="text-xs text-red-200">{{ validation.password }}</p>
+            </div>
+
+            <div class="space-y-2">
+              <label class="text-sm text-white/80">Confirmar contraseña</label>
+              <input
+                v-model="form.passwordConfirm"
+                :class="inputClass('passwordConfirm')"
+                type="password"
+                required
+                autocomplete="new-password"
+                :aria-invalid="Boolean(validation.passwordConfirm)"
+              />
+              <p v-if="validation.passwordConfirm" class="text-xs text-red-200">{{ validation.passwordConfirm }}</p>
             </div>
 
             <div v-if="auth.error" class="rounded-xl border border-red-400/30 bg-red-500/20 px-4 py-3 text-sm text-red-100">
@@ -53,8 +111,9 @@
 
             <button
               type="submit"
-              class="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-3 font-semibold text-white shadow-lg shadow-black/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-              :disabled="loading"
+              class="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold text-white shadow-lg shadow-black/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              :style="{ background: `linear-gradient(90deg, ${theme.accent}, ${theme.gradientTo})` }"
+              :disabled="!canSubmit"
             >
               <span v-if="!loading">Registrarme</span>
               <span v-else class="flex items-center gap-2">
@@ -72,37 +131,95 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { navigateTo } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
+import { useThemeStore } from '~/stores/theme'
 
 const auth = useAuthStore()
+const theme = useThemeStore()
 const loading = ref(false)
-const form = reactive({ username: '', email: '', password: '', first_name: '', last_name: '' })
+const form = reactive({ username: '', email: '', password: '', passwordConfirm: '', first_name: '', last_name: '' })
+type FieldKey = 'username' | 'email' | 'password' | 'passwordConfirm'
+
+const validation = computed(() => {
+  const issues: Record<FieldKey, string | null> = {
+    username: null,
+    email: null,
+    password: null,
+    passwordConfirm: null,
+  }
+
+  const username = form.username.trim()
+  const email = form.email.trim()
+  const password = form.password
+  const passwordConfirm = form.passwordConfirm
+
+  if (username.length < 3) issues.username = 'Mínimo 3 caracteres.'
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email)) issues.email = 'Ingresa un email válido.'
+  const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
+  if (!passwordRegex.test(password)) issues.password = 'Debe incluir letras, números y al menos 8 caracteres.'
+  if (password && passwordConfirm && password !== passwordConfirm) issues.passwordConfirm = 'Las contraseñas no coinciden.'
+
+  return issues
+})
+
+const firstError = computed(() => Object.values(validation.value).find(Boolean) || null)
+const canSubmit = computed(() => !loading.value && !auth.loading && !firstError.value)
+
+const strength = computed(() => {
+  const value = form.password
+  if (!value) return 'empty'
+  const long = value.length >= 10
+  const hasUpper = /[A-Z]/.test(value)
+  const hasSymbol = /[^A-Za-z0-9]/.test(value)
+  return long && hasUpper && hasSymbol ? 'strong' : 'ok'
+})
+
+const passwordLabel = computed(() => {
+  if (strength.value === 'strong') return 'Fuerte'
+  if (strength.value === 'ok') return 'Aceptable'
+  return 'Pendiente'
+})
+
+const passwordStrengthClass = computed(() => {
+  if (strength.value === 'strong') return 'text-emerald-300'
+  if (strength.value === 'ok') return 'text-amber-200'
+  return 'text-white/50'
+})
+
+const inputClass = (field: FieldKey) => [
+  'w-full rounded-xl border bg-white/10 px-4 py-3 text-white placeholder-white/50 outline-none transition focus:border-white/60',
+  validation.value[field] ? 'border-red-400/60 focus:border-red-300' : 'border-white/20',
+]
+
+watch(
+  () => [form.username, form.email, form.password, form.passwordConfirm],
+  () => {
+    if (auth.error) auth.error = null
+  }
+)
 
 const submit = async () => {
   auth.error = null
-  const usernameOk = form.username.trim().length >= 3
-  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
-  const passwordOk = form.password.length >= 6
-
-  if (!usernameOk) {
-    auth.error = 'El usuario debe tener al menos 3 caracteres.'
-    return
-  }
-  if (!emailOk) {
-    auth.error = 'Ingresa un email válido.'
-    return
-  }
-  if (!passwordOk) {
-    auth.error = 'La contraseña debe tener al menos 6 caracteres.'
+  const errorMessage = firstError.value
+  if (errorMessage) {
+    auth.error = errorMessage
     return
   }
 
   loading.value = true
   try {
-    await auth.register(form)
-    await navigateTo('/')
+    const payload = {
+      username: form.username.trim(),
+      email: form.email.trim(),
+      password: form.password,
+      first_name: form.first_name.trim(),
+      last_name: form.last_name.trim(),
+    }
+    await auth.register(payload)
+    await navigateTo('/dashboard')
   } catch (error) {
     /* error ya gestionado en store */
   } finally {

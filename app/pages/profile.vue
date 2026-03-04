@@ -30,7 +30,16 @@
                 Subir avatar
               </button>
             </div>
-            <p class="text-xs text-slate-500 mt-1">Pega una URL de imagen. Se subirá a tu perfil.</p>
+            <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+              <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 cursor-pointer hover:-translate-y-0.5 transition">
+                <input type="file" accept="image/*" class="hidden" @change="onFileSelect" />
+                <span>{{ uploadingAvatar ? 'Subiendo...' : 'Subir archivo' }}</span>
+              </label>
+              <span class="text-slate-500">o pega un enlace</span>
+            </div>
+            <p v-if="uploadError" class="text-xs text-red-600 mt-1">{{ uploadError }}</p>
+            <p v-else-if="uploadingAvatar" class="text-xs text-slate-500 mt-1">Procesando imagen...</p>
+            <p class="text-xs text-slate-500 mt-1">Pega una URL de imagen o sube un archivo; al guardar se elimina la anterior en Cloudinary.</p>
           </div>
         </div>
 
@@ -97,6 +106,8 @@ import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 
+definePageMeta({ middleware: ['auth'], requiresAuth: true })
+
 const config = useRuntimeConfig()
 const auth = useAuthStore()
 const theme = useThemeStore()
@@ -110,9 +121,23 @@ const message = ref('')
 const messageType = ref<'ok' | 'error'>('ok')
 const passwordMessage = ref('')
 const passwordStatus = ref<'ok' | 'error'>('ok')
+const uploadingAvatar = ref(false)
+const uploadError = ref('')
 
 const accentStyle = computed(() => ({ backgroundColor: theme.accent, color: '#fff' }))
 const initials = computed(() => (auth.user?.username || 'U').slice(0, 2).toUpperCase())
+const cloudinaryUploadUrl = computed(() => {
+  if (config.public.cloudinaryUploadUrl) return config.public.cloudinaryUploadUrl
+  if (config.public.cloudinaryCloudName) return `https://api.cloudinary.com/v1_1/${config.public.cloudinaryCloudName}/upload`
+  return ''
+})
+const getErrorMessage = (err: any) => {
+  const detail = err?.response?._data?.detail || err?.response?._data
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) return detail.join(', ')
+  if (detail && typeof detail === 'object') return Object.values(detail).flat().join(', ')
+  return err?.message || 'Ocurrió un error'
+}
 
 const loadProfile = async () => {
   if (!auth.token) {
@@ -130,20 +155,31 @@ const loadProfile = async () => {
 
 const saveProfile = async () => {
   if (!auth.token) return
+  if (form.upload_avatar && !/^https?:\/\//i.test(form.upload_avatar.trim())) {
+    message.value = 'La imagen debe ser un enlace válido (http/https)'
+    messageType.value = 'error'
+    return
+  }
   saving.value = true
   message.value = ''
   try {
+    let avatarUrl = form.upload_avatar?.trim() || ''
+    if (avatarUrl && !avatarUrl.includes('res.cloudinary.com')) {
+      const uploaded = await uploadToCloudinary(avatarUrl, 'upload/profile')
+      if (!uploaded?.secure_url) throw new Error('No pudimos subir la imagen a Cloudinary')
+      avatarUrl = uploaded.secure_url
+    }
     const body: any = {
       first_name: form.first_name,
       last_name: form.last_name,
       email: form.email,
     }
-    if (form.upload_avatar?.trim()) {
-      body.upload_avatar = form.upload_avatar.trim()
+    if (avatarUrl) {
+      body.upload_avatar = avatarUrl
     }
 
     const updated = await $fetch(`${config.public.apiBase}/users/me/`, {
-      method: 'PUT',
+      method: 'PATCH',
       body,
       headers: { Authorization: `Bearer ${auth.token}` },
     })
@@ -155,10 +191,46 @@ const saveProfile = async () => {
     }
     form.upload_avatar = ''
   } catch (error: any) {
-    message.value = error?.response?._data?.detail || 'No pudimos actualizar'
+    message.value = getErrorMessage(error) || 'No pudimos actualizar'
     messageType.value = 'error'
   } finally {
     saving.value = false
+  }
+}
+
+const uploadToCloudinary = async (fileOrUrl: File | string, folder = 'upload/profile') => {
+  if (!cloudinaryUploadUrl.value || !config.public.cloudinaryUploadPreset) {
+    throw new Error('Configura CLOUDINARY_CLOUD_NAME y CLOUDINARY_UPLOAD_PRESET')
+  }
+  const formData = new FormData()
+  formData.append('file', fileOrUrl)
+  formData.append('upload_preset', config.public.cloudinaryUploadPreset)
+  formData.append('folder', folder)
+  return $fetch<any>(cloudinaryUploadUrl.value, {
+    method: 'POST',
+    body: formData,
+  })
+}
+
+const onFileSelect = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target?.files?.[0]
+  if (!file) return
+  uploadError.value = ''
+  uploadingAvatar.value = true
+  try {
+    const result = await uploadToCloudinary(file)
+    if (!result?.secure_url) throw new Error('No pudimos obtener la URL de la imagen')
+    form.upload_avatar = result.secure_url
+    avatarPreview.value = result.secure_url
+    message.value = 'Imagen subida, guardando perfil...'
+    messageType.value = 'ok'
+    await saveProfile()
+  } catch (error) {
+    uploadError.value = getErrorMessage(error) || 'No pudimos subir la imagen'
+  } finally {
+    uploadingAvatar.value = false
+    if (target) target.value = ''
   }
 }
 

@@ -45,7 +45,7 @@
     </div>
 
     <div class="flex flex-1 flex-col p-4 space-y-3">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between gap-2">
         <p class="text-xs uppercase tracking-wide font-semibold text-slate-500">
           {{ product.category?.name || 'General' }}
         </p>
@@ -55,6 +55,12 @@
           :style="!isMarketplace ? `background:${accentColor}22;color:${accentColor}` : ''"
         >
           {{ product.store?.slug || 'tienda' }}
+        </span>
+        <span
+          v-if="isMarketplace && props.isMine"
+          class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800 shadow"
+        >
+          Tu publicación
         </span>
       </div>
 
@@ -70,6 +76,11 @@
         <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
         <span v-else-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta</span>
         <span v-else-if="isMarketplace" class="rounded-full px-2 py-1 text-[11px] font-semibold" :class="marketBadgeClass">Marketplace</span>
+          <div v-if="!hideStock" class="flex flex-wrap items-center gap-2 text-sm font-semibold" :class="stockDescriptor.tone">
+            <span class="rounded-full px-3 py-1" :class="stockDescriptor.pill">
+              {{ stockDescriptor.label }}
+            </span>
+          </div>
       </div>
 
       <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : ''" :style="product.offer_price ? {} : { color: accentColor }">
@@ -78,8 +89,13 @@
       </p>
 
       <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
-        <button class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow" :style="{ backgroundColor: accentColor }" @click="handleAddToCart">
-          {{ isMarketplace ? 'Agregar al carrito' : 'Agregar' }}
+        <button
+          class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow disabled:cursor-not-allowed disabled:opacity-60"
+          :style="{ backgroundColor: accentColor }"
+          :disabled="!canAddToCart"
+          @click="handleAddToCart"
+        >
+          {{ addToCartLabel }}
         </button>
 
         <NuxtLink :to="productDetailPath" class="rounded-lg px-3 py-2 text-sm font-semibold text-white shadow" :style="{ backgroundColor: accentColor }">Ver producto</NuxtLink>
@@ -99,17 +115,15 @@ import { computed, ref } from 'vue'
 import { Heart } from 'lucide-vue-next'
 import { useCartStore } from '~/stores/cart'
 import { useThemeStore } from '~/stores/theme'
-import { useAuthStore } from '~/stores/auth'
 import { useRouter } from 'vue-router'
 import { makeProductFavoriteKey, useFavorites } from '~/composables/useFavorites'
 
-const props = defineProps<{ product: any; isMarketplace?: boolean; accent?: string; canManage?: boolean; onDelete?: Function; editUrl?: string }>()
+const props = defineProps<{ product: any; isMarketplace?: boolean; accent?: string; canManage?: boolean; onDelete?: Function; editUrl?: string; isMine?: boolean; hideStock?: boolean }>()
 
 const product = props.product
 const isMarketplace = computed(() => Boolean(props.isMarketplace))
 const cart = useCartStore()
 const theme = useThemeStore()
-const auth = useAuthStore()
 const router = useRouter()
 
 const MARKET_ACCENT = '#f59e0b'
@@ -117,6 +131,22 @@ const accentColor = computed(() => (isMarketplace.value ? MARKET_ACCENT : props.
 const glowStyle = computed(() => ({ background: `radial-gradient(circle at 30% 20%, ${accentColor.value}1a, transparent 40%)` }))
 const marketBadgeClass = computed(() => (isMarketplace.value ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'))
 const imageSrc = computed(() => product?.images?.[0]?.image || product?.image || 'https://via.placeholder.com/400x240?text=Producto')
+const availableStock = computed(() => {
+  const raw = Number(product?.stock_available ?? 0)
+  return Number.isFinite(raw) ? raw : 0
+})
+const canAddToCart = computed(() => availableStock.value > 0)
+const describeStock = (value: number) => {
+  if (value <= 0) return { label: 'Sin stock', tone: 'text-red-600', pill: 'bg-red-50 text-red-700' }
+  if (value <= 5) return { label: `Últimas ${value}`, tone: 'text-amber-600', pill: 'bg-amber-50 text-amber-700' }
+  return { label: `${value} disponibles`, tone: 'text-emerald-600', pill: 'bg-emerald-50 text-emerald-700' }
+}
+const stockDescriptor = computed(() => describeStock(availableStock.value))
+const hideStock = computed(() => Boolean(props.hideStock))
+const addToCartLabel = computed(() => {
+  if (!canAddToCart.value) return 'Sin stock'
+  return isMarketplace.value ? 'Agregar al carrito' : 'Agregar'
+})
 
 const { isProductFavoriteKey, toggleProductFavoriteKey } = useFavorites()
 const productFavoriteKey = (p: any) => makeProductFavoriteKey(p?.store?.slug, p?.slug || p?.id)
@@ -148,6 +178,7 @@ const toggleMenu = () => {
 }
 
 const handleAddToCart = async () => {
+  if (!canAddToCart.value) return
   try {
     cart.setContext(isMarketplace.value ? 'marketplace' : product.store?.slug || 'marketplace')
     cart.addProduct(product)

@@ -6,12 +6,14 @@ type CartItem = {
   price: number
   image?: string | null
   quantity: number
+  max?: number | null
 }
 
 export const useCartStore = defineStore('cart', {
   state: () => ({
     itemsByContext: {} as Record<string, CartItem[]>,
     currentContext: 'marketplace',
+    lastNotice: '' as string,
   }),
 
   getters: {
@@ -27,6 +29,22 @@ export const useCartStore = defineStore('cart', {
   },
 
   actions: {
+    clampQuantity(qty: number, max?: number | null) {
+      const safe = Number.isFinite(qty) ? qty : 0
+      const limited = max && Number.isFinite(max) ? Math.min(safe, max) : safe
+      return Math.max(1, limited)
+    },
+
+    limitQuantity(qty: number, max?: number | null) {
+      const desired = Number.isFinite(qty) ? qty : 0
+      const limited = this.clampQuantity(desired, max)
+      return { qty: limited, clamped: limited < desired }
+    },
+
+    setNotice(msg?: string) {
+      this.lastNotice = msg || ''
+    },
+
     setContext(contextKey: string) {
       this.currentContext = contextKey || 'marketplace'
       if (!this.itemsByContext[this.currentContext]) {
@@ -39,16 +57,25 @@ export const useCartStore = defineStore('cart', {
       const list = this.ensureContext()
       const existing = list.find((item) => item.id === product.id)
 
+      const unitPrice = Number(product.offer_price || product.price || 0)
+      const max = Number.isFinite(product?.stock_available) ? Number(product.stock_available) : null
+
       if (existing) {
-        existing.quantity++
+        const { qty, clamped } = this.limitQuantity(existing.quantity + 1, max ?? existing.max)
+        existing.quantity = qty
+        existing.max = max ?? existing.max
+        this.setNotice(clamped ? `Stock limitado a ${qty} unidades` : '')
       } else {
+        const { qty, clamped } = this.limitQuantity(1, max)
         list.push({
           id: product.id,
           name: product.name,
-          price: Number(product.offer_price || product.price),
+          price: Number.isFinite(unitPrice) ? unitPrice : 0,
           image: product.images?.[0]?.image || product.image || null,
-          quantity: 1,
+          quantity: qty,
+          max,
         })
+        this.setNotice(clamped ? `Stock limitado a ${qty} unidades` : '')
       }
 
       this.saveToStorage()
@@ -65,7 +92,9 @@ export const useCartStore = defineStore('cart', {
       const item = list.find((i) => i.id === productId)
       if (!item) return
 
-      item.quantity = qty <= 0 ? 1 : qty
+      const { qty: limited, clamped } = this.limitQuantity(qty, item.max)
+      item.quantity = limited
+      this.setNotice(clamped ? `Stock limitado a ${limited} unidades` : '')
       this.saveToStorage()
     },
 

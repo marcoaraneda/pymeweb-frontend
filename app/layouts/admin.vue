@@ -39,9 +39,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useTenantStore } from '~/stores/tenant'
 import { Package, Tag, Star, Palette } from 'lucide-vue-next'
-const slug = useTenantStore().slug
+
+const route = useRoute()
+const tenant = useTenantStore()
+const slug = computed(() => {
+  const fromRoute = route.params.slug as string | undefined
+  if (fromRoute && !tenant.slug) tenant.setSlug(fromRoute)
+  return fromRoute || tenant.slug || ''
+})
 </script>
 
 <style scoped>

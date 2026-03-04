@@ -67,6 +67,8 @@ import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useNotificationStore } from '~/stores/notifications'
 
+definePageMeta({ middleware: ['auth'], requiresAuth: true })
+
 const auth = useAuthStore()
 const config = useRuntimeConfig()
 const notificationStore = useNotificationStore()

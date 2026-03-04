@@ -58,6 +58,7 @@
             <img v-else src="https://placehold.co/120x120?text=Logo" alt="Logo placeholder" class="h-full w-full object-cover" />
             <span v-if="canEditBrand" class="absolute inset-0 flex items-center justify-center bg-black/40 text-[11px] font-semibold text-white opacity-0 transition hover:opacity-100">Cambiar</span>
           </button>
+          <input ref="logoFileInput" type="file" accept="image/*" class="hidden" @change="onLogoFileChange" />
           <div>
             <NuxtLink :to="`/store/${slug}`" class="text-xl font-semibold leading-tight text-slate-900 hover:underline">
               {{ brandName }}
@@ -336,6 +337,41 @@ const notificationStore = useNotificationStore()
 const notifications = computed(() => notificationStore.unread)
 const notificationsCount = computed(() => notificationStore.totalUnread)
 const showNotifications = ref(false)
+const logoFileInput = ref<HTMLInputElement | null>(null)
+const uploadingLogo = ref(false)
+const logoError = ref('')
+const cloudinaryUploadUrl = computed(() => {
+  if (config.public.cloudinaryUploadUrl) return config.public.cloudinaryUploadUrl
+  if (config.public.cloudinaryCloudName) return `https://api.cloudinary.com/v1_1/${config.public.cloudinaryCloudName}/upload`
+  return ''
+})
+
+const getErrorMessage = (err: any) => {
+  const detail = err?.response?._data?.detail || err?.response?._data
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) return detail.join(', ')
+  if (detail && typeof detail === 'object') return Object.values(detail).flat().join(', ')
+  return err?.message || 'Ocurrió un error'
+}
+
+const uploadToCloudinary = async (fileOrUrl: File | string, folder = 'upload/store') => {
+  if (!cloudinaryUploadUrl.value || !config.public.cloudinaryUploadPreset) {
+    throw new Error('Configura CLOUDINARY_CLOUD_NAME y CLOUDINARY_UPLOAD_PRESET')
+  }
+  const formData = new FormData()
+  formData.append('file', fileOrUrl)
+  formData.append('upload_preset', config.public.cloudinaryUploadPreset)
+  formData.append('folder', folder)
+  return $fetch<any>(cloudinaryUploadUrl.value, { method: 'POST', body: formData })
+}
+
+const ensureCloudinaryUrl = async (currentUrl?: string) => {
+  if (!currentUrl) return ''
+  if (currentUrl.includes('res.cloudinary.com')) return currentUrl
+  const result = await uploadToCloudinary(currentUrl, 'upload/store')
+  if (!result?.secure_url) throw new Error('No pudimos subir la imagen a Cloudinary')
+  return result.secure_url
+}
 
 const canEditBrand = computed(() => {
   const membership = (auth.user as any)?.memberships || []
@@ -386,22 +422,57 @@ const viewNotifications = async () => {
   await navigateTo('/notificaciones')
 }
 
+const updateStoreLogo = async (url: string) => {
+  await $fetch(`${config.public.apiBase}/stores/${slug.value}/`, {
+    method: 'PATCH',
+    body: { logo_url: url },
+    headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+  })
+  tenantStore.data = { ...(tenantStore.data || {}), logo_url: url }
+  await tenantStore.fetchTienda()
+}
+
+const handleLogoError = (error: any) => {
+  logoError.value = getErrorMessage(error)
+  console.error('No pudimos actualizar el logo', error)
+  if (logoError.value) window.alert(logoError.value)
+}
+
+const onLogoFileChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target?.files?.[0]
+  if (!file) return
+  uploadingLogo.value = true
+  logoError.value = ''
+  try {
+    const result = await uploadToCloudinary(file, 'upload/store')
+    if (!result?.secure_url) throw new Error('No pudimos obtener la URL del logo')
+    await updateStoreLogo(result.secure_url)
+  } catch (error) {
+    handleLogoError(error)
+  } finally {
+    uploadingLogo.value = false
+    if (target) target.value = ''
+  }
+}
+
+const updateLogoFromUrl = async (url: string) => {
+  uploadingLogo.value = true
+  logoError.value = ''
+  try {
+    const cloudUrl = await ensureCloudinaryUrl(url)
+    await updateStoreLogo(cloudUrl)
+  } catch (error) {
+    handleLogoError(error)
+  } finally {
+    uploadingLogo.value = false
+  }
+}
+
 const openLogoPrompt = async () => {
   if (!canEditBrand.value) return
-  const url = window.prompt('Pega la URL del logo (se guardará para esta tienda):', brandLogo.value || '')
-  if (!url || !url.trim()) return
-  try {
-    await $fetch(`${config.public.apiBase}/stores/${slug.value}/`, {
-      method: 'PATCH',
-      body: { logo_url: url.trim() },
-      headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
-    })
-    // Actualiza en caliente sin depender del fetch
-    tenantStore.data = { ...(tenantStore.data || {}), logo_url: url.trim() }
-    await tenantStore.fetchTienda()
-  } catch (error) {
-    console.error('No pudimos actualizar el logo', error)
-  }
+  // Abrir selector de archivo directamente
+  logoFileInput.value?.click()
 }
 
 onMounted(async () => {
