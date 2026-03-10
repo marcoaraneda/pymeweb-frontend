@@ -49,5 +49,18 @@ export default defineNuxtConfig({
         { 'http-equiv': 'Permissions-Policy', content: 'camera=(), microphone=(), geolocation=(), payment=()' },
       ]
     }
+  },
+
+  // Dev server ports to avoid clashes with other running services
+  devServer: {
+    port: Number(process.env.NUXT_PORT) || 3001,
+    host: process.env.NUXT_HOST || 'localhost'
+  },
+  vite: {
+    server: {
+      hmr: {
+        port: Number(process.env.NUXT_HMR_PORT) || 24680
+      }
+    }
   }
 })

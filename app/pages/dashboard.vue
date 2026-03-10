@@ -1,31 +1,63 @@
 <template>
-  <div class="relative min-h-screen bg-slate-950 text-white">
+  <ClientOnly>
+    <div class="relative min-h-screen bg-slate-950 text-white">
     <div class="pointer-events-none absolute inset-0" aria-hidden="true">
       <div class="absolute -left-10 top-10 h-60 w-60 rounded-full bg-gradient-to-r from-[var(--gradient-from,#111827)] to-[var(--gradient-to,#0b2358)] blur-3xl opacity-70" />
       <div class="absolute -right-10 bottom-10 h-72 w-72 rounded-full bg-gradient-to-r from-[var(--gradient-from,#111827)] to-[var(--gradient-to,#0b2358)] blur-3xl opacity-60" />
     </div>
 
     <div class="relative z-10 mx-auto max-w-6xl px-6 py-10 space-y-10">
+      <nav class="flex flex-wrap items-center justify-center gap-2">
+        <NuxtLink
+          to="/dashboard"
+          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg ring-2 ring-white/40"
+          style="background:#1d4ed8"
+        >
+          Dashboard
+        </NuxtLink>
+        <NuxtLink
+          to="/dashboard/recursos-humanos"
+          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg"
+          style="background:#b45309"
+        >
+          Recursos Humanos
+        </NuxtLink>
+        <NuxtLink
+          to="/dashboard/analisis-financiero"
+          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg"
+          style="background:#0f172a"
+        >
+          Analisis financiero
+        </NuxtLink>
+        <NuxtLink
+          to="/dashboard/analisis"
+          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg"
+          style="background:#0f766e"
+        >
+          Analisis de datos
+        </NuxtLink>
+      </nav>
+
       <header class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p class="text-xs uppercase tracking-[0.2em] text-white/60">Panel</p>
           <h1 class="text-3xl font-extrabold">Dashboard de tiendas</h1>
-          <p class="text-white/70">Resumen rápido de tus tiendas, actividad y accesos. Accede al carrito del marketplace desde aquí.</p>
+          <p class="text-white/70">Resumen rápido de tus tiendas, actividad y accesos. Revisa todas tus notificaciones desde aquí.</p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
           <select
             v-model="selectedStore"
             class="rounded-xl border border-white/30 bg-white text-sm text-slate-900 px-3 py-2 focus:border-slate-300 focus:outline-none shadow-sm"
           >
-            <option value="all">Todas mis tiendas</option>
+            <option disabled value="">Selecciona una tienda</option>
             <option v-for="store in storesMine" :key="store.slug" :value="store.slug">{{ store.name }}</option>
           </select>
           <NuxtLink
-            :to="cartTarget"
+            to="/notificaciones"
             class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5"
             :style="{ backgroundColor: theme.accent }"
           >
-            Ir al carrito
+            Ver todas las notificaciones
           </NuxtLink>
         </div>
       </header>
@@ -176,7 +208,7 @@
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p class="text-xs uppercase tracking-[0.2em] text-white/60">Pedidos en proceso</p>
-              <h2 class="text-xl font-semibold">Pendientes de pago</h2>
+              <h2 class="text-xl font-semibold">Pendientes</h2>
             </div>
             <div class="flex items-center gap-2">
               <span class="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">{{ pendingOrders.length }}</span>
@@ -204,9 +236,18 @@
                 <span class="text-xs text-white/60">{{ formatDate(o.created_at) }}</span>
               </div>
               <p class="text-xs text-white/60">{{ o.store_slug || 'tienda' }}</p>
-              <div class="mt-1 flex items-center justify-between">
+              <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <span class="font-semibold" :style="{ color: theme.accent }">{{ currency(o.total) }}</span>
-                <span :class="['rounded-full px-2 py-0.5 text-[11px] font-semibold', statusBadge(o.status).classes]">{{ statusBadge(o.status).label }}</span>
+                <div class="flex items-center gap-2">
+                  <span :class="['rounded-full px-2 py-0.5 text-[11px] font-semibold', statusBadge(o.status).classes]">{{ statusBadge(o.status).label }}</span>
+                  <select
+                    class="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white"
+                    :value="o.status"
+                    @change="(e) => updateOrderStatus(o.id, (e.target as HTMLSelectElement).value)"
+                  >
+                    <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                  </select>
+                </div>
               </div>
             </NuxtLink>
             <div class="flex items-center justify-between text-xs text-white/70" v-if="pendingTotalPages > 1">
@@ -221,7 +262,7 @@
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p class="text-xs uppercase tracking-[0.2em] text-white/60">Entregados</p>
-              <h2 class="text-xl font-semibold">Pagados</h2>
+              <h2 class="text-xl font-semibold">Productos finalizados</h2>
             </div>
             <div class="flex items-center gap-2">
               <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-100">{{ deliveredOrders.length }}</span>
@@ -249,7 +290,7 @@
                 <span class="text-xs text-white/60">{{ formatDate(o.created_at) }}</span>
               </div>
               <p class="text-xs text-white/60">{{ o.store_slug || 'tienda' }}</p>
-              <div class="mt-1 flex items-center justify-between">
+              <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <span class="font-semibold" :style="{ color: theme.accent }">{{ currency(o.total) }}</span>
                 <span :class="['rounded-full px-2 py-0.5 text-[11px] font-semibold', statusBadge(o.status).classes]">{{ statusBadge(o.status).label }}</span>
               </div>
@@ -400,7 +441,8 @@
         </div>
       </div>
     </div>
-  </div>
+    </div>
+  </ClientOnly>
 </template>
 
 <script setup lang="ts">
@@ -412,7 +454,7 @@ import { Building2, Eye, ShoppingCart, Headset, Lightbulb, MessageSquare, Star a
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 
-definePageMeta({ middleware: ['auth'], requiresAuth: true })
+definePageMeta({ middleware: ['auth'], requiresAuth: true, ssr: false })
 
 type TicketItem = {
   id: number
@@ -426,7 +468,7 @@ type TicketItem = {
 const auth = useAuthStore()
 const theme = useThemeStore()
 const storesMine = ref<{ id: number; name: string; slug: string }[]>([])
-const selectedStore = ref<'all' | string>('all')
+const selectedStore = ref('')
 const loading = ref(true)
 const loadError = ref('')
 const toast = ref<{ text: string; type: 'success' | 'error' } | null>(null)
@@ -437,10 +479,19 @@ const orders = ref<any[]>([])
 const ordersLoading = ref(true)
 const pendingPage = ref(1)
 const deliveredPage = ref(1)
-const pageSize = 6
+const pendingPageSize = 6
+const deliveredPageSize = 10
 const config = useRuntimeConfig()
 const apiBase = String(config.public.apiBase || '')
 const deletingStore = ref(false)
+const statusOptions = [
+  { value: 'pending', label: 'Pendiente' },
+  { value: 'preparing', label: 'Preparando' },
+  { value: 'in_transit', label: 'En tránsito' },
+  { value: 'delivered', label: 'Listo / Entregado' },
+  { value: 'completed', label: 'Finalizado' },
+  { value: 'cancelled', label: 'Cancelado' },
+]
 
 const authedFetch = async <T>(url: string, options: Record<string, any> = {}) => {
   if (!auth.token) throw new Error('No autenticado')
@@ -465,6 +516,21 @@ const authedFetch = async <T>(url: string, options: Record<string, any> = {}) =>
   }
 }
 
+const ensureAuthReady = async () => {
+  if (!auth.token) {
+    auth.restoreFromCookies()
+  }
+  if (!auth.token && auth.refreshToken) {
+    await auth.refreshTokens()
+  }
+  if (!auth.token) return false
+  if (!auth.user) {
+    const profile = await auth.fetchProfile()
+    if (!profile) return false
+  }
+  return true
+}
+
 type DashboardSummary = {
   total_orders: number
   paid_orders: number
@@ -482,17 +548,6 @@ const sparklineBars = computed(() => {
   if (!values.length) return []
   const max = Math.max(...values, 1)
   return values.map((v) => 24 + Math.round((v / max) * 120))
-})
-const cartTarget = computed(() => {
-  if (selectedStore.value && selectedStore.value !== 'all') {
-    return `/store/${selectedStore.value}/carrito`
-  }
-  const firstStore = storesMine.value[0]
-  if (firstStore?.slug) {
-    return `/store/${firstStore.slug}/carrito`
-  }
-  // Fallback si no hay tiendas asignadas
-  return '/marketplace/carrito'
 })
 const showToast = (text: string, type: 'success' | 'error' = 'success') => {
   toast.value = { text, type }
@@ -524,25 +579,29 @@ type ReviewFeedItem = {
 
 const barColor = (idx: number) => (idx === sparklineBars.value.length - 1 ? theme.accent : 'rgba(255,255,255,0.25)')
 
-const pendingOrders = computed(() => orders.value.filter((o) => ['pending'].includes(o.status)))
-const deliveredOrders = computed(() => orders.value.filter((o) => ['paid'].includes(o.status)))
+const pendingOrders = computed(() => orders.value.filter((o) => ['pending', 'preparing', 'in_transit'].includes(o.status)))
+const deliveredOrders = computed(() => orders.value.filter((o) => ['completed', 'delivered', 'paid'].includes(o.status)))
 
-const pendingTotalPages = computed(() => Math.max(1, Math.ceil(pendingOrders.value.length / pageSize)))
-const deliveredTotalPages = computed(() => Math.max(1, Math.ceil(deliveredOrders.value.length / pageSize)))
+const pendingTotalPages = computed(() => Math.max(1, Math.ceil(pendingOrders.value.length / pendingPageSize)))
+const deliveredTotalPages = computed(() => Math.max(1, Math.ceil(deliveredOrders.value.length / deliveredPageSize)))
 
 const pendingPageOrders = computed(() => {
-  const start = (pendingPage.value - 1) * pageSize
-  return pendingOrders.value.slice(start, start + pageSize)
+  const start = (pendingPage.value - 1) * pendingPageSize
+  return pendingOrders.value.slice(start, start + pendingPageSize)
 })
 
 const deliveredPageOrders = computed(() => {
-  const start = (deliveredPage.value - 1) * pageSize
-  return deliveredOrders.value.slice(start, start + pageSize)
+  const start = (deliveredPage.value - 1) * deliveredPageSize
+  return deliveredOrders.value.slice(start, start + deliveredPageSize)
 })
 
 const statusLabel = (status: string) => {
   const map: Record<string, string> = {
     pending: 'Pendiente',
+    preparing: 'Preparando',
+    in_transit: 'En tránsito',
+    delivered: 'Listo / Entregado',
+    completed: 'Finalizado',
     paid: 'Pagado',
     cancelled: 'Cancelado',
   }
@@ -552,6 +611,10 @@ const statusLabel = (status: string) => {
 const statusBadge = (status: string) => {
   const map: Record<string, { label: string; classes: string }> = {
     pending: { label: statusLabel('pending'), classes: 'bg-amber-100/70 text-amber-900' },
+    preparing: { label: statusLabel('preparing'), classes: 'bg-amber-100/70 text-amber-900' },
+    in_transit: { label: statusLabel('in_transit'), classes: 'bg-sky-100/80 text-sky-900' },
+    delivered: { label: statusLabel('delivered'), classes: 'bg-emerald-100/70 text-emerald-900' },
+    completed: { label: statusLabel('completed'), classes: 'bg-emerald-100/70 text-emerald-900' },
     paid: { label: statusLabel('paid'), classes: 'bg-emerald-100/70 text-emerald-900' },
     cancelled: { label: statusLabel('cancelled'), classes: 'bg-red-100 text-red-700' },
   }
@@ -579,8 +642,7 @@ const formatDate = (value?: string | Date) => {
 
 const orderLink = (orderId: number) => {
   const firstStore = storesMine.value[0]
-  const slugFromFilter = selectedStore.value !== 'all' ? selectedStore.value : undefined
-  const slug = slugFromFilter || firstStore?.slug
+  const slug = selectedStore.value || firstStore?.slug
   return slug ? `/store/${slug}/admin/orders/${orderId}` : '#'
 }
 
@@ -590,8 +652,12 @@ const loadData = async () => {
   let success = true
   try {
     storesMine.value = await auth.fetchMyStores()
-    if (storesMine.value.length && selectedStore.value === 'all') {
-      selectedStore.value = 'all'
+    if (!storesMine.value.length) {
+      loadError.value = 'No tienes tiendas asignadas. Debes tener al menos una para ver el dashboard.'
+      return false
+    }
+    if (!selectedStore.value || !storesMine.value.find((s) => s.slug === selectedStore.value)) {
+      selectedStore.value = storesMine.value[0].slug
     }
     await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews()])
   } catch (error) {
@@ -660,11 +726,11 @@ const loadOrders = async () => {
   ordersLoading.value = true
   topLoading.value = true
   orders.value = []
-  if (!auth.token || !storesMine.value.length) {
+  if (!auth.token || !storesMine.value.length || !selectedStore.value) {
     ordersLoading.value = false
     return
   }
-  const targetSlugs = (selectedStore.value === 'all' ? storesMine.value.map((s) => s.slug) : [selectedStore.value]).filter(Boolean)
+  const targetSlugs = [selectedStore.value]
   try {
     const collected: any[] = []
     for (const slug of targetSlugs) {
@@ -695,15 +761,30 @@ const loadOrders = async () => {
   }
 }
 
+const updateOrderStatus = async (orderId: number, status: string) => {
+  if (!status || !orderId) return
+  try {
+    const updated = await authedFetch<any>(`${apiBase}/orders/${orderId}/`, {
+      method: 'PATCH',
+      body: { status },
+    })
+    orders.value = orders.value.map((o) => (o.id === orderId ? { ...o, status: updated.status || status } : o))
+    rebuildTopProductsFromOrders(orders.value)
+    showToast('Estado actualizado', 'success')
+  } catch (error) {
+    console.error('No se pudo actualizar estado', error)
+    showToast('No se pudo actualizar estado', 'error')
+  }
+}
+
 const loadTickets = async () => {
   loadingTickets.value = true
   tickets.value = []
-  if (!auth.token) {
+  if (!auth.token || !selectedStore.value) {
     loadingTickets.value = false
     return
   }
-  const params: Record<string, any> = { status: 'open' }
-  if (selectedStore.value !== 'all') params.store = selectedStore.value
+  const params: Record<string, any> = { status: 'open', store: selectedStore.value }
   try {
     tickets.value = await authedFetch<TicketItem[]>(`${apiBase}/support/tickets/`, { params })
   } catch (error) {
@@ -719,10 +800,11 @@ const loadRecentReviews = async (notify = false) => {
     recentReviews.value = []
     return false
   }
+  if (!selectedStore.value) return false
   loadingReviews.value = true
   let success = false
   try {
-    const targetSlugs = (selectedStore.value === 'all' ? storesMine.value.map((s) => s.slug) : [selectedStore.value]).filter(Boolean)
+    const targetSlugs = [selectedStore.value]
     const aggregated: ReviewFeedItem[] = []
     for (const slug of targetSlugs) {
       const rows = await authedFetch<ReviewFeedItem[]>(`${apiBase}/store/${slug}/admin/resenas/reviews/`, { params: {} }).catch(() => [])
@@ -787,11 +869,12 @@ const saveTicket = async () => {
 
 const loadSummary = async () => {
   if (!auth.token) return false
+  if (!selectedStore.value) return false
   const params: Record<string, any> = {}
   statsLoading.value = true
   let success = false
   try {
-    const targetSlugs = (selectedStore.value === 'all' ? storesMine.value.map((s) => s.slug) : [selectedStore.value]).filter(Boolean)
+    const targetSlugs = [selectedStore.value]
     let totalOrders = 0
     let paidOrders = 0
     let revenue = 0
@@ -828,10 +911,11 @@ const loadSummary = async () => {
 
 const loadDailyStats = async () => {
   if (!auth.token) return false
+  if (!selectedStore.value) return false
   dailyLoading.value = true
   const aggregated: Record<string, { orders: number; revenue: number }> = {}
   try {
-    const targetSlugs = (selectedStore.value === 'all' ? storesMine.value.map((s) => s.slug) : [selectedStore.value]).filter(Boolean)
+    const targetSlugs = [selectedStore.value]
     for (const slug of targetSlugs) {
       const rows = await authedFetch<any[]>(`${apiBase}/store/${slug}/admin/reportes/orders/daily/`, { params: {} }).catch(() => [])
       rows.forEach((row: any) => {
@@ -891,7 +975,8 @@ const exportTopProducts = () => {
 }
 
 onMounted(async () => {
-  if (!auth.isAuthenticated) {
+  const ready = await ensureAuthReady()
+  if (!ready) {
     await navigateTo('/login')
     return
   }
@@ -915,6 +1000,7 @@ onBeforeUnmount(() => {
 })
 
 watch(selectedStore, async () => {
+  if (!selectedStore.value) return
   pendingPage.value = 1
   deliveredPage.value = 1
   await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews()])

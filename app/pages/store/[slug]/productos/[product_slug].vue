@@ -224,6 +224,25 @@
           </button>
         </div>
 
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Categoría</p>
+              <p class="text-sm font-semibold text-slate-800">{{ categoryLabel }}</p>
+              <p class="text-xs text-slate-500">Se guarda usando el ID numérico del catálogo.</p>
+            </div>
+            <button
+              v-if="isStoreOwner"
+              type="button"
+              class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-100"
+              @click="openCategoryPanel"
+            >
+              <Pencil class="h-4 w-4" aria-hidden="true" />
+              Cambiar categoría
+            </button>
+          </div>
+        </div>
+
         <div v-if="hasCategoryDetails" class="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Detalles del producto</p>
           <div class="flex flex-wrap gap-2 text-sm text-slate-700">
@@ -720,6 +739,50 @@
       <img :src="activeImage" :alt="product?.name" class="max-h-[85vh] w-auto rounded-3xl border border-white/20 object-contain" />
     </div>
   </Teleport>
+
+  <Teleport to="body">
+    <transition name="fade">
+      <div v-if="categoryPanelOpen" class="fixed inset-0 z-[9998] bg-black/40" @click.self="closeCategoryPanel">
+        <div class="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl">
+          <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Cambiar categoría</p>
+              <p class="text-sm font-semibold text-slate-800">Selecciona la categoría y guarda</p>
+            </div>
+            <button class="rounded-full p-2 text-slate-600 hover:bg-slate-100" @click="closeCategoryPanel" aria-label="Cerrar panel">
+              <X class="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+
+          <div class="space-y-4 overflow-y-auto p-4">
+            <div class="space-y-1">
+              <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Categoría</label>
+              <select v-model="categoryDraft" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                <option value="">Sin categoría</option>
+                <option v-for="cat in availableCategories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+              </select>
+            </div>
+            <div class="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <p class="text-[11px] uppercase tracking-[0.15em] text-slate-500">Actual</p>
+              <p class="font-semibold">{{ categoryLabel }}</p>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
+            <button class="rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" @click="closeCategoryPanel">Cancelar</button>
+            <button
+              class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow disabled:opacity-60"
+              :style="{ backgroundColor: accentColor }"
+              :disabled="savingField === 'category'"
+              @click="confirmCategoryChange"
+            >
+              {{ savingField === 'category' ? 'Guardando...' : 'Guardar categoría' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -786,6 +849,8 @@ const REVIEW_EVENT = 'pymeweb:review-created'
 const placeholderImage = 'https://via.placeholder.com/640x640.png?text=Producto'
 const zoomed = ref(false)
 const zoomCoords = ref({ x: 50, y: 50 })
+const categoryPanelOpen = ref(false)
+const categoryDraft = ref<string | number>('')
 const form = reactive({
   name: '',
   description: '',
@@ -1035,6 +1100,16 @@ const loadCategories = async () => {
   }
 }
 
+const openCategoryPanel = () => {
+  const current = resolvedCategoryValue.value
+  categoryDraft.value = Number.isFinite(Number(current)) ? Number(current) : current || ''
+  categoryPanelOpen.value = true
+}
+
+const closeCategoryPanel = () => {
+  categoryPanelOpen.value = false
+}
+
 const refreshProduct = async () => {
   const data = await getProductBySlug(route.params.product_slug as string)
   product.value = data
@@ -1206,10 +1281,11 @@ const saveCategory = async () => {
     updateStatus.value = 'error'
     updateMessage.value = 'Selecciona una categoría válida (ID)'
     savingField.value = null
-    return
+    return false
   }
   const ok = await updateProduct(payload)
   if (ok) editing.category = false
+  return ok
 }
 
 const saveCategoryAttributes = async () => {
@@ -1244,6 +1320,14 @@ const saveCategoryAttributes = async () => {
     updateMessage.value = 'Atributos guardados'
   }
   savingField.value = null
+}
+
+const confirmCategoryChange = async () => {
+  form.category = categoryDraft.value
+  const ok = await saveCategory()
+  if (ok) {
+    categoryPanelOpen.value = false
+  }
 }
 
 const saveWeekly = async () => {

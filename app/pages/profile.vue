@@ -12,7 +12,7 @@
 
         <div class="mt-6 flex items-center gap-4">
           <div class="h-16 w-16 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
-            <img v-if="avatarPreview" :src="avatarPreview" alt="Avatar" class="h-full w-full object-cover" />
+            <img v-if="avatarPreview" :key="avatarPreview" :src="avatarPreview" alt="Avatar" class="h-full w-full object-cover" />
             <div v-else class="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-500">
               {{ initials }}
             </div>
@@ -24,10 +24,10 @@
               <button
                 class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
                 :style="accentStyle"
-                :disabled="saving"
-                @click="saveProfile"
+                :disabled="saving || uploadingAvatar"
+                @click="prepareAvatarFromUrl"
               >
-                Subir avatar
+                Cargar vista previa
               </button>
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
@@ -39,7 +39,7 @@
             </div>
             <p v-if="uploadError" class="text-xs text-red-600 mt-1">{{ uploadError }}</p>
             <p v-else-if="uploadingAvatar" class="text-xs text-slate-500 mt-1">Procesando imagen...</p>
-            <p class="text-xs text-slate-500 mt-1">Pega una URL de imagen o sube un archivo; al guardar se elimina la anterior en Cloudinary.</p>
+            <p class="text-xs text-slate-500 mt-1">Pega una URL de imagen o sube un archivo. La foto se guarda en tu perfil solo cuando presionas Guardar cambios.</p>
           </div>
         </div>
 
@@ -139,6 +139,20 @@ const getErrorMessage = (err: any) => {
   return err?.message || 'Ocurrió un error'
 }
 
+const buildAvatarUrl = (avatarUrl?: string | null, updatedAt?: string | null) => {
+  if (!avatarUrl) return ''
+  if (!updatedAt) return avatarUrl
+  const joiner = avatarUrl.includes('?') ? '&' : '?'
+  return `${avatarUrl}${joiner}v=${encodeURIComponent(updatedAt)}`
+}
+
+const setPendingAvatarPreview = (avatarUrl: string) => {
+  form.upload_avatar = avatarUrl
+  avatarPreview.value = buildAvatarUrl(avatarUrl, new Date().toISOString())
+  message.value = 'Imagen lista. Presiona Guardar cambios para aplicarla al layout.'
+  messageType.value = 'ok'
+}
+
 const loadProfile = async () => {
   if (!auth.token) {
     await navigateTo('/login')
@@ -149,7 +163,42 @@ const loadProfile = async () => {
     form.first_name = profile.first_name || ''
     form.last_name = profile.last_name || ''
     form.email = profile.email || ''
-    avatarPreview.value = (profile as any).avatar_url || ''
+    form.upload_avatar = ''
+    avatarPreview.value = buildAvatarUrl(profile.avatar_url || '', profile.avatar_updated_at || null)
+  }
+}
+
+const prepareAvatarFromUrl = async () => {
+  const rawUrl = form.upload_avatar?.trim() || ''
+  if (!rawUrl) {
+    message.value = 'Pega una URL de imagen primero.'
+    messageType.value = 'error'
+    return
+  }
+  if (!/^https?:\/\//i.test(rawUrl)) {
+    message.value = 'La imagen debe ser un enlace válido (http/https)'
+    messageType.value = 'error'
+    return
+  }
+
+  uploadingAvatar.value = true
+  uploadError.value = ''
+  message.value = ''
+  try {
+    const previewUrl = rawUrl.includes('res.cloudinary.com')
+      ? rawUrl
+      : (await uploadToCloudinary(rawUrl, 'upload/profile'))?.secure_url
+
+    if (!previewUrl) {
+      throw new Error('No pudimos preparar la imagen')
+    }
+
+    setPendingAvatarPreview(previewUrl)
+  } catch (error) {
+    uploadError.value = getErrorMessage(error) || 'No pudimos preparar la imagen'
+    messageType.value = 'error'
+  } finally {
+    uploadingAvatar.value = false
   }
 }
 
@@ -164,6 +213,7 @@ const saveProfile = async () => {
   message.value = ''
   try {
     let avatarUrl = form.upload_avatar?.trim() || ''
+    const hasAvatarChange = Boolean(avatarUrl)
     if (avatarUrl && !avatarUrl.includes('res.cloudinary.com')) {
       const uploaded = await uploadToCloudinary(avatarUrl, 'upload/profile')
       if (!uploaded?.secure_url) throw new Error('No pudimos subir la imagen a Cloudinary')
@@ -178,16 +228,37 @@ const saveProfile = async () => {
       body.upload_avatar = avatarUrl
     }
 
-    const updated = await $fetch(`${config.public.apiBase}/users/me/`, {
+    const updated = await $fetch<{
+      first_name?: string
+      last_name?: string
+      email?: string
+      avatar_url?: string | null
+      avatar_updated_at?: string | null
+    }>(`${config.public.apiBase}/users/me/`, {
       method: 'PATCH',
       body,
       headers: { Authorization: `Bearer ${auth.token}` },
     })
     message.value = 'Perfil actualizado'
     messageType.value = 'ok'
-    await auth.fetchProfile()
-    if ((updated as any).avatar_url) {
-      avatarPreview.value = (updated as any).avatar_url
+    const localAvatarUpdatedAt = new Date().toISOString()
+    auth.user = {
+      ...(auth.user || {}),
+      ...updated,
+      ...(hasAvatarChange
+        ? {
+            avatar_url: avatarUrl,
+            avatar_updated_at: updated.avatar_updated_at || localAvatarUpdatedAt,
+          }
+        : {}),
+    }
+    if (hasAvatarChange) {
+      avatarPreview.value = buildAvatarUrl(avatarUrl, updated.avatar_updated_at || localAvatarUpdatedAt)
+    } else {
+      await auth.fetchProfile()
+      if (updated?.avatar_url) {
+        avatarPreview.value = buildAvatarUrl(updated.avatar_url, updated.avatar_updated_at || null)
+      }
     }
     form.upload_avatar = ''
   } catch (error: any) {
@@ -221,11 +292,7 @@ const onFileSelect = async (event: Event) => {
   try {
     const result = await uploadToCloudinary(file)
     if (!result?.secure_url) throw new Error('No pudimos obtener la URL de la imagen')
-    form.upload_avatar = result.secure_url
-    avatarPreview.value = result.secure_url
-    message.value = 'Imagen subida, guardando perfil...'
-    messageType.value = 'ok'
-    await saveProfile()
+    setPendingAvatarPreview(result.secure_url)
   } catch (error) {
     uploadError.value = getErrorMessage(error) || 'No pudimos subir la imagen'
   } finally {

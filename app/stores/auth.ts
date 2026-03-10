@@ -11,6 +11,7 @@ type UserProfile = {
   first_name?: string
   last_name?: string
   avatar_url?: string | null
+  avatar_updated_at?: string | null
   is_staff?: boolean
   memberships?: Array<{ store: StoreLite; roles: string[] }>
 }
@@ -93,6 +94,9 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async fetchProfile(): Promise<UserProfile | null> {
+      if (!this.token) {
+        this.restoreFromCookies()
+      }
       if (!this.token) return null
       const config = useRuntimeConfig()
 
@@ -125,6 +129,9 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async refreshTokens(): Promise<string | null> {
+      if (!this.refreshToken) {
+        this.restoreFromCookies()
+      }
       if (!this.refreshToken) return null
       const config = useRuntimeConfig()
       try {
@@ -144,6 +151,9 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async fetchMyStores(): Promise<StoreLite[]> {
+      if (!this.token) {
+        this.restoreFromCookies()
+      }
       if (!this.token) return []
       const config = useRuntimeConfig()
       try {

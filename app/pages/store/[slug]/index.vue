@@ -39,7 +39,13 @@
             <span class="rounded-full border border-white/15 px-3 py-1">Pago seguro</span>
             <span class="rounded-full border border-white/15 px-3 py-1">Envíos rápidos</span>
               <span v-if="tenantStore.categories.length" class="rounded-full border border-white/15 px-3 py-1">{{ tenantStore.categories.length }} categorías</span>
-              <span v-for="cat in tenantStore.categories" :key="cat.slug || cat" class="rounded-full border border-slate-200 px-3 py-1 text-slate-700">{{ cat.name || cat }}</span>
+              <span
+                v-for="cat in tenantStore.categories"
+                :key="categoryKey(cat)"
+                class="rounded-full border border-slate-200 px-3 py-1 text-slate-700"
+              >
+                {{ categoryLabel(cat) }}
+              </span>
           </div>
         </div>
 
@@ -247,6 +253,8 @@ const auth = useAuthStore()
 const { getProductImage } = useImages()
 const config = useRuntimeConfig()
 
+type StoreCategory = string | { name: string; slug: string }
+
 const storeForm = reactive({ name: '', slug: '', logo_url: '', description: '', about: '', contact_email: '', phone: '' })
 const showStoreForm = ref(false)
 const updatingStore = ref(false)
@@ -285,6 +293,8 @@ const gradients = [
 
 const accentColor = computed(() => theme.accent || '#2563eb')
 const accentStyle = computed(() => ({ backgroundColor: accentColor.value, color: '#fff' }))
+const categoryKey = (category: StoreCategory) => (typeof category === 'string' ? category : category.slug)
+const categoryLabel = (category: StoreCategory) => (typeof category === 'string' ? category : category.name)
 const heroDescription = computed(
   () =>
     tenantStore.data?.description ||
@@ -365,6 +375,18 @@ const hydrateForm = () => {
   storeForm.phone = data.phone || ''
 }
 
+type StoreUpdateResponse = {
+  slug?: string
+  name?: string
+  logo_url?: string
+  logo?: string
+  description?: string
+  contact_email?: string
+  about?: string
+  phone?: string
+  [key: string]: unknown
+}
+
 const saveStore = async () => {
   if (!canEditTheme.value) return
   updatingStore.value = true
@@ -381,7 +403,7 @@ const saveStore = async () => {
       phone: storeForm.phone,
     }
 
-    const updated = await $fetch(`${config.public.apiBase}/stores/${previousSlug}/`, {
+    const updated = await $fetch<StoreUpdateResponse>(`${config.public.apiBase}/stores/${previousSlug}/`, {
       method: 'PATCH',
       body: payload,
       headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},

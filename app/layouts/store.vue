@@ -115,7 +115,7 @@
             <LogIn class="h-4 w-4" aria-hidden="true" />
             Iniciar sesión
           </NuxtLink>
-          <div class="flex flex-nowrap items-center gap-2 md:gap-3">
+          <div v-if="auth.isAuthenticated" class="flex flex-nowrap items-center gap-2 md:gap-3">
             <div class="relative flex items-center">
               <button
                 ref="notifBtnRef"
@@ -181,7 +181,7 @@
                 v-if="avatarUrl"
                 class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-slate-100"
               >
-                <img :src="avatarUrl" alt="Avatar" class="h-full w-full object-cover" />
+                <img :key="avatarUrl" :src="avatarUrl" alt="Avatar" class="h-full w-full object-cover" />
               </span>
               <span v-else class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs uppercase">{{ userInitials }}</span>
               <span class="max-w-[120px] truncate">{{ auth.user?.username || 'Perfil' }}</span>
@@ -323,7 +323,14 @@ const config = useRuntimeConfig()
 const brandName = computed(() => tenantStore.data?.name || 'Tu tienda')
 const brandInitials = computed(() => (brandName.value || 'T')[0]?.toUpperCase?.() || 'T')
 const brandLogo = computed(() => tenantStore.data?.logo_url || tenantStore.data?.logo?.url || tenantStore.data?.logo || '')
-const avatarUrl = computed(() => auth.user?.avatar_url || null)
+const avatarUrl = computed(() => {
+  const base = auth.user?.avatar_url
+  if (!base) return null
+  const version = auth.user?.avatar_updated_at
+  if (!version) return base
+  const joiner = base.includes('?') ? '&' : '?'
+  return `${base}${joiner}v=${encodeURIComponent(version)}`
+})
 const userInitials = computed(() => (auth.user?.username || 'U').slice(0, 2).toUpperCase())
 const accentColor = computed(() => theme.accent || '#2563eb')
 const gradientStyle = computed(() => ({ backgroundImage: `linear-gradient(120deg, ${theme.gradientFrom}, ${theme.gradientTo})`, opacity: 0.18 }))

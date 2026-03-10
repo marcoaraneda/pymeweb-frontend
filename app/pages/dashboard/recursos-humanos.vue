@@ -1,0 +1,365 @@
+<template>
+  <ClientOnly>
+    <div class="min-h-screen bg-slate-950 text-white">
+    <div class="mx-auto max-w-6xl px-6 py-10 space-y-8">
+      <nav class="flex flex-wrap items-center justify-center gap-2">
+        <NuxtLink
+          to="/dashboard"
+          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg"
+          style="background:#1d4ed8"
+        >
+          Dashboard
+        </NuxtLink>
+        <NuxtLink
+          to="/dashboard/analisis"
+          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg"
+          style="background:#0f766e"
+        >
+          Análisis
+        </NuxtLink>
+        <NuxtLink
+          to="/dashboard/recursos-humanos"
+          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg ring-2 ring-white/40"
+          style="background:#b45309"
+        >
+          Recursos Humanos
+        </NuxtLink>
+      </nav>
+
+      <header class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p class="text-xs uppercase tracking-[0.2em] text-white/60">Dashboard</p>
+          <h1 class="text-3xl font-extrabold">Recursos humanos</h1>
+          <p class="text-white/70">Visibilidad del equipo activo, roles y movimientos recientes por tienda.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <NuxtLink
+            to="/dashboard"
+            class="rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold text-white/80 hover:border-white/40"
+          >
+            Volver
+          </NuxtLink>
+        </div>
+      </header>
+
+      <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+        <div class="grid gap-4 md:grid-cols-4">
+          <div class="space-y-1">
+            <label class="text-xs text-white/60">Tienda</label>
+            <select v-model="filters.store" class="w-full rounded-xl border border-white/20 bg-white text-sm text-slate-900 px-3 py-2">
+              <option disabled value="">Selecciona una tienda</option>
+              <option v-for="s in storeOptions" :key="s.slug" :value="s.slug">{{ s.name }}</option>
+            </select>
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs text-white/60">Rango</label>
+            <p class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">Últimos 30 días</p>
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs text-white/60">Actividad</label>
+            <p class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">Membresias activas</p>
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs text-white/60">Accion</label>
+            <button
+              class="w-full rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5"
+              :style="{ backgroundColor: theme.accent }"
+              @click="loadStaff"
+              :disabled="loading"
+            >
+              {{ loading ? 'Actualizando...' : 'Actualizar' }}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div v-if="loadError" class="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+        {{ loadError }}
+      </div>
+
+      <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div v-for="card in summaryCards" :key="card.label" class="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-white/60">{{ card.label }}</p>
+          <p class="mt-2 text-2xl font-semibold text-white">{{ card.value }}</p>
+          <p class="text-xs text-white/60">{{ card.note }}</p>
+        </div>
+      </section>
+
+      <section class="grid gap-4 lg:grid-cols-[1.1fr,0.9fr]">
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Roles</p>
+              <h2 class="text-xl font-semibold">Distribución del equipo</h2>
+            </div>
+            <span class="text-xs text-white/60">{{ staff.length }} miembros</span>
+          </div>
+          <div v-if="!roleSummary.length" class="mt-4 text-white/70">Sin datos.</div>
+          <div v-else class="mt-4 space-y-3">
+            <div v-for="role in roleSummary" :key="role.label" class="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+              <p class="font-semibold text-white">{{ role.label }}</p>
+              <span class="text-xs text-white/60">{{ role.count }} personas</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Movimientos</p>
+              <h2 class="text-xl font-semibold">Ingresos recientes</h2>
+            </div>
+            <span class="text-xs text-white/60">30 días</span>
+          </div>
+          <div v-if="!recentHires.length" class="mt-4 text-white/70">Sin ingresos recientes.</div>
+          <div v-else class="mt-4 space-y-3">
+            <div v-for="person in recentHires" :key="person.user.id" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+              <p class="font-semibold text-white">{{ fullName(person.user) }}</p>
+              <p class="text-xs text-white/60">{{ person.user.email || 'Sin email' }}</p>
+              <p class="text-xs text-white/60">Ingreso: {{ formatDate(person.created_at) }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-white/60">Equipo</p>
+            <h2 class="text-xl font-semibold">Listado de personal</h2>
+          </div>
+          <span class="text-xs text-white/60">Última actualización: {{ lastUpdatedLabel }}</span>
+        </div>
+        <div v-if="!staff.length" class="mt-4 text-white/70">Sin datos para esta tienda.</div>
+        <div v-else class="mt-4 grid gap-3">
+          <div v-for="member in staff" :key="member.user.id" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p class="font-semibold text-white">{{ fullName(member.user) }}</p>
+                <p class="text-xs text-white/60">{{ member.user.email || 'Sin email' }}</p>
+              </div>
+              <span class="text-xs" :class="member.is_active ? 'text-emerald-200' : 'text-rose-200'">
+                {{ member.is_active ? 'Activo' : 'Inactivo' }}
+              </span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <span v-for="role in member.roles" :key="role" class="rounded-full border border-white/15 px-2 py-0.5 text-[11px] text-white/80">
+                {{ roleLabel(role) }}
+              </span>
+            </div>
+            <div class="mt-2 text-xs text-white/60">
+              Antigüedad: {{ formatTenure(member.created_at) }} • Último acceso: {{ formatDate(member.user.last_login) }}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    </div>
+  </ClientOnly>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useRuntimeConfig, navigateTo } from 'nuxt/app'
+import { useAuthStore } from '~/stores/auth'
+import { useThemeStore } from '~/stores/theme'
+
+definePageMeta({ middleware: ['auth'], requiresAuth: true, ssr: false })
+
+type StoreLite = { id: number; name: string; slug: string }
+type MembershipLite = { store: StoreLite; roles: string[] }
+
+type StaffUser = {
+  id: number
+  username: string
+  first_name?: string
+  last_name?: string
+  email?: string
+  is_staff?: boolean
+  last_login?: string | null
+}
+
+type StaffMember = {
+  user: StaffUser
+  roles: string[]
+  is_active: boolean
+  created_at: string
+}
+
+const auth = useAuthStore()
+const theme = useThemeStore()
+const config = useRuntimeConfig()
+const apiBase = String(config.public.apiBase || '')
+
+const stores = ref<StoreLite[]>([])
+const filters = ref({ store: '' })
+const staff = ref<StaffMember[]>([])
+const loading = ref(false)
+const loadError = ref('')
+const lastUpdated = ref<Date | null>(null)
+
+const allowedStoreSlugs = computed(() => {
+  const memberships = (auth.user?.memberships || []) as MembershipLite[]
+  const allowed = new Set(['ADMIN', 'HR'])
+  const slugs = new Set<string>()
+  for (const membership of memberships) {
+    if (membership.roles?.some((role) => allowed.has(role))) {
+      slugs.add(membership.store.slug)
+    }
+  }
+  return slugs
+})
+
+const storeOptions = computed(() => {
+  if (!auth.user?.memberships?.length) return stores.value
+  if (!allowedStoreSlugs.value.size) return []
+  return stores.value.filter((s) => allowedStoreSlugs.value.has(s.slug))
+})
+
+const summaryCards = computed(() => {
+  const total = staff.value.length
+  const active = staff.value.filter((m) => m.is_active).length
+  const admins = staff.value.filter((m) => m.roles.includes('ADMIN')).length
+  const avgTenure = averageTenureDays.value
+  return [
+    { label: 'Equipo total', value: total, note: 'Membresías registradas' },
+    { label: 'Activos', value: active, note: 'Con acceso vigente' },
+    { label: 'Admins', value: admins, note: 'Rol administrador' },
+    { label: 'Antigüedad promedio', value: avgTenure ? `${avgTenure} días` : '—', note: 'Promedio del equipo' },
+  ]
+})
+
+const roleSummary = computed(() => {
+  const counter: Record<string, number> = { ADMIN: 0, EDITOR: 0, INVENTORY: 0, REPORTS: 0, HR: 0, FINANCE: 0, DATA_ANALYST: 0 }
+  staff.value.forEach((member) => {
+    member.roles.forEach((role) => {
+      counter[role] = (counter[role] || 0) + 1
+    })
+  })
+  return Object.entries(counter)
+    .map(([label, count]) => ({ label: roleLabel(label), count }))
+    .filter((row) => row.count > 0)
+})
+
+const recentHires = computed(() => {
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+  return staff.value.filter((m) => new Date(m.created_at).getTime() >= cutoff)
+})
+
+const averageTenureDays = computed(() => {
+  if (!staff.value.length) return 0
+  const now = Date.now()
+  const sum = staff.value.reduce((acc, member) => acc + (now - new Date(member.created_at).getTime()), 0)
+  return Math.round(sum / staff.value.length / (24 * 60 * 60 * 1000))
+})
+
+const lastUpdatedLabel = computed(() => (lastUpdated.value ? lastUpdated.value.toLocaleString() : '—'))
+
+const fullName = (user: StaffUser) => {
+  const name = `${user.first_name || ''} ${user.last_name || ''}`.trim()
+  return name || user.username
+}
+
+const roleLabel = (role: string) => {
+  const map: Record<string, string> = {
+    ADMIN: 'Administrador',
+    EDITOR: 'Editor',
+    INVENTORY: 'Inventario',
+    REPORTS: 'Reportes',
+    HR: 'Recursos Humanos',
+    FINANCE: 'Finanzas',
+    DATA_ANALYST: 'Analista de datos',
+  }
+  return map[role] || role
+}
+
+const formatDate = (value?: string | null) => {
+  if (!value) return '—'
+  const date = new Date(value)
+  return date.toLocaleDateString('es-CL', { year: 'numeric', month: 'short', day: '2-digit' })
+}
+
+const formatTenure = (createdAt: string) => {
+  const now = Date.now()
+  const start = new Date(createdAt).getTime()
+  if (!start) return '—'
+  const days = Math.max(0, Math.floor((now - start) / (24 * 60 * 60 * 1000)))
+  return `${days} días`
+}
+
+const ensureAuthReady = async () => {
+  if (!auth.token) {
+    auth.restoreFromCookies()
+  }
+  if (!auth.token && auth.refreshToken) {
+    await auth.refreshTokens()
+  }
+  if (!auth.token) return false
+  if (!auth.user) {
+    const profile = await auth.fetchProfile()
+    if (!profile) return false
+  }
+  return true
+}
+
+const authedFetch = async <T>(url: string, options: Record<string, any> = {}) => {
+  if (!auth.token) throw new Error('No autenticado')
+  const doFetch = (token: string) =>
+    $fetch<T>(url as any, {
+      ...options,
+      headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` },
+    })
+
+  try {
+    return await doFetch(auth.token)
+  } catch (error: any) {
+    const code = error?.response?._data?.code
+    if (code === 'token_not_valid' && auth.refreshToken) {
+      const refreshed = await auth.refreshTokens()
+      if (refreshed) return doFetch(refreshed)
+    }
+    throw error
+  }
+}
+
+const loadStaff = async () => {
+  loadError.value = ''
+  if (!filters.value.store) {
+    loadError.value = 'Selecciona una tienda para ver recursos humanos.'
+    return
+  }
+  loading.value = true
+  try {
+    staff.value = await authedFetch<StaffMember[]>(`${apiBase}/stores/${filters.value.store}/staff/`)
+    lastUpdated.value = new Date()
+  } catch (error: any) {
+    const detail = error?.response?._data?.detail || 'No pudimos cargar recursos humanos.'
+    loadError.value = detail
+    staff.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
+  const ready = await ensureAuthReady()
+  if (!ready) {
+    await navigateTo('/login')
+    return
+  }
+  stores.value = await auth.fetchMyStores()
+  if (!storeOptions.value.length) {
+    loadError.value = 'No tienes permisos de recursos humanos para ninguna tienda.'
+    theme.applyTheme()
+    return
+  }
+  const firstStore = stores.value[0]
+  if (firstStore?.slug) {
+    filters.value.store = storeOptions.value[0]?.slug || firstStore.slug
+    await loadStaff()
+  } else {
+    loadError.value = 'No tienes tiendas asignadas. Debes tener al menos una para ver recursos humanos.'
+  }
+  theme.applyTheme()
+})
+</script>

@@ -38,6 +38,7 @@
 
         <div class="flex items-center gap-3">
           <NuxtLink
+            v-if="isMarketplaceRoute"
             to="/marketplace/carrito"
             class="relative hidden h-11 w-11 items-center justify-center rounded-xl text-white shadow md:inline-flex"
             :style="{ backgroundColor: '#f59e0b' }"
@@ -134,7 +135,7 @@
                 v-if="avatarUrl"
                 class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white/15"
               >
-                <img :src="avatarUrl" alt="Avatar" class="h-full w-full object-cover" />
+                <img :key="avatarUrl" :src="avatarUrl" alt="Avatar" class="h-full w-full object-cover" />
               </span>
               <span
                 v-else
@@ -159,7 +160,14 @@
         <div class="flex flex-col gap-2">
           <NuxtLink to="/marketplace" class="rounded-lg px-3 py-2 hover:bg-slate-100">Marketplace</NuxtLink>
           <NuxtLink to="/tiendas" class="rounded-lg px-3 py-2 hover:bg-slate-100">Ver tiendas</NuxtLink>
-          <NuxtLink to="/marketplace/carrito" class="rounded-lg px-3 py-2 hover:bg-slate-100 text-amber-700" @click="handleMarketplaceCartClick">Carrito marketplace</NuxtLink>
+          <NuxtLink
+            v-if="isMarketplaceRoute"
+            to="/marketplace/carrito"
+            class="rounded-lg px-3 py-2 hover:bg-slate-100 text-amber-700"
+            @click="handleMarketplaceCartClick"
+          >
+            Carrito marketplace
+          </NuxtLink>
           <div class="my-2 border-t border-slate-200" />
           <NuxtLink v-if="auth.isAuthenticated && hasStores" to="/dashboard" class="rounded-lg px-3 py-2 hover:bg-slate-100" @click.prevent="goDashboard">Dashboard</NuxtLink>
           <NuxtLink v-if="auth.isAuthenticated" to="/profile" class="rounded-lg px-3 py-2 hover:bg-slate-100">Editar perfil</NuxtLink>
@@ -209,10 +217,18 @@ const router = useRouter()
 const showMenu = ref(false)
 const showMenuMobile = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
-const avatarUrl = computed(() => auth.user?.avatar_url || null)
+const avatarUrl = computed(() => {
+  const base = auth.user?.avatar_url
+  if (!base) return null
+  const version = auth.user?.avatar_updated_at
+  if (!version) return base
+  const joiner = base.includes('?') ? '&' : '?'
+  return `${base}${joiner}v=${encodeURIComponent(version)}`
+})
 const initials = computed(() => (auth.user?.username || 'U').slice(0, 2).toUpperCase())
 const accentColor = computed(() => theme.accent || '#2563eb')
 const hasStores = computed(() => ((auth.user as any)?.memberships || []).length > 0)
+const isMarketplaceRoute = computed(() => route.path.startsWith('/marketplace'))
 type NotificationItem = { type: string; message: string; count: number; store?: string }
 type DashboardSummary = { notifications?: NotificationItem[] }
 const notificationStore = useNotificationStore()
