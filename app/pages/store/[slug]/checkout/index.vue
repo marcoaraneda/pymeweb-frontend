@@ -137,9 +137,12 @@
 import { reactive, ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRuntimeConfig } from 'nuxt/app'
+import { definePageMeta } from '#imports'
 import { useCartStore } from '~/stores/cart'
 import { useTenantStore } from '~/stores/tenant'
 import { useThemeStore } from '~/stores/theme'
+
+definePageMeta({ layout: 'store' })
 
 const cart = useCartStore()
 const tenantStore = useTenantStore()
@@ -180,6 +183,7 @@ const totalWithShipping = computed(() => {
 
 onMounted(async () => {
   try {
+    cart.setContext(slug.value)
     cart.loadFromStorage()
     tenantStore.setSlug(slug.value)
     if (!tenantStore.data) {
