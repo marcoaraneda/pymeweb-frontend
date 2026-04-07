@@ -12,16 +12,32 @@
       {{ errorMessage }}
     </div>
 
+    <div v-if="successMessage" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+      {{ successMessage }}
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <button
+        v-for="option in statusOptions"
+        :key="option.value"
+        class="rounded-full border px-3 py-1 text-xs font-semibold"
+        :class="selectedStatus === option.value ? 'border-amber-400 bg-amber-50 text-amber-800' : 'border-slate-200 bg-white text-slate-600'"
+        @click="selectedStatus = option.value"
+      >
+        {{ option.label }}
+      </button>
+    </div>
+
     <div v-if="loading" class="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
       Cargando reseñas...
     </div>
 
     <div v-else class="space-y-3">
-      <div v-if="!reviews.length" class="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
+      <div v-if="!filteredReviews.length" class="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
         No hay reseñas registradas.
       </div>
 
-      <article v-for="review in reviews" :key="review.id" class="rounded-xl border bg-white p-4 shadow-sm">
+      <article v-for="review in filteredReviews" :key="review.id" class="rounded-xl border bg-white p-4 shadow-sm">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p class="font-semibold text-slate-900">{{ review.product_name || `Producto #${review.product}` }}</p>
@@ -49,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 
@@ -74,7 +90,19 @@ const slug = route.params.slug as string
 const reviews = ref<ReviewRow[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
+const successMessage = ref('')
 const savingId = ref<number | null>(null)
+const selectedStatus = ref<'ALL' | ReviewRow['status']>('ALL')
+const statusOptions = [
+  { value: 'ALL' as const, label: 'Todas' },
+  { value: 'PENDING' as const, label: 'Pendientes' },
+  { value: 'APPROVED' as const, label: 'Aprobadas' },
+  { value: 'REJECTED' as const, label: 'Rechazadas' },
+]
+const filteredReviews = computed(() => {
+  if (selectedStatus.value === 'ALL') return reviews.value
+  return reviews.value.filter((review) => review.status === selectedStatus.value)
+})
 
 const authedFetch = async <T>(url: string, options: Record<string, any> = {}) => {
   if (!auth.token) throw new Error('No autenticado')
@@ -99,6 +127,7 @@ const authedFetch = async <T>(url: string, options: Record<string, any> = {}) =>
 const loadReviews = async () => {
   loading.value = true
   errorMessage.value = ''
+  successMessage.value = ''
   try {
     reviews.value = await authedFetch<ReviewRow[]>(`${config.public.apiBase}/store/${slug}/admin/resenas/reviews/`)
   } catch (error: any) {
@@ -112,12 +141,14 @@ const loadReviews = async () => {
 const updateStatus = async (review: ReviewRow, status: ReviewRow['status']) => {
   savingId.value = review.id
   errorMessage.value = ''
+  successMessage.value = ''
   try {
     const updated = await authedFetch<ReviewRow>(`${config.public.apiBase}/store/${slug}/admin/resenas/reviews/${review.id}/`, {
       method: 'PATCH',
       body: { status },
     })
     reviews.value = reviews.value.map((item) => (item.id === review.id ? { ...item, ...updated } : item))
+    successMessage.value = `Reseña #${review.id} actualizada a ${status}.`
   } catch (error: any) {
     errorMessage.value = error?.response?._data?.detail || 'No se pudo actualizar la reseña.'
   } finally {

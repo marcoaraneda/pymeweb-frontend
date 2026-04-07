@@ -1111,7 +1111,27 @@ const closeCategoryPanel = () => {
 }
 
 const refreshProduct = async () => {
-  const data = await getProductBySlug(route.params.product_slug as string)
+  const requestedIdentifier = route.params.product_slug as string
+  let data: any = null
+
+  try {
+    data = await getProductBySlug(requestedIdentifier)
+  } catch (error) {
+    const requestedId = Number(requestedIdentifier)
+    if (!Number.isFinite(requestedId)) {
+      throw error
+    }
+
+    const catalogResponse: any = await getProducts()
+    const catalogList = Array.isArray(catalogResponse) ? catalogResponse : catalogResponse?.results || []
+    const matchedById = (catalogList || []).find((item: any) => Number(item?.id) === requestedId)
+    if (!matchedById) {
+      throw error
+    }
+
+    data = matchedById?.slug ? await getProductBySlug(matchedById.slug) : matchedById
+  }
+
   product.value = data
   hydrateForm(data)
   await fetchRelatedProducts()
@@ -1166,7 +1186,8 @@ const updateProduct = async (payload: Record<string, any>) => {
     return false
   }
 
-  const endpoint = `${config.public.apiBase}/store/${route.params.slug}/productos/${route.params.product_slug}/`
+  const endpointSlug = product.value?.slug || (route.params.product_slug as string)
+  const endpoint = `${config.public.apiBase}/store/${route.params.slug}/productos/${endpointSlug}/`
 
   const doPatch = (tokenOverride?: string) =>
     $fetch(endpoint, {

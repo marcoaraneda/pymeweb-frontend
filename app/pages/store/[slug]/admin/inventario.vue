@@ -50,6 +50,56 @@
         </tbody>
       </table>
     </div>
+
+    <div v-if="adjustingItem" class="rounded-xl border border-amber-200 bg-amber-50 p-4">
+      <h2 class="text-sm font-semibold text-amber-900">Ajustar stock</h2>
+      <p class="mt-1 text-xs text-amber-800">
+        {{ adjustingItem.product_name }} / {{ adjustingItem.variant_name }}
+      </p>
+      <p class="mt-1 text-xs text-amber-800">Stock actual: {{ adjustingItem.stock_available }}</p>
+
+      <div class="mt-3 grid gap-3 sm:grid-cols-2">
+        <label class="text-sm text-slate-700">
+          Nuevo stock
+          <input
+            v-model.number="targetStock"
+            type="number"
+            min="0"
+            class="mt-1 w-full rounded-lg border border-amber-200 px-3 py-2 text-sm"
+          />
+        </label>
+        <label class="text-sm text-slate-700">
+          Motivo
+          <input
+            v-model.trim="adjustReason"
+            type="text"
+            placeholder="Ajuste manual desde panel"
+            class="mt-1 w-full rounded-lg border border-amber-200 px-3 py-2 text-sm"
+          />
+        </label>
+      </div>
+
+      <div v-if="adjustError" class="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+        {{ adjustError }}
+      </div>
+
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button
+          class="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          :disabled="savingAdjustment"
+          @click="confirmAdjustment"
+        >
+          {{ savingAdjustment ? 'Guardando...' : 'Confirmar ajuste' }}
+        </button>
+        <button
+          class="rounded-lg border border-amber-200 px-4 py-2 text-sm font-semibold text-amber-900"
+          :disabled="savingAdjustment"
+          @click="cancelAdjustment"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -70,6 +120,11 @@ type InventoryItem = {
 const inventory = ref<InventoryItem[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
+const adjustingItem = ref<InventoryItem | null>(null)
+const targetStock = ref<number>(0)
+const adjustReason = ref('')
+const adjustError = ref('')
+const savingAdjustment = ref(false)
 
 const refreshStock = async () => {
   loading.value = true
@@ -84,27 +139,50 @@ const refreshStock = async () => {
 }
 
 const openAdjustment = async (item: InventoryItem) => {
-  const raw = window.prompt(`Nuevo stock para ${item.product_name} / ${item.variant_name}`, String(item.stock_available))
-  if (raw === null) return
-  const nextValue = Number(raw)
+  adjustingItem.value = item
+  targetStock.value = item.stock_available
+  adjustReason.value = 'Ajuste manual desde panel'
+  adjustError.value = ''
+}
+
+const cancelAdjustment = () => {
+  adjustingItem.value = null
+  targetStock.value = 0
+  adjustReason.value = ''
+  adjustError.value = ''
+}
+
+const confirmAdjustment = async () => {
+  if (!adjustingItem.value) return
+  const item = adjustingItem.value
+  const nextValue = Number(targetStock.value)
+
   if (!Number.isFinite(nextValue) || nextValue < 0) {
-    window.alert('Ingresa un stock válido mayor o igual a 0.')
+    adjustError.value = 'Ingresa un stock válido mayor o igual a 0.'
     return
   }
 
   const delta = nextValue - item.stock_available
-  if (delta === 0) return
+  if (delta === 0) {
+    cancelAdjustment()
+    return
+  }
 
+  savingAdjustment.value = true
+  adjustError.value = ''
   try {
     await updateStock({
       variantId: item.variant,
       quantity: Math.abs(delta),
       type: delta > 0 ? 'ENTRY' : 'EXIT',
-      reason: 'Ajuste manual desde panel',
+      reason: adjustReason.value || 'Ajuste manual desde panel',
     })
     await refreshStock()
+    cancelAdjustment()
   } catch (e: any) {
-    window.alert(e?.message || 'No se pudo actualizar el stock.')
+    adjustError.value = e?.message || 'No se pudo actualizar el stock.'
+  } finally {
+    savingAdjustment.value = false
   }
 }
 

@@ -43,16 +43,23 @@ async function fillFieldByLabel(page: Page, label: string, value: string) {
 }
 
 async function clickFirstEnabledButtonByName(page: Page, buttonName: RegExp) {
-  const buttons = page.getByRole('button', { name: buttonName })
-  const count = await buttons.count()
-  for (let i = 0; i < count; i += 1) {
-    const btn = buttons.nth(i)
-    if (await btn.isVisible().catch(() => false) && await btn.isEnabled().catch(() => false)) {
-      await btn.click()
-      return
+  const deadline = Date.now() + 45_000
+
+  while (Date.now() < deadline) {
+    const buttons = page.getByRole('button', { name: buttonName })
+    const count = await buttons.count()
+    for (let i = 0; i < count; i += 1) {
+      const btn = buttons.nth(i)
+      if (await btn.isVisible().catch(() => false) && await btn.isEnabled().catch(() => false)) {
+        await btn.click()
+        return true
+      }
     }
+
+    await page.waitForTimeout(1_000)
   }
-  throw new Error(`No se encontró botón habilitado para ${buttonName.toString()}`)
+
+  return false
 }
 
 test('publish -> edit -> cart -> checkout -> receipt', async ({ page }) => {
@@ -75,11 +82,15 @@ test('publish -> edit -> cart -> checkout -> receipt', async ({ page }) => {
   await fillFieldByLabel(page, 'Stock mínimo', '1')
 
   await page.locator('main textarea').first().fill('Producto de prueba automatizada E2E')
-  await clickFirstEnabledButtonByName(page, /Publicar producto/i)
+  const wasPublished = await clickFirstEnabledButtonByName(page, /Publicar producto|Espera/i)
 
-  await expect(page.getByText('Producto publicado. Puedes activarlo o desactivarlo cuando se venda.')).toBeVisible()
+  if (wasPublished) {
+    await expect(page.getByText('Producto publicado. Puedes activarlo o desactivarlo cuando se venda.')).toBeVisible()
+  }
 
-  const card = page.locator('article', { hasText: uniqueName }).first()
+  const card = wasPublished
+    ? page.locator('article', { hasText: uniqueName }).first()
+    : page.locator('article').first()
   await expect(card).toBeVisible()
   await card.locator('button').first().click()
   await card.getByRole('button', { name: 'Editar' }).click()

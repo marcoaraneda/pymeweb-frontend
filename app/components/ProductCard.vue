@@ -51,7 +51,7 @@
 
     <NuxtLink
       v-else
-      :to="`/store/${product.store?.slug || 'tienda'}/producto?id=${product.id}`"
+      :to="productDetailPath"
       class="h-44 w-full overflow-hidden rounded-t-2xl bg-slate-100 relative block"
       style="text-decoration:none"
     >
