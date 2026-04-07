@@ -182,11 +182,13 @@ Pasos:
 
 Checklist:
 - [x] Soporte estable.
-- [ ] FAQ operativo.
+- [x] FAQ operativo.
 - [x] Notificaciones consistentes.
 
 Avance actual (2026-04-07):
 - Smoke E2E soporte/notificaciones agregado para validar carga base de tickets y feed de alertas.
+- Vista admin FAQ agregada con alta/listado y activacion/desactivacion de items.
+- Smoke E2E FAQ agregado para validar carga base del panel.
 
 ---
 

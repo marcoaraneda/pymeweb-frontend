@@ -27,6 +27,11 @@
           <Palette class="h-4 w-4" aria-hidden="true" />
           Personalización
         </NuxtLink>
+
+        <NuxtLink :to="`/store/${slug}/admin/faq`" class="nav-link flex items-center gap-2">
+          <CircleHelp class="h-4 w-4" aria-hidden="true" />
+          FAQ
+        </NuxtLink>
       </nav>
     </aside>
 
@@ -42,7 +47,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTenantStore } from '~/stores/tenant'
-import { Package, Tag, Star, Palette } from 'lucide-vue-next'
+import { Package, Tag, Star, Palette, CircleHelp } from 'lucide-vue-next'
 
 const route = useRoute()
 const tenant = useTenantStore()
