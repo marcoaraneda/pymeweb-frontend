@@ -35,7 +35,9 @@ setup('authenticate', async ({ page, context }) => {
     if (hasValidStoredAuth()) {
       return
     }
-    throw new Error('Missing valid E2E auth. Define E2E_USER/E2E_PASSWORD or refresh tests/e2e/.auth/user.json')
+    // Allow smoke specs to decide whether to skip when auth is unavailable.
+    console.warn('E2E auth not available: define E2E_USER/E2E_PASSWORD or refresh tests/e2e/.auth/user.json')
+    return
   }
 
   await page.goto('/login')

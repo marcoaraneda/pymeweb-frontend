@@ -166,8 +166,15 @@ const shippingCost = ref(0)
 const accentColor = computed(() => theme.accent || '#2563eb')
 const accentStyle = computed(() => ({ backgroundColor: accentColor.value, color: '#fff' }))
 const placeholder = 'https://via.placeholder.com/200x200.png?text=Producto'
+const computeShipping = () => {
+  if (deliveryMethod.value === 'pickup') return 0
+  const base = 2500
+  const perItem = Math.min(cart.totalItems * 250, 2000)
+  const discount = cart.totalPrice >= 50000 ? 1000 : 0
+  return Math.max(1500, base + perItem - discount)
+}
 const totalWithShipping = computed(() => {
-  const extra = deliveryMethod.value === 'delivery' ? Number(shippingCost.value) || 0 : 0
+  const extra = deliveryMethod.value === 'delivery' ? computeShipping() : 0
   return Math.max(0, cart.totalPrice + extra)
 })
 
@@ -180,7 +187,7 @@ onMounted(async () => {
     }
     theme.loadFromStorage()
     theme.applyStoreTheme(slug.value)
-    shippingCost.value = Math.round(2000 + Math.random() * 4000) // costo estimado auto
+    shippingCost.value = computeShipping()
   } catch (e) {
     console.error('Error cargando tienda', e)
   } finally {
@@ -191,8 +198,8 @@ onMounted(async () => {
 watch(deliveryMethod, (val) => {
   if (val === 'pickup') {
     shippingCost.value = 0
-  } else if (shippingCost.value === 0) {
-    shippingCost.value = Math.round(2000 + Math.random() * 4000)
+  } else {
+    shippingCost.value = computeShipping()
   }
 })
 
@@ -227,6 +234,7 @@ const submitOrder = async (mode: 'webpay' | 'manual') => {
   try {
     const order = await $fetch<{ id: number }>(`${config.public.apiBase}/orders/`, {
       method: 'POST',
+      params: { store: tenantStore.slug },
       body: buildOrderPayload(),
     })
 
@@ -237,10 +245,10 @@ const submitOrder = async (mode: 'webpay' | 'manual') => {
     }
 
     // INTEGRACIÓN BOLETA: Iniciar pago Webpay y redirigir a boleta tras pago
-    const payment = await $fetch<{ url: string; token: string }>(`${config.public.apiBase}/payments/webpay/init/`, {
-      method: 'POST',
-      body: { amount: Math.round(totalWithShipping.value) },
-    })
+    const payment = await $fetch<{ url?: string; token?: string; enabled?: boolean; detail?: string }>(
+      `${config.public.apiBase}/orders/${order.id}/webpay/init/`,
+      { method: 'POST' }
+    )
 
     if (payment && payment.url && payment.token) {
       const formWebpay = document.createElement('form')
@@ -254,6 +262,9 @@ const submitOrder = async (mode: 'webpay' | 'manual') => {
       document.body.appendChild(formWebpay)
       formWebpay.submit()
     } else {
+      if (payment?.detail) {
+        window.alert(payment.detail)
+      }
       cart.clearCart()
       router.push(`/store/${tenantStore.slug}/orden?id=${order.id}`)
     }

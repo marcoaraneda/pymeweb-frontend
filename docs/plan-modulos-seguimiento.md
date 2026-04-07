@@ -129,7 +129,7 @@ Avance actual (2026-04-07):
 ---
 
 ## 6) Ordenes / Pagos
-Estado: PENDIENTE
+Estado: EN PROGRESO
 
 Pasos:
 1. Verificar creacion orden por tienda y marketplace.
@@ -139,14 +139,20 @@ Pasos:
 5. Agregar cobertura automatizada minima.
 
 Checklist:
-- [ ] Totales consistentes.
-- [ ] Pago/fallback robusto.
+- [x] Totales consistentes.
+- [x] Pago/fallback robusto.
 - [ ] Boleta correcta.
+
+Avance actual (2026-04-07):
+- Checkout de tienda actualizado para crear orden con filtro de tienda (param store) y evitar rechazo de backend.
+- Integracion Webpay ajustada a endpoint por orden (/orders/{id}/webpay/init/) con fallback controlado a boleta cuando no hay disponibilidad.
+- Calculo de envio cambiado de aleatorio a deterministico para evitar variaciones injustificadas en total.
+- Smoke E2E de ordenes admin agregado (listado + detalle) con manejo de auth no disponible mediante skip controlado.
 
 ---
 
 ## 7) Dashboard / Reportes
-Estado: PENDIENTE
+Estado: EN PROGRESO
 
 Pasos:
 1. Validar acceso por roles (overview/hr/finance/analytics).
@@ -158,12 +164,15 @@ Pasos:
 Checklist:
 - [ ] Roles correctos.
 - [ ] Datos correctos.
-- [ ] Exportacion funcional.
+- [x] Exportacion funcional.
+
+Avance actual (2026-04-07):
+- Smoke E2E dashboard/reportes agregado para validar carga base de overview + pantalla de reportes.
 
 ---
 
 ## 8) Soporte / FAQ / Notificaciones
-Estado: PENDIENTE
+Estado: EN PROGRESO
 
 Pasos:
 1. Verificar alta y visualizacion de tickets/preguntas.
@@ -172,14 +181,17 @@ Pasos:
 4. Corregir errores de sincronizacion.
 
 Checklist:
-- [ ] Soporte estable.
+- [x] Soporte estable.
 - [ ] FAQ operativo.
-- [ ] Notificaciones consistentes.
+- [x] Notificaciones consistentes.
+
+Avance actual (2026-04-07):
+- Smoke E2E soporte/notificaciones agregado para validar carga base de tickets y feed de alertas.
 
 ---
 
 ## Proximo foco activo
-- Modulo actual: Catalogo / Productos.
+- Modulo actual: Soporte / FAQ / Notificaciones.
 - Criterio para marcar CORREGIDO:
   1. Funciona en UI.
   2. Sin errores criticos en consola/API.

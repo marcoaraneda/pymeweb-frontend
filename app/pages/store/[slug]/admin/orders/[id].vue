@@ -16,7 +16,7 @@
 
     <div class="mx-auto max-w-5xl space-y-6">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <NuxtLink to="/dashboard" class="text-sm font-semibold text-slate-600 hover:text-slate-900">← Volver al dashboard</NuxtLink>
+        <NuxtLink :to="`/store/${slug}/admin/orders`" class="text-sm font-semibold text-slate-600 hover:text-slate-900">← Volver a pedidos</NuxtLink>
         <NuxtLink :to="`/store/${slug}/success?order=${id}`" class="text-sm text-blue-600 hover:underline">Ver boleta/seguimiento</NuxtLink>
       </div>
 
