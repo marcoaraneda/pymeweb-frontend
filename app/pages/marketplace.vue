@@ -1,5 +1,6 @@
 <template>
-  <div class="min-h-screen bg-slate-50">
+  <NuxtPage v-if="!isMarketplaceRoot" />
+  <div v-else class="min-h-screen bg-slate-50">
     <section class="relative overflow-hidden bg-slate-900 text-white" :style="heroStyle">
       <div
         class="absolute inset-0 opacity-80"
@@ -72,6 +73,10 @@
             <option value="price_asc">Menor a mayor</option>
             <option value="price_desc">Mayor a menor</option>
           </select>
+          <label v-if="auth.isAuthenticated" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-inner">
+            <input v-model="mineOnly" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500" />
+            Solo mis productos
+          </label>
           <input
             v-model="productSearch"
             type="text"
@@ -79,6 +84,18 @@
             class="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none md:w-64"
           />
         </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+        <span class="rounded-full border border-slate-200 bg-white px-3 py-1">{{ filteredProducts.length }} resultados</span>
+        <span v-for="item in activeFilters" :key="item" class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-800">{{ item }}</span>
+        <button
+          v-if="activeFilters.length"
+          class="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:border-slate-300"
+          @click="clearFilters"
+        >
+          Limpiar filtros
+        </button>
       </div>
 
       <div class="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900 flex flex-wrap items-center gap-3 shadow-sm">
@@ -161,14 +178,19 @@
 import ProductCard from '~/components/ProductCard.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
+import { useRoute } from 'vue-router'
 import { useThemeStore } from '~/stores/theme'
 import { useAuthStore } from '~/stores/auth'
 import { useCartStore } from '~/stores/cart'
+import { useMarketplaceRequests } from '~/composables/useMarketplaceRequests'
 
 const theme = useThemeStore()
 const auth = useAuthStore()
 const cart = useCartStore()
 const config = useRuntimeConfig()
+const route = useRoute()
+const { controlledGet } = useMarketplaceRequests()
+const isMarketplaceRoot = computed(() => route.path === '/marketplace')
 
 const marketplaceAccent = '#f59e0b'
 const heroStyle = computed(() => ({ '--gradient-from': '#92400e', '--gradient-to': marketplaceAccent }))
@@ -179,9 +201,42 @@ const productsError = ref('')
 const productSearch = ref('')
 const categoryFilter = ref('')
 const sortOrder = ref('')
+const mineOnly = ref(false)
 const categories = ref<{ slug: string; name: string }[]>([])
 
-const filteredProducts = computed(() => products.value)
+const activeFilters = computed(() => {
+  const items: string[] = []
+  if (productSearch.value.trim()) items.push(`Búsqueda: ${productSearch.value.trim()}`)
+  if (categoryFilter.value) {
+    const category = categories.value.find((item) => item.slug === categoryFilter.value)
+    items.push(`Categoría: ${category?.name || categoryFilter.value}`)
+  }
+  if (sortOrder.value === 'price_asc') items.push('Precio: menor a mayor')
+  if (sortOrder.value === 'price_desc') items.push('Precio: mayor a menor')
+  if (mineOnly.value) items.push('Solo mis productos')
+  return items
+})
+
+const filteredProducts = computed(() => {
+  let data = [...products.value]
+  if (mineOnly.value) {
+    data = data.filter((product) => isMine(product))
+  }
+  if (sortOrder.value === 'price_asc') {
+    data.sort((a, b) => Number(a.offer_price || a.price || 0) - Number(b.offer_price || b.price || 0))
+  }
+  if (sortOrder.value === 'price_desc') {
+    data.sort((a, b) => Number(b.offer_price || b.price || 0) - Number(a.offer_price || a.price || 0))
+  }
+  return data
+})
+
+const clearFilters = () => {
+  productSearch.value = ''
+  categoryFilter.value = ''
+  sortOrder.value = ''
+  mineOnly.value = false
+}
 
 const isMine = (product: any) => {
   const userId = (auth.user as any)?.id
@@ -196,9 +251,18 @@ const fetchProducts = async () => {
     if (productSearch.value.trim()) params.append('search', productSearch.value.trim())
     if (categoryFilter.value) params.append('category', categoryFilter.value)
     if (sortOrder.value) params.append('order', sortOrder.value)
-    products.value = await $fetch(`${config.public.apiBase}/marketplace/products/?${params.toString()}`)
-  } catch (err) {
-    productsError.value = 'Error al cargar productos'
+    const query = params.toString()
+    products.value = await controlledGet<any[]>(
+      `marketplace:products:${query}`,
+      `${config.public.apiBase}/marketplace/products/?${query}`,
+      { backoffMs: 8_000, minIntervalMs: 500 },
+    )
+  } catch (err: any) {
+    if (err?.response?.status === 429) {
+      productsError.value = 'Demasiadas solicitudes. Espera unos segundos para volver a consultar productos.'
+    } else {
+      productsError.value = 'Error al cargar productos'
+    }
   } finally {
     loadingProducts.value = false
   }
@@ -223,10 +287,7 @@ watch([productSearch, categoryFilter, sortOrder], scheduleFetch)
 onMounted(async () => {
   theme.loadFromStorage()
   theme.applyTheme()
-  auth.restoreFromCookies()
-  if (auth.token && !auth.user) {
-    await auth.fetchProfile().catch(() => {})
-  }
+  await auth.initializeSession().catch(() => null)
   cart.loadFromStorage()
   cart.setContext('marketplace')
   await Promise.all([fetchProducts(), fetchCategories()])

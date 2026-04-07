@@ -13,12 +13,12 @@
           Inventario
         </NuxtLink>
 
-        <NuxtLink :to="`/store/${slug}/admin/catalog`" class="nav-link flex items-center gap-2">
+        <NuxtLink :to="`/store/${slug}/productos`" class="nav-link flex items-center gap-2">
           <Tag class="h-4 w-4" aria-hidden="true" />
           Productos
         </NuxtLink>
 
-        <NuxtLink :to="`/store/${slug}/admin/reviews`" class="nav-link flex items-center gap-2">
+        <NuxtLink :to="`/store/${slug}/admin/resenas`" class="nav-link flex items-center gap-2">
           <Star class="h-4 w-4" aria-hidden="true" />
           Reseñas
         </NuxtLink>

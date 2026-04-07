@@ -16,9 +16,8 @@ const auth = useAuthStore()
 const theme = useThemeStore()
 const pageTransition = { name: 'page', mode: 'out-in', appear: true }
 
-onMounted(() => {
-  auth.restoreFromCookies()
-  auth.fetchProfile()
+onMounted(async () => {
+  await auth.initializeSession()
   cart.loadFromStorage()
   theme.applyTheme()
 })

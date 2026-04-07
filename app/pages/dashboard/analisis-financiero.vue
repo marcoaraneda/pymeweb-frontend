@@ -4,32 +4,14 @@
     <div class="mx-auto max-w-6xl px-6 py-10 space-y-8">
       <nav class="flex flex-wrap items-center justify-center gap-2">
         <NuxtLink
-          to="/dashboard"
+          v-for="link in dashboardLinks"
+          :key="link.to"
+          :to="link.to"
           class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg"
-          style="background:#1d4ed8"
+          :class="route.path === link.to ? 'ring-2 ring-white/40' : ''"
+          :style="{ background: link.color }"
         >
-          Dashboard
-        </NuxtLink>
-        <NuxtLink
-          to="/dashboard/recursos-humanos"
-          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg"
-          style="background:#b45309"
-        >
-          Recursos Humanos
-        </NuxtLink>
-        <NuxtLink
-          to="/dashboard/analisis-financiero"
-          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg ring-2 ring-white/40"
-          style="background:#0f172a"
-        >
-          Análisis financiero
-        </NuxtLink>
-        <NuxtLink
-          to="/dashboard/analisis"
-          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg"
-          style="background:#0f766e"
-        >
-          Análisis de datos
+          {{ link.label }}
         </NuxtLink>
       </nav>
 
@@ -169,8 +151,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
+import { useDashboardAccess } from '~/composables/useDashboardAccess'
 
 definePageMeta({ middleware: ['auth'], requiresAuth: true, ssr: false })
 
@@ -179,6 +163,8 @@ type MembershipLite = { store: StoreLite; roles: string[] }
 
 const auth = useAuthStore()
 const theme = useThemeStore()
+const route = useRoute()
+const { dashboardLinks } = useDashboardAccess()
 const config = useRuntimeConfig()
 const apiBase = String(config.public.apiBase || '')
 
@@ -302,18 +288,7 @@ const authedFetch = async <T>(url: string, options: Record<string, any> = {}) =>
 }
 
 const ensureAuthReady = async () => {
-  if (!auth.token) {
-    auth.restoreFromCookies()
-  }
-  if (!auth.token && auth.refreshToken) {
-    await auth.refreshTokens()
-  }
-  if (!auth.token) return false
-  if (!auth.user) {
-    const profile = await auth.fetchProfile()
-    if (!profile) return false
-  }
-  return true
+  return Boolean(await auth.initializeSession({ forceProfile: true }))
 }
 
 const getRange = () => {

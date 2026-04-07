@@ -1,6 +1,7 @@
 <template>
   <ClientOnly>
-    <div class="relative min-h-screen bg-slate-950 text-white">
+    <NuxtPage v-if="!isDashboardRoot" />
+    <div v-else class="relative min-h-screen bg-slate-950 text-white">
     <div class="pointer-events-none absolute inset-0" aria-hidden="true">
       <div class="absolute -left-10 top-10 h-60 w-60 rounded-full bg-gradient-to-r from-[var(--gradient-from,#111827)] to-[var(--gradient-to,#0b2358)] blur-3xl opacity-70" />
       <div class="absolute -right-10 bottom-10 h-72 w-72 rounded-full bg-gradient-to-r from-[var(--gradient-from,#111827)] to-[var(--gradient-to,#0b2358)] blur-3xl opacity-60" />
@@ -9,32 +10,14 @@
     <div class="relative z-10 mx-auto max-w-6xl px-6 py-10 space-y-10">
       <nav class="flex flex-wrap items-center justify-center gap-2">
         <NuxtLink
-          to="/dashboard"
-          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg ring-2 ring-white/40"
-          style="background:#1d4ed8"
-        >
-          Dashboard
-        </NuxtLink>
-        <NuxtLink
-          to="/dashboard/recursos-humanos"
+          v-for="link in dashboardLinks"
+          :key="link.to"
+          :to="link.to"
           class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg"
-          style="background:#b45309"
+          :class="route.path === link.to ? 'ring-2 ring-white/40' : ''"
+          :style="{ background: link.color }"
         >
-          Recursos Humanos
-        </NuxtLink>
-        <NuxtLink
-          to="/dashboard/analisis-financiero"
-          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg"
-          style="background:#0f172a"
-        >
-          Analisis financiero
-        </NuxtLink>
-        <NuxtLink
-          to="/dashboard/analisis"
-          class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg"
-          style="background:#0f766e"
-        >
-          Analisis de datos
+          {{ link.label }}
         </NuxtLink>
       </nav>
 
@@ -448,11 +431,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { navigateTo, useRuntimeConfig } from 'nuxt/app'
+import { useRoute } from 'vue-router'
 import StoreCard from '~/components/StoreCard.vue'
 import StatCard from '~/components/StatCard.vue'
 import { Building2, Eye, ShoppingCart, Headset, Lightbulb, MessageSquare, Star as StarIcon } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
+import { useDashboardAccess } from '~/composables/useDashboardAccess'
 
 definePageMeta({ middleware: ['auth'], requiresAuth: true, ssr: false })
 
@@ -467,6 +452,9 @@ type TicketItem = {
 
 const auth = useAuthStore()
 const theme = useThemeStore()
+const route = useRoute()
+const isDashboardRoot = computed(() => route.path === '/dashboard')
+const { dashboardLinks } = useDashboardAccess()
 const storesMine = ref<{ id: number; name: string; slug: string }[]>([])
 const selectedStore = ref('')
 const loading = ref(true)
@@ -517,18 +505,7 @@ const authedFetch = async <T>(url: string, options: Record<string, any> = {}) =>
 }
 
 const ensureAuthReady = async () => {
-  if (!auth.token) {
-    auth.restoreFromCookies()
-  }
-  if (!auth.token && auth.refreshToken) {
-    await auth.refreshTokens()
-  }
-  if (!auth.token) return false
-  if (!auth.user) {
-    const profile = await auth.fetchProfile()
-    if (!profile) return false
-  }
-  return true
+  return Boolean(await auth.initializeSession({ forceProfile: true }))
 }
 
 type DashboardSummary = {

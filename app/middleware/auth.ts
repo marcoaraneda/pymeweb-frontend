@@ -12,24 +12,21 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   if (slug) tenant.setSlug(slug)
 
-  // Asegura tokens desde cookies en navegación directa
-  if (!auth.token) {
-    auth.restoreFromCookies()
-  }
-
   const loginPath = '/login'
 
-  // Si no hay token, envia a login
+  auth.restoreFromCookies()
   if (!auth.token) {
+    auth.logout({ redirectTo: loginPath })
     return navigateTo(loginPath)
   }
 
-  // Si no hay usuario cargado, intenta cargar perfil y refrescar si vence
-  if (!auth.user) {
-    const profile = await auth.fetchProfile()
-    if (!profile) {
-      auth.logout({ redirectTo: loginPath })
-      return
-    }
+  const profile = await auth.initializeSession({ forceProfile: true })
+  if (!profile && auth.token && auth.isProfileBackoffActive) {
+    // Keep the session during short-lived profile rate-limit windows.
+    return
+  }
+  if (!auth.token || !profile) {
+    auth.logout({ redirectTo: loginPath })
+    return navigateTo(loginPath)
   }
 })

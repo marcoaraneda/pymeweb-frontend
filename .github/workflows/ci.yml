@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  lint:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,16 +19,44 @@ jobs:
         with:
           node-version: 20
 
-      - run: npm i -g --force corepack@latest && corepack enable
-
       - name: Install dependencies
-        run: npx nypm@latest i
+        run: npm ci
 
-      - name: Lint
-        run: npm run lint
+      - name: Build frontend
+        run: npm run build
 
-  test:
+  e2e:
     runs-on: ubuntu-latest
+    needs: build
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pymeweb
+          POSTGRES_PASSWORD: pymeweb
+          POSTGRES_DB: pymeweb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pymeweb -d pymeweb"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_NAME: pymeweb
+      DB_USER: pymeweb
+      DB_PASSWORD: pymeweb
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: "127.0.0.1,localhost"
+      CORS_ALLOW_ALL: "True"
+      API_BASE: http://127.0.0.1:8000/api
+      E2E_BASE_URL: http://127.0.0.1:3001
+      E2E_USER: e2e_user
+      E2E_PASSWORD: e2e_password
 
     steps:
       - uses: actions/checkout@v6
@@ -37,13 +65,57 @@ jobs:
         with:
           node-version: 20
 
-      - run: npm i -g --force corepack@latest && corepack enable
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
 
-      - name: Install dependencies
-        run: npx nypm@latest i
+      - name: Install frontend dependencies
+        run: npm ci
 
-      - name: Playground prepare
-        run: npm run dev:prepare
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
 
-      - name: Test
-        run: npm run test
+      - name: Django migrate + seed auth user
+        run: |
+          cd backend
+          python manage.py migrate
+          python manage.py shell -c "from django.contrib.auth import get_user_model; User=get_user_model(); User.objects.filter(username='e2e_user').delete(); User.objects.create_user(username='e2e_user', email='e2e@example.com', password='e2e_password')"
+
+      - name: Install Playwright browser
+        run: npm run test:e2e:install
+
+      - name: Start backend
+        run: |
+          cd backend
+          nohup python manage.py runserver 127.0.0.1:8000 > ../backend.log 2>&1 &
+
+      - name: Start frontend
+        run: |
+          nohup npm run dev -- --host 127.0.0.1 --port 3001 > frontend.log 2>&1 &
+
+      - name: Wait for services
+        run: |
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:8000/api/stores/ >/dev/null && break
+            sleep 2
+          done
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:3001/ >/dev/null && break
+            sleep 2
+          done
+
+      - name: Run E2E
+        run: npm run test:e2e
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            test-results
+            playwright-report
+            backend.log
+            frontend.log

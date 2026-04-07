@@ -26,8 +26,8 @@
             Ver tiendas
           </NuxtLink>
           <NuxtLink
-            v-if="auth.isAuthenticated && hasStores"
-            to="/dashboard"
+            v-if="isHydrated && auth.isAuthenticated && hasDashboardAccess"
+            :to="defaultDashboardRoute"
             class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
             @click.prevent="goDashboard"
           >
@@ -47,7 +47,7 @@
           >
             <ShoppingCart class="h-5 w-5" aria-hidden="true" />
             <span
-              v-if="isClient && cart.totalItems > 0"
+              v-if="isHydrated && cart.totalItems > 0"
               class="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-900 px-1 text-xs font-semibold text-white"
             >
               {{ cart.totalItems }}
@@ -62,7 +62,7 @@
           
 
           <NuxtLink
-            v-if="!auth.isAuthenticated"
+            v-if="!isHydrated || !auth.isAuthenticated"
             to="/login"
             class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-slate-900/5 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-900/10"
           >
@@ -70,7 +70,7 @@
             Iniciar sesión
           </NuxtLink>
 
-          <div v-else class="relative flex items-center gap-3" ref="menuRef">
+          <div v-else-if="isHydrated" class="relative flex items-center gap-3" ref="menuRef">
             <div class="relative inline-flex items-center">
               <button
                 class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm glass-btn"
@@ -169,10 +169,10 @@
             Carrito marketplace
           </NuxtLink>
           <div class="my-2 border-t border-slate-200" />
-          <NuxtLink v-if="auth.isAuthenticated && hasStores" to="/dashboard" class="rounded-lg px-3 py-2 hover:bg-slate-100" @click.prevent="goDashboard">Dashboard</NuxtLink>
-          <NuxtLink v-if="auth.isAuthenticated" to="/profile" class="rounded-lg px-3 py-2 hover:bg-slate-100">Editar perfil</NuxtLink>
-          <button v-if="auth.isAuthenticated" class="rounded-lg px-3 py-2 text-left text-red-600 hover:bg-slate-100" @click="handleLogout">Cerrar sesión</button>
-          <NuxtLink v-if="!auth.isAuthenticated" to="/login" class="rounded-lg px-3 py-2 hover:bg-slate-100">Iniciar sesión</NuxtLink>
+          <NuxtLink v-if="isHydrated && auth.isAuthenticated && hasDashboardAccess" :to="defaultDashboardRoute" class="rounded-lg px-3 py-2 hover:bg-slate-100" @click.prevent="goDashboard">Dashboard</NuxtLink>
+          <NuxtLink v-if="isHydrated && auth.isAuthenticated" to="/profile" class="rounded-lg px-3 py-2 hover:bg-slate-100">Editar perfil</NuxtLink>
+          <button v-if="isHydrated && auth.isAuthenticated" class="rounded-lg px-3 py-2 text-left text-red-600 hover:bg-slate-100" @click="handleLogout">Cerrar sesión</button>
+          <NuxtLink v-if="!isHydrated || !auth.isAuthenticated" to="/login" class="rounded-lg px-3 py-2 hover:bg-slate-100">Iniciar sesión</NuxtLink>
         </div>
       </div>
     </header>
@@ -198,10 +198,12 @@ import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { Bell, ShoppingCart, LayoutDashboard, LogIn, Store as StoreIcon, ShoppingBag } from 'lucide-vue-next'
 import ChatBot from '~/components/ChatBot.vue'
 import { useNotificationStore } from '~/stores/notifications'
+import { useDashboardAccess } from '~/composables/useDashboardAccess'
 
 const auth = useAuthStore()
 const theme = useThemeStore()
 const cart = useCartStore()
+const { defaultDashboardRoute, hasStores: hasDashboardAccess } = useDashboardAccess()
 // Corrige warning: handleMarketplaceCartClick no estaba definido
 const handleMarketplaceCartClick = () => {
   try {
@@ -227,7 +229,6 @@ const avatarUrl = computed(() => {
 })
 const initials = computed(() => (auth.user?.username || 'U').slice(0, 2).toUpperCase())
 const accentColor = computed(() => theme.accent || '#2563eb')
-const hasStores = computed(() => ((auth.user as any)?.memberships || []).length > 0)
 const isMarketplaceRoute = computed(() => route.path.startsWith('/marketplace'))
 type NotificationItem = { type: string; message: string; count: number; store?: string }
 type DashboardSummary = { notifications?: NotificationItem[] }
@@ -237,7 +238,7 @@ const notifMenuStyle = ref('')
 const unreadNotifications = computed(() => notificationStore.unread)
 const notificationsCount = computed(() => notificationStore.totalUnread)
 const showNotifications = ref(false)
-const isClient = typeof window !== 'undefined'
+const isHydrated = ref(false)
 
 const handleOutside = (event: MouseEvent) => {
   if (!menuRef.value) return
@@ -281,7 +282,7 @@ const goDashboard = async () => {
   showMenu.value = false
   showMenuMobile.value = false
   showNotifications.value = false
-  await navigateTo('/dashboard')
+  await navigateTo(defaultDashboardRoute.value)
 }
 
 const goNotifications = async () => {
@@ -296,16 +297,14 @@ const handleLogout = () => {
 }
 
 onMounted(async () => {
-  auth.restoreFromCookies()
-  if (auth.token && !auth.user) {
-    await auth.fetchProfile()
-  }
+  await auth.initializeSession()
   notificationStore.loadHistory()
   cart.loadFromStorage()
   cart.setContext('marketplace')
   theme.loadFromStorage()
   theme.resetToBase()
   await loadNotifications()
+  isHydrated.value = true
   document.addEventListener('click', handleOutside)
   window.addEventListener('resize', positionNotifMenu)
   // debug: log navigations

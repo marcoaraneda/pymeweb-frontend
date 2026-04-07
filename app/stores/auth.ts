@@ -16,6 +16,50 @@ type UserProfile = {
   memberships?: Array<{ store: StoreLite; roles: string[] }>
 }
 
+let sessionBootstrapPromise: Promise<UserProfile | null> | null = null
+let profileFetchPromise: Promise<UserProfile | null> | null = null
+
+const parseRetryAfterHeader = (value: unknown): number | null => {
+  if (typeof value !== 'string' || !value.trim()) return null
+  const asSeconds = Number(value)
+  if (Number.isFinite(asSeconds) && asSeconds > 0) {
+    return Math.ceil(asSeconds)
+  }
+  const asDate = Date.parse(value)
+  if (!Number.isNaN(asDate)) {
+    const seconds = Math.ceil((asDate - Date.now()) / 1000)
+    if (seconds > 0) return seconds
+  }
+  return null
+}
+
+const parseDetailSeconds = (value: unknown): number | null => {
+  if (typeof value !== 'string') return null
+  const match = value.match(/(\d+)\s*seconds?/i)
+  const parsed = Number(match?.[1] || 0)
+  if (Number.isFinite(parsed) && parsed > 0) return Math.ceil(parsed)
+  return null
+}
+
+const withJitterMs = (baseMs: number) => {
+  const factor = 0.8 + Math.random() * 0.4
+  return Math.max(1_000, Math.ceil(baseMs * factor))
+}
+
+const getProfileBackoffMsFromError = (error: any, fallbackMs = 10_000) => {
+  const retryAfter =
+    error?.response?.headers?.get?.('retry-after') ??
+    error?.response?.headers?.['retry-after'] ??
+    error?.response?._data?.retry_after
+  const headerSeconds = parseRetryAfterHeader(retryAfter)
+  if (headerSeconds) return withJitterMs(headerSeconds * 1000)
+
+  const detailSeconds = parseDetailSeconds(error?.response?._data?.detail || error?.message)
+  if (detailSeconds) return withJitterMs(detailSeconds * 1000)
+
+  return withJitterMs(fallbackMs)
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     token: null as string | null,
@@ -23,10 +67,14 @@ export const useAuthStore = defineStore('auth', {
     user: null as any | null,
     loading: false,
     error: null as string | null,
+    initialized: false,
+    profileBackoffUntil: 0,
   }),
 
   getters: {
     isAuthenticated: (state) => Boolean(state.token),
+    hasStores: (state) => Boolean(state.user?.memberships?.length || state.user?.is_staff),
+    isProfileBackoffActive: (state) => Date.now() < Number(state.profileBackoffUntil || 0),
   },
 
   actions: {
@@ -36,6 +84,40 @@ export const useAuthStore = defineStore('auth', {
       const refreshCookie = useCookie<string | null>('refresh_token', { secure })
       this.token = tokenCookie.value || null
       this.refreshToken = refreshCookie.value || null
+    },
+
+    async initializeSession(options?: { forceProfile?: boolean }): Promise<UserProfile | null> {
+      if (sessionBootstrapPromise) {
+        return sessionBootstrapPromise
+      }
+
+      sessionBootstrapPromise = (async () => {
+        if (!this.token || !this.refreshToken) {
+          this.restoreFromCookies()
+        }
+
+        if (!this.token && this.refreshToken) {
+          await this.refreshTokens()
+        }
+
+        if (!this.token) {
+          this.user = null
+          return null
+        }
+
+        if (options?.forceProfile || !this.user) {
+          return await this.fetchProfile()
+        }
+
+        return this.user
+      })()
+
+      try {
+        return await sessionBootstrapPromise
+      } finally {
+        this.initialized = true
+        sessionBootstrapPromise = null
+      }
     },
 
     async login(credentials: Credentials) {
@@ -98,34 +180,58 @@ export const useAuthStore = defineStore('auth', {
         this.restoreFromCookies()
       }
       if (!this.token) return null
+
+      if (profileFetchPromise) {
+        return profileFetchPromise
+      }
+
+      if (Date.now() < Number(this.profileBackoffUntil || 0)) {
+        // During 429 cooldown we reuse last known profile to avoid request storms.
+        return this.user
+      }
+
       const config = useRuntimeConfig()
 
-      try {
-        const profile = await $fetch<UserProfile>(`${config.public.apiBase}/users/me/`, {
-          headers: { Authorization: `Bearer ${this.token}` },
-        })
-        this.user = profile
-        return profile
-      } catch (error: any) {
-        const code = error?.response?._data?.code
-        if (code === 'token_not_valid' && this.refreshToken) {
-          const refreshed = await this.refreshTokens()
-          if (refreshed) {
-            try {
-              const profile = await $fetch<UserProfile>(`${config.public.apiBase}/users/me/`, {
-                headers: { Authorization: `Bearer ${refreshed}` },
-              })
-              this.user = profile
-              return profile
-            } catch (e) {
-              // fall through to error handling
+      profileFetchPromise = (async () => {
+        try {
+          const profile = await $fetch<UserProfile>(`${config.public.apiBase}/users/me/`, {
+            headers: { Authorization: `Bearer ${this.token}` },
+          })
+          this.profileBackoffUntil = 0
+          this.user = profile
+          return profile
+        } catch (error: any) {
+          if (error?.response?.status === 429) {
+            this.profileBackoffUntil = Date.now() + getProfileBackoffMsFromError(error)
+            this.error = 'Demasiadas solicitudes al servidor. Reintentaremos en unos segundos.'
+            return this.user
+          }
+
+          const code = error?.response?._data?.code
+          if (code === 'token_not_valid' && this.refreshToken) {
+            const refreshed = await this.refreshTokens()
+            if (refreshed) {
+              try {
+                const profile = await $fetch<UserProfile>(`${config.public.apiBase}/users/me/`, {
+                  headers: { Authorization: `Bearer ${refreshed}` },
+                })
+                this.profileBackoffUntil = 0
+                this.user = profile
+                return profile
+              } catch {
+                // Fall through to generic error.
+              }
             }
           }
+          const detail = error?.response?._data?.detail || 'No pudimos cargar tu perfil'
+          this.error = detail
+          return null
+        } finally {
+          profileFetchPromise = null
         }
-        const detail = error?.response?._data?.detail || 'No pudimos cargar tu perfil'
-        this.error = detail
-        return null
-      }
+      })()
+
+      return profileFetchPromise
     },
 
     async refreshTokens(): Promise<string | null> {
@@ -191,6 +297,7 @@ export const useAuthStore = defineStore('auth', {
       this.token = null
       this.refreshToken = null
       this.user = null
+      this.initialized = true
       const secure = process.env.NODE_ENV === 'production'
       useCookie('auth_token', { secure }).value = null
       useCookie('refresh_token', { secure }).value = null

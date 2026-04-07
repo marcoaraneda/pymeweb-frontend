@@ -6,18 +6,29 @@
     </button>
 
     <div v-if="isOpen" class="absolute bottom-20 right-0 w-80 h-96 bg-white rounded-2xl shadow-2xl border flex flex-col overflow-hidden">
-      <div class="bg-blue-600 p-4 text-white">
-        <div class="flex items-center gap-3">
+      <div class="bg-blue-600 p-4 text-white flex items-center justify-between">
+        <div class="flex items-center gap-3 w-full">
           <img :src="assistantAvatar" :alt="`Aurora, asistente virtual`" class="h-12 w-12 rounded-2xl border border-white/20 object-cover shadow-lg" />
-          <div>
-            <p class="text-xs uppercase tracking-[0.3em] text-white/70">Asistente virtual Aurora</p>
-            <p class="text-lg font-bold">{{ assistantName }} · Pymeweb</p>
-            <p class="text-[11px] text-white/80">Resuelvo dudas de precios y tiendas al instante.</p>
+          <div class="flex flex-col min-w-0">
+            <p class="text-xs uppercase tracking-[0.3em] text-white/70">ASISTENTE VIRTUAL</p>
+            <p class="text-lg font-bold truncate">AURORA</p>
+            <p class="text-[11px] text-white/80 truncate">Resuelvo tus dudas al instante.</p>
+            <span v-if="assistantBusy" class="text-[11px] text-blue-200 mt-1 animate-pulse">Escribiendo...</span>
           </div>
         </div>
+        <button v-if="messages.length > 1" @click="clearChat" class="ml-2 text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full text-white border border-white/20 transition">Vaciar chat</button>
       </div>
       
       <div class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+        <div v-if="messages.length === 1 && !assistantBusy" class="mb-3">
+          <div class="text-xs text-slate-500 mb-2">Preguntas rápidas:</div>
+          <div class="flex flex-wrap gap-2">
+            <button class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 hover:bg-blue-100" @click="quickAsk('¿Qué tienda tiene el precio más bajo?')">¿Qué tienda tiene el precio más bajo?</button>
+            <button class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 hover:bg-blue-100" @click="quickAsk('Muéstrame computadores disponibles')">Muéstrame computadores disponibles</button>
+            <button class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 hover:bg-blue-100" @click="quickAsk('¿Cómo funciona Pymeweb?')">¿Cómo funciona Pymeweb?</button>
+            <button class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 hover:bg-blue-100" @click="quickAsk('¿Cómo contacto soporte?')">¿Cómo contacto soporte?</button>
+          </div>
+        </div>
         <div
           v-for="msg in messages"
           :key="msg.id"
@@ -25,9 +36,7 @@
         >
           {{ msg.text }}
         </div>
-        <div v-if="assistantBusy" class="w-40 rounded-2xl bg-white p-3 text-xs text-slate-500 shadow-sm">
-          {{ busyLabel }}
-        </div>
+        <!-- El mensaje de "Escribiendo..." ahora aparece en el header -->
       </div>
 
       <div class="p-3 border-t bg-white">
@@ -68,9 +77,12 @@ const assistantAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=Aurora&bac
 const { sendMessage } = useChat()
 const isOpen = ref(false)
 const userInput = ref('')
-const messages = ref<ChatMessage[]>([
-  { id: 1, role: 'bot', text: `¡Hola! Soy ${assistantName}, tu asistente virtual Aurora. Puedo recomendarte tiendas, comparar precios o contarte qué conviene comprar hoy.` },
-])
+const initialBotMessage: ChatMessage = { id: 1, role: 'bot', text: `¡Hola! Soy ${assistantName}, tu asistente virtual Aurora. Puedo recomendarte tiendas, comparar precios o contarte qué conviene comprar hoy.` }
+const messages = ref<ChatMessage[]>([initialBotMessage])
+// Vaciar chat y restaurar mensaje inicial
+function clearChat() {
+  messages.value = [initialBotMessage]
+}
 const isThinking = ref(false)
 const isTyping = ref(false)
 const typingTimers = new Set<number>()
@@ -95,10 +107,10 @@ const typeBotResponse = (text: string) =>
     isTyping.value = true
     const botMessage: ChatMessage = { id: Date.now() + Math.floor(Math.random() * 1000), role: 'bot', text: '' }
     messages.value.push(botMessage)
-    // Simula "escribiendo" según la longitud del mensaje, pero nunca más de 1.5s
-    const minDelay = 400
-    const maxDelay = 1500
-    const delay = Math.min(maxDelay, Math.max(minDelay, text.length * 18))
+    // Simula "escribiendo" siempre al menos 800ms, y ajusta según longitud
+    const minDelay = 800
+    const maxDelay = 1800
+    const delay = Math.min(maxDelay, Math.max(minDelay, text.length * 22))
     const timer = window.setTimeout(() => {
       botMessage.text = text
       isTyping.value = false

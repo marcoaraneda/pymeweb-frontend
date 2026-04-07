@@ -232,27 +232,31 @@ const submitOrder = async (mode: 'webpay' | 'manual') => {
 
     if (mode === 'manual') {
       cart.clearCart()
-      router.push(`/store/${tenantStore.slug}/success?order=${order.id}`)
+      router.push(`/store/${tenantStore.slug}/orden?id=${order.id}`)
       return
     }
 
+    // INTEGRACIÓN BOLETA: Iniciar pago Webpay y redirigir a boleta tras pago
     const payment = await $fetch<{ url: string; token: string }>(`${config.public.apiBase}/payments/webpay/init/`, {
       method: 'POST',
       body: { amount: Math.round(totalWithShipping.value) },
     })
 
-    const formWebpay = document.createElement('form')
-    formWebpay.method = 'POST'
-    formWebpay.action = payment.url
-
-    const input = document.createElement('input')
-    input.type = 'hidden'
-    input.name = 'token_ws'
-    input.value = payment.token
-
-    formWebpay.appendChild(input)
-    document.body.appendChild(formWebpay)
-    formWebpay.submit()
+    if (payment && payment.url && payment.token) {
+      const formWebpay = document.createElement('form')
+      formWebpay.method = 'POST'
+      formWebpay.action = payment.url
+      const input = document.createElement('input')
+      input.type = 'hidden'
+      input.name = 'token_ws'
+      input.value = payment.token
+      formWebpay.appendChild(input)
+      document.body.appendChild(formWebpay)
+      formWebpay.submit()
+    } else {
+      cart.clearCart()
+      router.push(`/store/${tenantStore.slug}/orden?id=${order.id}`)
+    }
   } catch (e: any) {
     const detail = e?.response?._data || 'Error al procesar el pedido'
     console.error('Error en checkout', detail)

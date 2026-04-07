@@ -36,8 +36,8 @@
                       Marketplace
                     </NuxtLink>
                     <NuxtLink
-                      v-if="auth.isAuthenticated && hasStores"
-                      to="/dashboard"
+                      v-if="isHydrated && auth.isAuthenticated && hasDashboardAccess"
+                      :to="defaultDashboardRoute"
                       class="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-800 hover:bg-slate-50"
                     >
                       <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
@@ -100,7 +100,7 @@
           >
             <ShoppingCart class="h-5 w-5" aria-hidden="true" />
             <span
-              v-if="cart.totalItems > 0"
+              v-if="isHydrated && cart.totalItems > 0"
               class="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white px-1 text-xs font-semibold text-slate-900"
             >
               {{ cart.totalItems }}
@@ -108,14 +108,14 @@
           </NuxtLink>
 
           <NuxtLink
-            v-if="!auth.isAuthenticated"
+            v-if="!isHydrated || !auth.isAuthenticated"
             to="/login"
             :class="navButtonClass"
           >
             <LogIn class="h-4 w-4" aria-hidden="true" />
             Iniciar sesión
           </NuxtLink>
-          <div v-if="auth.isAuthenticated" class="flex flex-nowrap items-center gap-2 md:gap-3">
+          <div v-if="isHydrated && auth.isAuthenticated" class="flex flex-nowrap items-center gap-2 md:gap-3">
             <div class="relative flex items-center">
               <button
                 ref="notifBtnRef"
@@ -228,11 +228,11 @@
           </div>
           <div class="space-y-2">
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Cuenta</p>
-            <NuxtLink v-if="auth.isAuthenticated && hasStores" to="/dashboard" :class="mobileButtonClass">
+            <NuxtLink v-if="isHydrated && auth.isAuthenticated && hasDashboardAccess" :to="defaultDashboardRoute" :class="mobileButtonClass">
               <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
               <span>Dashboard</span>
             </NuxtLink>
-            <NuxtLink v-if="auth.isAuthenticated" to="/profile" :class="mobileButtonClass">
+            <NuxtLink v-if="isHydrated && auth.isAuthenticated" to="/profile" :class="mobileButtonClass">
               <UserRound class="h-4 w-4" aria-hidden="true" />
               <span>Perfil</span>
             </NuxtLink>
@@ -241,7 +241,7 @@
               <span>Iniciar sesión</span>
             </NuxtLink>
             <button
-              v-if="auth.isAuthenticated"
+              v-if="isHydrated && auth.isAuthenticated"
               :class="[mobileButtonClass, 'text-red-600']"
               @click="handleLogout"
             >
@@ -309,6 +309,7 @@ import { useCartStore } from '~/stores/cart'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { useNotificationStore } from '~/stores/notifications'
+import { useDashboardAccess } from '~/composables/useDashboardAccess'
 
 const route = useRoute()
 const router = useRouter()
@@ -319,6 +320,7 @@ const cart = useCartStore()
 const auth = useAuthStore()
 const theme = useThemeStore()
 const config = useRuntimeConfig()
+const { defaultDashboardRoute, hasStores: hasDashboardAccess } = useDashboardAccess()
 
 const brandName = computed(() => tenantStore.data?.name || 'Tu tienda')
 const brandInitials = computed(() => (brandName.value || 'T')[0]?.toUpperCase?.() || 'T')
@@ -334,7 +336,6 @@ const avatarUrl = computed(() => {
 const userInitials = computed(() => (auth.user?.username || 'U').slice(0, 2).toUpperCase())
 const accentColor = computed(() => theme.accent || '#2563eb')
 const gradientStyle = computed(() => ({ backgroundImage: `linear-gradient(120deg, ${theme.gradientFrom}, ${theme.gradientTo})`, opacity: 0.18 }))
-const hasStores = computed(() => ((auth.user as any)?.memberships || []).length > 0)
 const hasStoreContext = computed(() => Boolean(slug.value))
 const showMobileNav = ref(false)
 const showGeneralMenu = ref(false)
@@ -344,6 +345,7 @@ const notificationStore = useNotificationStore()
 const notifications = computed(() => notificationStore.unread)
 const notificationsCount = computed(() => notificationStore.totalUnread)
 const showNotifications = ref(false)
+const isHydrated = ref(false)
 const logoFileInput = ref<HTMLInputElement | null>(null)
 const uploadingLogo = ref(false)
 const logoError = ref('')
@@ -483,15 +485,13 @@ const openLogoPrompt = async () => {
 }
 
 onMounted(async () => {
-  auth.restoreFromCookies()
-  if (auth.token && !auth.user) {
-    await auth.fetchProfile()
-  }
+  await auth.initializeSession()
   applyThemeForSlug()
   cart.loadFromStorage()
   cart.setContext(slug.value)
   await ensureStoreData()
   await loadNotifications()
+  isHydrated.value = true
 })
 
 onBeforeUnmount(() => {

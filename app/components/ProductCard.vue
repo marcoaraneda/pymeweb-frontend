@@ -40,9 +40,25 @@
       <Heart class="h-4 w-4" :class="isFavorite ? 'fill-current text-rose-600' : 'text-slate-500'" />
     </button>
 
-    <div class="h-44 w-full overflow-hidden rounded-t-2xl bg-slate-100 relative">
-      <img :src="imageSrc" :alt="product.name" class="h-full w-full object-cover" />
-    </div>
+    <NuxtLink
+      v-if="isMarketplace"
+      :to="`/marketplace/productos/${product.slug}`"
+      class="h-44 w-full overflow-hidden rounded-t-2xl bg-slate-100 relative block"
+      style="text-decoration:none"
+    >
+      <img :src="imageSrc || '/logoPW.png'" :alt="product.name" class="h-full w-full object-cover" @error="onImgError($event)" />
+    </NuxtLink>
+
+    <NuxtLink
+      v-else
+      :to="`/store/${product.store?.slug || 'tienda'}/producto?id=${product.id}`"
+      class="h-44 w-full overflow-hidden rounded-t-2xl bg-slate-100 relative block"
+      style="text-decoration:none"
+    >
+      <img :src="imageSrc || '/logoPW.png'" :alt="product.name" class="h-full w-full object-cover" @error="onImgError($event)" />
+    </NuxtLink>
+
+    <!-- El bloque <script setup> debe ir fuera del template -->
 
     <div class="flex flex-1 flex-col p-4 space-y-3">
       <div class="flex items-center justify-between gap-2">
@@ -130,7 +146,13 @@ const MARKET_ACCENT = '#f59e0b'
 const accentColor = computed(() => (isMarketplace.value ? MARKET_ACCENT : props.accent || theme.accent || '#2563eb'))
 const glowStyle = computed(() => ({ background: `radial-gradient(circle at 30% 20%, ${accentColor.value}1a, transparent 40%)` }))
 const marketBadgeClass = computed(() => (isMarketplace.value ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'))
-const imageSrc = computed(() => product?.images?.[0]?.image || product?.image || 'https://via.placeholder.com/400x240?text=Producto')
+const imageSrc = computed(() => product?.images?.[0]?.image || product?.image || '/logoPW.png')
+const onImgError = (event: Event) => {
+  const target = event.target as HTMLImageElement | null
+  if (!target) return
+  target.onerror = null
+  target.src = '/logoPW.png'
+}
 const availableStock = computed(() => {
   const raw = Number(product?.stock_available ?? 0)
   return Number.isFinite(raw) ? raw : 0

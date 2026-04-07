@@ -15,7 +15,11 @@
         </NuxtLink>
       </div>
 
-      <div v-if="cart.items.length === 0" class="rounded-2xl border border-dashed border-amber-200 bg-white p-6 text-slate-600">
+      <div v-if="!cartReady" class="rounded-2xl border border-dashed border-amber-200 bg-white p-6 text-slate-600">
+        Cargando carrito...
+      </div>
+
+      <div v-else-if="cart.items.length === 0" class="rounded-2xl border border-dashed border-amber-200 bg-white p-6 text-slate-600">
         Tu carrito está vacío. Agrega productos del marketplace.
       </div>
 
@@ -27,12 +31,12 @@
             class="flex flex-col gap-3 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm md:flex-row md:items-center"
           >
             <div class="h-24 w-full overflow-hidden rounded-xl bg-slate-100 md:h-24 md:w-28">
-              <img :src="item.image || placeholder" :alt="item.name" class="h-full w-full object-cover" />
+              <img :src="item.image || '/logoPW.png'" :alt="item.name" class="h-full w-full object-cover" @error="onImgError($event)" />
             </div>
             <div class="flex-1 space-y-1">
               <p class="text-sm font-semibold text-slate-900">{{ item.name }}</p>
               <p class="text-sm text-slate-600">ID: {{ item.id }}</p>
-              <p class="text-base font-bold text-amber-700">${{ item.price }}</p>
+              <p class="text-base font-bold text-amber-700">${{ formatMoney(item.price) }}</p>
               <div class="flex flex-wrap items-center gap-3 pt-1">
                 <label class="text-sm text-slate-600">Cantidad</label>
                 <input
@@ -60,13 +64,27 @@
           <div class="space-y-2 text-xs text-slate-500">
             <p>Este carrito es solo para compras del marketplace. Los carritos de cada tienda siguen separados.</p>
           </div>
+          <div v-if="cartSyncNotice" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            {{ cartSyncNotice }}
+          </div>
+          <div v-if="checkoutError" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {{ checkoutError }}
+          </div>
           <button
             class="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white shadow"
             :style="{ backgroundColor: '#f59e0b' }"
             @click="checkoutDisabled ? null : handleCheckout()"
             :disabled="checkoutDisabled"
           >
-            {{ checkoutDisabled ? 'Completa el carrito' : 'Proceder al pago' }}
+            {{
+              loadingCheckout
+                ? 'Procesando...'
+                : checkoutRetryCooldown > 0
+                  ? `Espera ${checkoutRetryCooldown}s`
+                  : checkoutDisabled
+                    ? 'Completa el carrito'
+                    : 'Proceder al pago'
+            }}
           </button>
           <button class="w-full rounded-xl border border-amber-200 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50" @click="cart.clearCart()">
             Vaciar carrito
@@ -78,30 +96,218 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRuntimeConfig } from 'nuxt/app'
+import { useAuthStore } from '~/stores/auth'
 import { useCartStore } from '~/stores/cart'
+import { useMarketplaceRequests } from '~/composables/useMarketplaceRequests'
 
 const cart = useCartStore()
-const placeholder = 'https://via.placeholder.com/300x200?text=Producto'
+const auth = useAuthStore()
+const config = useRuntimeConfig()
+const { controlledGet, controlledMutation, getBackoffSeconds, getErrorRetryAfterSeconds } = useMarketplaceRequests()
+const loadingCheckout = ref(false)
+const checkoutError = ref('')
+const checkoutRetryCooldown = ref(0)
+const cartSyncNotice = ref('')
+const cartReady = ref(false)
+let checkoutRetryTimer: ReturnType<typeof setInterval> | null = null
 
-onMounted(() => {
-  // debug logs to trace mount/hang issues
-  try {
-    // eslint-disable-next-line no-console
-    console.debug('[marketplace/carrito] onMounted')
-  } catch (_) {}
+const stopCheckoutCooldown = () => {
+  if (checkoutRetryTimer) {
+    clearInterval(checkoutRetryTimer)
+    checkoutRetryTimer = null
+  }
+}
+
+const startCheckoutCooldown = (seconds: number) => {
+  stopCheckoutCooldown()
+  checkoutRetryCooldown.value = seconds
+  checkoutRetryTimer = setInterval(() => {
+    if (checkoutRetryCooldown.value <= 1) {
+      checkoutRetryCooldown.value = 0
+      stopCheckoutCooldown()
+      return
+    }
+    checkoutRetryCooldown.value -= 1
+  }, 1000)
+}
+
+const onImgError = (event: Event) => {
+  const target = event.target as HTMLImageElement | null
+  if (!target) return
+  target.onerror = null
+  target.src = '/logoPW.png'
+}
+
+onMounted(async () => {
+  auth.restoreFromCookies()
+  await auth.initializeSession().catch(() => null)
   cart.loadFromStorage()
   cart.setContext('marketplace')
+  await syncCartPrices()
+  cartReady.value = true
 })
 
-const checkoutDisabled = computed(() => cart.items.length === 0)
+const checkoutDisabled = computed(() => !cartReady.value || cart.items.length === 0 || loadingCheckout.value || checkoutRetryCooldown.value > 0)
 
 const updateQty = (id: number | string, qty: number) => {
   cart.updateQuantity(id, qty)
 }
 
-const handleCheckout = () => {
-  // Aquí se integraría el checkout global del marketplace.
-  alert('Checkout marketplace pendiente de integrar')
+const formatMoney = (value: unknown) => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric.toFixed(2) : '0.00'
 }
+
+const syncCartPrices = async () => {
+  if (!cart.items.length) return
+  let changedPrices = 0
+
+  await Promise.all(
+    cart.items.map(async (item) => {
+      try {
+        const fresh = await controlledGet<any>(
+          `marketplace:product:${encodeURIComponent(String(item.id))}`,
+          `${config.public.apiBase}/marketplace/products/${encodeURIComponent(String(item.id))}/`,
+          { backoffMs: 8_000, minIntervalMs: 300 },
+        )
+
+        const nextPrice = Number(fresh?.offer_price || fresh?.price || 0)
+        if (Number.isFinite(nextPrice) && nextPrice >= 0 && item.price !== nextPrice) {
+          item.price = nextPrice
+          changedPrices += 1
+        }
+
+        const nextMax = Number(fresh?.stock_available)
+        if (Number.isFinite(nextMax)) {
+          item.max = nextMax
+          if (item.quantity > nextMax) {
+            item.quantity = Math.max(1, nextMax)
+          }
+        }
+      } catch {
+        // Si no se puede refrescar un item, mantenemos el valor local para no bloquear la compra.
+      }
+    }),
+  )
+
+  cart.saveToStorage()
+  cartSyncNotice.value = changedPrices > 0
+    ? `Actualizamos ${changedPrices} precio(s) con el valor vigente de la tienda.`
+    : ''
+}
+
+const handleCheckout = async () => {
+  if (cart.items.length === 0) return
+  checkoutError.value = ''
+  cartSyncNotice.value = ''
+
+  await syncCartPrices()
+
+  const storeSlugs = Array.from(new Set(cart.items.map((item: any) => item.storeSlug || 'marketplace')))
+  if (storeSlugs.length > 1) {
+    checkoutError.value = 'No puedes pagar productos de distintas tiendas en una sola orden. Separa tu compra por tienda.'
+    return
+  }
+  const targetStoreSlug = storeSlugs[0] || 'marketplace'
+
+  loadingCheckout.value = true
+  try {
+    // Armar payload para la orden
+    const items = cart.items.map(item => ({
+      product: item.id,
+      quantity: item.quantity
+    }))
+    // Datos mínimos de cliente (puedes expandir esto si hay formulario)
+    const customer = auth.user ? {
+      name: auth.user.first_name || auth.user.username || 'Cliente',
+      email: auth.user.email || 'cliente@pymeweb.local',
+      phone: '000000000',
+      address: 'Marketplace',
+    } : {
+      name: 'Invitado',
+      email: 'invitado@pymeweb.local',
+      phone: '000000000',
+      address: 'Marketplace',
+    }
+    const payload = {
+      items,
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      address: customer.address,
+    }
+    // POST a la API de órdenes del marketplace
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (auth.token) headers.Authorization = `Bearer ${auth.token}`
+
+    const order = await controlledMutation<any>(
+      'marketplace:checkout:create-order',
+      `${config.public.apiBase}/orders/?store=${encodeURIComponent(targetStoreSlug)}`,
+      {
+        method: 'POST',
+        body: payload,
+        headers,
+        credentials: 'include',
+        backoffMs: 10_000,
+      },
+    )
+    // Si la orden requiere pago, iniciar flujo Webpay simulado
+    if (order && order.id) {
+      try {
+        // Iniciar pago Webpay (simulado)
+        const payment = await $fetch(`${config.public.apiBase}/orders/${order.id}/webpay/init/`, {
+          method: 'POST',
+          credentials: 'include',
+          timeout: 5000,
+        })
+        if (payment && payment.url && payment.token) {
+          // Crear y enviar formulario a Webpay (modo test)
+          const formWebpay = document.createElement('form')
+          formWebpay.method = 'POST'
+          formWebpay.action = payment.url
+          const input = document.createElement('input')
+          input.type = 'hidden'
+          input.name = 'token_ws'
+          input.value = payment.token
+          formWebpay.appendChild(input)
+          document.body.appendChild(formWebpay)
+          formWebpay.submit()
+        } else {
+          // Si no hay pago, redirigir directo a la boleta
+          cart.clearCart()
+          window.location.href = `/marketplace/orden?id=${order.id}`
+        }
+      } catch {
+        // Si falla el pago, redirigir igual a la boleta
+        cart.clearCart()
+        window.location.href = `/marketplace/orden?id=${order.id}`
+      }
+    } else {
+      alert('No se pudo crear la orden. Intenta nuevamente.')
+    }
+  } catch (err: any) {
+    if (err?.response?.status === 429) {
+      const seconds = Math.max(
+        10,
+        Number(getErrorRetryAfterSeconds(err) || 0),
+        getBackoffSeconds('marketplace:checkout:create-order'),
+      )
+      startCheckoutCooldown(seconds)
+      checkoutError.value = `Checkout temporalmente limitado. Espera ${seconds}s e intenta nuevamente.`
+    } else {
+      const detail = err?.response?._data?.detail || err?.response?._data?.error || err?.message
+      checkoutError.value = typeof detail === 'string'
+        ? `Error al procesar el checkout: ${detail}`
+        : 'Error al procesar el checkout. Intenta nuevamente.'
+    }
+  } finally {
+    loadingCheckout.value = false
+  }
+}
+
+onBeforeUnmount(() => {
+  stopCheckoutCooldown()
+})
 </script>

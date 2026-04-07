@@ -7,7 +7,7 @@
         <div v-if="loading" class="text-slate-500">Cargando producto...</div>
         <div v-else-if="error" class="text-red-600">{{ error }}</div>
         <div v-else-if="!product" class="text-slate-600">Producto no encontrado.</div>
-        <div v-else class="grid gap-6 md:grid-cols-[1.3fr,1fr] md:items-start">
+        <div v-else class="relative grid gap-6 md:grid-cols-[1.3fr,1fr] md:items-start">
           <div class="space-y-3">
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">{{ product.category?.name || 'General' }}</p>
             <h1 class="text-2xl font-bold text-slate-900">{{ product.name }}</h1>
@@ -38,8 +38,19 @@
           </div>
 
           <div class="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div class="aspect-[4/3] overflow-hidden rounded-lg bg-white">
-              <img :src="productImage" :alt="product.name" class="h-full w-full object-cover" />
+            <div class="relative aspect-[4/3] overflow-hidden rounded-lg bg-white">
+              <img :src="productImage || '/logoPW.png'" :alt="product.name" class="h-full w-full object-cover" @error="onImgError($event)" />
+              <button
+                v-if="canEdit"
+                @click="showEditForm = !showEditForm"
+                class="absolute top-2 right-2 z-10 rounded-full bg-amber-100 p-2 shadow hover:bg-amber-200 transition"
+                title="Editar producto"
+                aria-label="Editar producto"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-amber-700">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487a2.1 2.1 0 1 1 2.97 2.97L8.978 18.312a4.2 4.2 0 0 1-1.768 1.06l-3.07.878a.6.6 0 0 1-.732-.732l.878-3.07a4.2 4.2 0 0 1 1.06-1.768L16.862 4.487Z" />
+                </svg>
+              </button>
             </div>
             <NuxtLink
               v-if="product.store?.slug && !product.store_is_marketplace"
@@ -66,10 +77,13 @@
           </div>
         </div>
 
-        <div v-if="canEdit" class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+        <div v-if="showEditForm" class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
           <div class="flex items-center justify-between gap-2">
             <h2 class="text-sm font-semibold text-amber-900">Editar publicación</h2>
             <span class="text-[11px] font-semibold text-amber-700">Solo visible para quien la subió</span>
+          </div>
+          <div v-if="!canEdit" class="mt-2 rounded-lg border border-amber-200 bg-amber-100/60 px-3 py-2 text-xs text-amber-900">
+            Verificando permisos de edición...
           </div>
           <div class="mt-3 grid gap-3 md:grid-cols-2">
             <div class="space-y-1">
@@ -135,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { definePageMeta } from '#imports'
@@ -144,6 +158,7 @@ import { useTenantStore } from '~/stores/tenant'
 import { useThemeStore } from '~/stores/theme'
 import { useAuthStore } from '~/stores/auth'
 import { useImages } from '~/composables/useImages'
+import { useMarketplaceRequests } from '~/composables/useMarketplaceRequests'
 
 definePageMeta({ layout: 'default' })
 
@@ -155,6 +170,7 @@ const tenantStore = useTenantStore()
 const theme = useThemeStore()
 const auth = useAuthStore()
 const { getProductImage } = useImages()
+const { controlledGet, controlledMutation } = useMarketplaceRequests()
 
 const product = ref<any | null>(null)
 const loading = ref(true)
@@ -170,9 +186,46 @@ const uploadError = ref('')
 const accentStyle = computed(() => ({ backgroundColor: theme.accent || '#2563eb', color: '#fff' }))
 const productImage = computed(() => getProductImage(product.value))
 const canEdit = computed(() => {
-  const userId = (auth.user as any)?.id
-  return Boolean(userId && product.value?.submitted_by === userId)
+  const userId = String((auth.user as any)?.id ?? '')
+  const username = String((auth.user as any)?.username ?? '').trim().toLowerCase()
+  const candidateOwnerId =
+    product.value?.submitted_by ??
+    product.value?.submitted_by_id ??
+    product.value?.owner_id ??
+    product.value?.user_id ??
+    product.value?.owner?.id ??
+    product.value?.user?.id ??
+    ''
+  const submittedBy = String(
+    typeof candidateOwnerId === 'object' && candidateOwnerId !== null
+      ? (candidateOwnerId as any).id ?? ''
+      : candidateOwnerId,
+  )
+  const submittedByName = String(
+    product.value?.submitted_by_name ??
+      product.value?.owner_name ??
+      product.value?.user_name ??
+      '',
+  )
+    .trim()
+    .toLowerCase()
+  const byId = Boolean(userId && submittedBy && userId === submittedBy)
+  const byName = Boolean(username && submittedByName && username === submittedByName)
+  const byFlag = Boolean(product.value?.is_owner === true)
+  return byId || byName || byFlag
 })
+const showEditForm = ref(false)
+const wantsEditFromQuery = computed(() => String(route.query.edit || '') === '1')
+
+watch([canEdit, wantsEditFromQuery], ([editable, wantsEdit]) => {
+  if (wantsEdit) {
+    showEditForm.value = true
+    return
+  }
+  if (!editable && showEditForm.value) {
+    showEditForm.value = false
+  }
+}, { immediate: true })
 
 const isHttpsUrl = (value?: string) => {
   if (!value) return false
@@ -182,6 +235,13 @@ const isHttpsUrl = (value?: string) => {
   } catch {
     return false
   }
+}
+
+const onImgError = (event: Event) => {
+  const target = event.target as HTMLImageElement | null
+  if (!target) return
+  target.onerror = null
+  target.src = '/logoPW.png'
 }
 
 const cloudinaryUploadUrl = computed(() => {
@@ -194,7 +254,11 @@ const loadProduct = async () => {
   loading.value = true
   error.value = ''
   try {
-    const data = await $fetch<any>(`${config.public.apiBase}/marketplace/products/${encodeURIComponent(slugParam)}/`)
+    const data = await controlledGet<any>(
+      `marketplace:product:${encodeURIComponent(slugParam)}`,
+      `${config.public.apiBase}/marketplace/products/${encodeURIComponent(slugParam)}/`,
+      { backoffMs: 8_000, minIntervalMs: 300 },
+    )
     product.value = data
     editForm.value = {
       name: data.name || '',
@@ -218,7 +282,11 @@ const loadProduct = async () => {
     const numericId = Number(slugParam)
     if (!product.value && Number.isFinite(numericId)) {
       try {
-        const data = await $fetch<any>(`${config.public.apiBase}/marketplace/products/${numericId}/`)
+        const data = await controlledGet<any>(
+          `marketplace:product:${numericId}`,
+          `${config.public.apiBase}/marketplace/products/${numericId}/`,
+          { backoffMs: 8_000, minIntervalMs: 300 },
+        )
         product.value = data
         editForm.value = {
           name: data.name || '',
@@ -300,20 +368,25 @@ const saveEdits = async () => {
   saveMessage.value = ''
   saveError.value = ''
   try {
-    const updated = await $fetch(`${config.public.apiBase}/marketplace/products/${encodeURIComponent(product.value.id || slugParam)}/`, {
-      method: 'PATCH',
-      body: {
-        name: editForm.value.name,
-        description: editForm.value.description,
-        price: editForm.value.price,
-        offer_price: editForm.value.offer_price,
-        category: editForm.value.category || null,
-        stock_available: editForm.value.stock_available,
-        stock_minimum: editForm.value.stock_minimum,
-        image_url: editForm.value.image_url,
+    const updated = await controlledMutation<any>(
+      `marketplace:product:update:${encodeURIComponent(product.value.id || slugParam)}`,
+      `${config.public.apiBase}/marketplace/products/${encodeURIComponent(product.value.id || slugParam)}/`,
+      {
+        method: 'PATCH',
+        body: {
+          name: editForm.value.name,
+          description: editForm.value.description,
+          price: editForm.value.price,
+          offer_price: editForm.value.offer_price,
+          category: editForm.value.category || null,
+          stock_available: editForm.value.stock_available,
+          stock_minimum: editForm.value.stock_minimum,
+          image_url: editForm.value.image_url,
+        },
+        headers: { Authorization: `Bearer ${auth.token}` },
+        backoffMs: 10_000,
       },
-      headers: { Authorization: `Bearer ${auth.token}` },
-    })
+    )
     product.value = updated
     saveMessage.value = 'Cambios guardados'
   } catch (err: any) {
@@ -367,9 +440,16 @@ const onFileSelect = async (event: Event) => {
 onMounted(async () => {
   theme.loadFromStorage()
   auth.restoreFromCookies()
+  if (wantsEditFromQuery.value) {
+    showEditForm.value = true
+  }
+  await auth.initializeSession().catch(() => null)
   cart.loadFromStorage()
   cart.setContext('marketplace')
   await fetchCategories()
   await loadProduct()
+  if (wantsEditFromQuery.value) {
+    showEditForm.value = true
+  }
 })
 </script>

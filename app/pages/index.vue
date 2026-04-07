@@ -341,6 +341,7 @@ import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { useCartStore } from '~/stores/cart'
 import { makeProductFavoriteKey, useFavorites } from '../composables/useFavorites'
+import { useMarketplaceRequests } from '~/composables/useMarketplaceRequests'
 
 type Store = { id: number; name: string; slug: string }
 
@@ -350,6 +351,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const theme = useThemeStore()
 const cart = useCartStore()
+const { controlledGet } = useMarketplaceRequests()
 
 const { isStoreFavorite, isProductFavoriteKey, toggleProductFavoriteKey } = useFavorites()
 
@@ -436,10 +438,16 @@ const fetchMarketplace = async () => {
   loadingMarketplace.value = true
   marketplaceError.value = ''
   try {
-    marketplaceProducts.value = await $fetch<any[]>(`${apiBase}/marketplace/products/?limit=6` as any)
-  } catch (err) {
+    marketplaceProducts.value = await controlledGet<any[]>(
+      'home:marketplace:products:limit6',
+      `${apiBase}/marketplace/products/?limit=6`,
+      { backoffMs: 10_000, minIntervalMs: 1000 },
+    )
+  } catch (err: any) {
     console.error(err)
-    marketplaceError.value = 'Error al cargar el marketplace'
+    marketplaceError.value = err?.response?.status === 429
+      ? 'Marketplace temporalmente ocupado. Reintentaremos en unos segundos.'
+      : 'Error al cargar el marketplace'
   } finally {
     loadingMarketplace.value = false
   }
@@ -454,7 +462,14 @@ const fetchLatestStoreProducts = async () => {
   ]
   for (const url of candidates) {
     try {
-      const data = await $fetch<any[]>(url as any)
+      const isMarketplaceUrl = url.includes('/marketplace/products/')
+      const data = isMarketplaceUrl
+        ? await controlledGet<any[]>(
+            `home:store-products:${url}`,
+            url,
+            { backoffMs: 10_000, minIntervalMs: 1000 },
+          )
+        : await $fetch<any[]>(url as any)
       if (data?.length) {
         latestStoreProducts.value = data
         loadingStoreProducts.value = false
@@ -485,7 +500,7 @@ const displayMarketplaceProducts = computed(() => {
   return [...filtered].sort((a: any, b: any) => Number(isProductFavorite(b)) - Number(isProductFavorite(a)))
 })
 
-const productImage = (product: any) => product?.images?.[0]?.image || 'https://via.placeholder.com/400x240?text=Producto'
+const productImage = (product: any) => product?.images?.[0]?.image || '/logoPW.png'
 
 const addToCart = async (product: any) => {
   if (!product) return
@@ -557,10 +572,7 @@ const marketBadgeClass = computed(() => 'bg-amber-100 text-amber-800')
 
 onMounted(async () => {
   theme.loadFromStorage()
-  auth.restoreFromCookies()
-  if (auth.token && !auth.user) {
-    await auth.fetchProfile()
-  }
+  await auth.initializeSession().catch(() => null)
   await fetchAllStores()
   await fetchMarketplace()
   await fetchLatestStoreProducts()

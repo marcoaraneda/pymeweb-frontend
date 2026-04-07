@@ -6,7 +6,7 @@
       <div v-for="section in sections" :key="section.id" 
            class="bg-white p-6 rounded-xl border flex justify-between items-center shadow-sm">
         <div>
-          <h3 class="font-bold text-gray-800 uppercase text-sm">{{ section.type }}</h3>
+          <h3 class="font-bold text-gray-800 uppercase text-sm">{{ section.section_type }}</h3>
           <p class="text-gray-500 text-sm">Controla la visibilidad de esta sección en tu página principal.</p>
         </div>
         
@@ -21,10 +21,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 definePageMeta({ layout: 'admin', middleware: ['tenant', 'auth'], requiresAuth: true });
 const { getSections, updateSectionStatus } = useCMS();
-const sections = ref([]);
+const sections = ref<any[]>([]);
 
 const loadSections = async () => {
   try {
@@ -32,7 +32,7 @@ const loadSections = async () => {
   } catch (e) { console.error(e); }
 };
 
-const toggleSection = async (section) => {
+const toggleSection = async (section: any) => {
   try {
     const newStatus = !section.enabled;
     await updateSectionStatus(section.id, newStatus);

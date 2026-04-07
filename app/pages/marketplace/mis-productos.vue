@@ -69,11 +69,11 @@
           <button
             class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
             :style="accentStyle"
-            :disabled="submitting || !form.name || !form.price"
+            :disabled="submitting || retryCooldown > 0 || !form.name || !form.price"
             @click="submit"
           >
             <Loader2 v-if="submitting" class="h-4 w-4 animate-spin" />
-            {{ submitting ? 'Publicando...' : 'Publicar producto' }}
+            {{ submitting ? 'Publicando...' : retryCooldown > 0 ? `Espera ${retryCooldown}s` : 'Publicar producto' }}
           </button>
           <p v-if="formMessage" class="text-sm" :class="formMessageType === 'error' ? 'text-red-600' : 'text-green-600'">{{ formMessage }}</p>
         </div>
@@ -104,13 +104,21 @@
           </div>
         </div>
         <div v-else-if="error" class="mt-4 rounded-xl border border-red-100 bg-red-50 p-4 text-red-700 flex items-center justify-between gap-3">
-          <span>{{ error }}</span>
+          <div class="space-y-1">
+            <span>{{ error }}</span>
+            <p v-if="usingCachedSubmissions" class="text-xs text-red-600">
+              Mostrando datos guardados temporalmente para que puedas seguir trabajando.
+            </p>
+            <p v-if="retryCooldown > 0" class="text-xs text-red-600">
+              Puedes reintentar en {{ retryCooldown }}s.
+            </p>
+          </div>
           <button
             class="rounded-lg border border-red-200 px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
-            :disabled="loading"
-            @click="fetchMySubmissions"
+            :disabled="loading || retryCooldown > 0"
+            @click="fetchMySubmissions({ force: true })"
           >
-            Reintentar
+            {{ retryCooldown > 0 ? `Reintentar (${retryCooldown}s)` : 'Reintentar' }}
           </button>
         </div>
         <div v-else-if="!submissions.length" class="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-slate-600">
@@ -180,10 +188,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, computed } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, computed } from 'vue'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
+import { useMarketplaceRequests } from '~/composables/useMarketplaceRequests'
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-vue-next'
 
 definePageMeta({ middleware: ['auth'], requiresAuth: true })
@@ -200,15 +209,46 @@ const goToEdit = (item:any) => {
   openMenuId.value = null
   navigateTo(`/marketplace/productos/${item.slug}?edit=1`)
 }
-const deleteProduct = (item:any) => {
+const deleteProduct = async (item:any) => {
   openMenuId.value = null
-  // Aquí irá la lógica real de borrado
-  alert('Eliminar producto: ' + item.name)
+  if (!auth.token) {
+    await navigateTo('/login')
+    return
+  }
+  if (!confirm(`¿Eliminar ${item.name}?`)) return
+  toggleError.value = ''
+  try {
+    await controlledMutation(
+      `marketplace:submissions:delete:${item.id}`,
+      `${config.public.apiBase}/marketplace/submissions/${item.id}/`,
+      {
+        method: 'DELETE',
+        headers: authHeader.value,
+        backoffMs: 10_000,
+      },
+    )
+    submissions.value = submissions.value.filter((submission) => submission.id !== item.id)
+    formMessage.value = 'Producto eliminado.'
+    formMessageType.value = 'ok'
+  } catch (err: any) {
+    if (err?.response?.status === 429) {
+      const seconds = Math.max(
+        10,
+        Number(getErrorRetryAfterSeconds(err) || 0),
+        getBackoffSeconds(`marketplace:submissions:delete:${item.id}`),
+      )
+      startRetryCooldown(seconds)
+      toggleError.value = `Demasiadas solicitudes. Espera ${seconds}s antes de intentar eliminar nuevamente.`
+      return
+    }
+    toggleError.value = getErrorMessage(err) || 'No pudimos eliminar el producto'
+  }
 }
 
 const auth = useAuthStore()
 const theme = useThemeStore()
 const config = useRuntimeConfig()
+const { controlledGet, controlledMutation, getBackoffSeconds, getErrorRetryAfterSeconds } = useMarketplaceRequests()
 
 const submissions = ref<any[]>([])
 const loading = ref(false)
@@ -219,6 +259,11 @@ const toggleError = ref('')
 const categories = ref<any[]>([])
 const uploadingImage = ref(false)
 const uploadError = ref('')
+const SUBMISSIONS_CACHE_KEY = 'marketplace_submissions_cache_v1'
+const SUBMISSIONS_CACHE_TTL = 1000 * 15
+const usingCachedSubmissions = ref(false)
+const retryCooldown = ref(0)
+let retryCooldownTimer: ReturnType<typeof setInterval> | null = null
 
 const form = reactive({
   name: '',
@@ -263,15 +308,98 @@ const isHttpsUrl = (value?: string) => {
   }
 }
 
-const fetchMySubmissions = async () => {
+const stopRetryCooldown = () => {
+  if (retryCooldownTimer) {
+    clearInterval(retryCooldownTimer)
+    retryCooldownTimer = null
+  }
+}
+
+const startRetryCooldown = (seconds = 10) => {
+  stopRetryCooldown()
+  retryCooldown.value = seconds
+  retryCooldownTimer = setInterval(() => {
+    if (retryCooldown.value <= 1) {
+      retryCooldown.value = 0
+      stopRetryCooldown()
+      return
+    }
+    retryCooldown.value -= 1
+  }, 1000)
+}
+
+const fetchMySubmissions = async (options?: { force?: boolean }) => {
   if (!auth.token) return
+  const force = options?.force === true
+
+  if (!force && retryCooldown.value > 0) {
+    return
+  }
+
+  if (process.client) {
+    try {
+      const raw = localStorage.getItem(SUBMISSIONS_CACHE_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as { ts: number; data: any[] }
+        if (Array.isArray(parsed?.data) && Date.now() - Number(parsed?.ts || 0) < SUBMISSIONS_CACHE_TTL) {
+          submissions.value = parsed.data
+          return
+        }
+      }
+    } catch {
+      // Ignorar cache inválida.
+    }
+  }
+
   loading.value = true
   error.value = ''
   try {
-    submissions.value = await $fetch(`${config.public.apiBase}/marketplace/submissions/`, {
-      headers: authHeader.value,
-    })
-  } catch (err) {
+    const data = await controlledGet<any[]>(
+      'marketplace:submissions:list',
+      `${config.public.apiBase}/marketplace/submissions/`,
+      {
+        headers: authHeader.value,
+        force,
+        backoffMs: 10_000,
+        minIntervalMs: 1200,
+      },
+    )
+    submissions.value = data
+    usingCachedSubmissions.value = false
+    retryCooldown.value = 0
+    stopRetryCooldown()
+    if (process.client) {
+      localStorage.setItem(
+        SUBMISSIONS_CACHE_KEY,
+        JSON.stringify({ ts: Date.now(), data }),
+      )
+    }
+  } catch (err: any) {
+    if (err?.response?.status === 429) {
+      const waitSeconds = Math.max(
+        10,
+        Number(getErrorRetryAfterSeconds(err) || 0),
+        getBackoffSeconds('marketplace:submissions:list'),
+      )
+      error.value = 'Demasiadas solicitudes al servidor. Espera unos segundos y vuelve a intentar.'
+      startRetryCooldown(waitSeconds)
+      usingCachedSubmissions.value = false
+      if (process.client) {
+        try {
+          const raw = localStorage.getItem(SUBMISSIONS_CACHE_KEY)
+          if (raw) {
+            const parsed = JSON.parse(raw) as { data: any[] }
+            if (Array.isArray(parsed?.data)) {
+              submissions.value = parsed.data
+              usingCachedSubmissions.value = true
+            }
+          }
+        } catch {
+          // Ignorar fallback de cache.
+        }
+      }
+      return
+    }
     error.value = getErrorMessage(err) || 'No pudimos cargar tus productos'
   } finally {
     loading.value = false
@@ -390,16 +518,32 @@ const submit = async () => {
     if (form.image_url) payload.image_url = form.image_url
     if (form.category) payload.category = form.category
 
-    const created = await $fetch(`${config.public.apiBase}/marketplace/submissions/`, {
-      method: 'POST',
-      body: payload,
-      headers: authHeader.value,
-    })
+    const created = await controlledMutation<any>(
+      'marketplace:submissions:create',
+      `${config.public.apiBase}/marketplace/submissions/`,
+      {
+        method: 'POST',
+        body: payload,
+        headers: authHeader.value,
+        backoffMs: 10_000,
+      },
+    )
     submissions.value = [created, ...submissions.value]
     formMessage.value = 'Producto publicado. Puedes activarlo o desactivarlo cuando se venda.'
     formMessageType.value = 'ok'
     resetForm()
   } catch (err: any) {
+    if (err?.response?.status === 429) {
+      const seconds = Math.max(
+        10,
+        Number(getErrorRetryAfterSeconds(err) || 0),
+        getBackoffSeconds('marketplace:submissions:create'),
+      )
+      startRetryCooldown(seconds)
+      formMessage.value = `Demasiadas solicitudes. Espera ${seconds}s para volver a publicar.`
+      formMessageType.value = 'error'
+      return
+    }
     formMessage.value = getErrorMessage(err) || 'No pudimos publicar el producto'
     formMessageType.value = 'error'
   } finally {
@@ -415,13 +559,28 @@ const toggleActive = async (item: any) => {
   togglingId.value = item.id
   toggleError.value = ''
   try {
-    const updated = await $fetch(`${config.public.apiBase}/marketplace/submissions/${item.id}/`, {
-      method: 'PATCH',
-      body: { is_active: !item.is_active },
-      headers: authHeader.value,
-    })
+    const updated = await controlledMutation<any>(
+      `marketplace:submissions:toggle:${item.id}`,
+      `${config.public.apiBase}/marketplace/submissions/${item.id}/`,
+      {
+        method: 'PATCH',
+        body: { is_active: !item.is_active },
+        headers: authHeader.value,
+        backoffMs: 10_000,
+      },
+    )
     submissions.value = submissions.value.map((s) => (s.id === item.id ? updated : s))
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.response?.status === 429) {
+      const seconds = Math.max(
+        10,
+        Number(getErrorRetryAfterSeconds(err) || 0),
+        getBackoffSeconds(`marketplace:submissions:toggle:${item.id}`),
+      )
+      startRetryCooldown(seconds)
+      toggleError.value = `Demasiadas solicitudes. Espera ${seconds}s para volver a cambiar el estado.`
+      return
+    }
     toggleError.value = getErrorMessage(err) || 'No pudimos actualizar el estado'
   } finally {
     togglingId.value = null
@@ -432,11 +591,16 @@ onMounted(async () => {
   theme.loadFromStorage()
   theme.applyTheme()
   auth.restoreFromCookies()
+  await auth.initializeSession().catch(() => null)
   if (!auth.token) {
     await navigateTo('/login')
     return
   }
   await fetchCategories()
   await fetchMySubmissions()
+})
+
+onBeforeUnmount(() => {
+  stopRetryCooldown()
 })
 </script>

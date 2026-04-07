@@ -7,6 +7,7 @@ type CartItem = {
   image?: string | null
   quantity: number
   max?: number | null
+  storeSlug?: string
 }
 
 export const useCartStore = defineStore('cart', {
@@ -64,6 +65,7 @@ export const useCartStore = defineStore('cart', {
         const { qty, clamped } = this.limitQuantity(existing.quantity + 1, max ?? existing.max)
         existing.quantity = qty
         existing.max = max ?? existing.max
+        existing.storeSlug = product.store?.slug || existing.storeSlug || 'marketplace'
         this.setNotice(clamped ? `Stock limitado a ${qty} unidades` : '')
       } else {
         const { qty, clamped } = this.limitQuantity(1, max)
@@ -74,6 +76,7 @@ export const useCartStore = defineStore('cart', {
           image: product.images?.[0]?.image || product.image || null,
           quantity: qty,
           max,
+          storeSlug: product.store?.slug || 'marketplace',
         })
         this.setNotice(clamped ? `Stock limitado a ${qty} unidades` : '')
       }

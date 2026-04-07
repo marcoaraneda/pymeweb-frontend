@@ -15,20 +15,20 @@
     </div>
 
     <div class="mx-auto max-w-5xl space-y-6">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <NuxtLink to="/dashboard" class="text-sm font-semibold text-slate-600 hover:text-slate-900">← Volver al dashboard</NuxtLink>
         <NuxtLink :to="`/store/${slug}/success?order=${id}`" class="text-sm text-blue-600 hover:underline">Ver boleta/seguimiento</NuxtLink>
       </div>
 
       <div class="rounded-2xl border border-slate-200 bg-white/80 shadow-lg ring-1 ring-slate-100">
-        <div class="flex flex-wrap items-start justify-between gap-4 border-b border-dashed border-slate-200 px-6 py-5">
+        <div class="flex flex-col gap-4 border-b border-dashed border-slate-200 px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Pedido</p>
             <h1 class="text-3xl font-bold text-slate-900">#{{ order?.id }}</h1>
             <p class="text-sm text-slate-500">{{ formatDate(order?.created_at) }}</p>
             <p class="text-xs text-slate-500">Tracking: {{ order?.tracking_code }}</p>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="flex flex-wrap items-center gap-3">
             <span :class="['rounded-full px-3 py-1 text-xs font-semibold', statusBadge(order?.status).classes]">
               {{ statusBadge(order?.status).label }}
             </span>
@@ -77,8 +77,6 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { definePageMeta, useRoute } from '#app'
-import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useTenantStore } from '~/stores/tenant'
 

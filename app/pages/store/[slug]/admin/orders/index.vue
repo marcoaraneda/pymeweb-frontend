@@ -1,6 +1,6 @@
 <template>
   <div class="max-w-6xl mx-auto py-10 space-y-6">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Panel</p>
         <h1 class="text-3xl font-bold text-slate-900">Compras realizadas</h1>
@@ -52,7 +52,33 @@
       </div>
 
       <div class="overflow-hidden rounded-xl bg-white shadow ring-1 ring-slate-100">
-        <table class="w-full text-sm">
+        <div class="space-y-3 p-4 md:hidden">
+          <div
+            v-for="order in paginatedOrders"
+            :key="`mobile-${order.id}`"
+            class="rounded-xl border border-slate-100 bg-slate-50/80 p-4 text-sm"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="font-semibold text-slate-900">#{{ order.id }} · {{ order.name }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ formatDate(order.created_at) }}</p>
+              </div>
+              <span :class="['rounded-full px-2 py-1 text-[11px] font-semibold', statusBadge(order.status).classes]">
+                {{ statusBadge(order.status).label }}
+              </span>
+            </div>
+            <div class="mt-3 grid gap-2 text-xs text-slate-600">
+              <p><span class="font-semibold text-slate-700">Total:</span> {{ currency(order.total) }}</p>
+              <p><span class="font-semibold text-slate-700">Tracking:</span> {{ order.tracking_code || '—' }}</p>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-3 text-xs font-semibold">
+              <NuxtLink :to="`/store/${slug}/admin/orders/${order.id}`" class="text-blue-600 hover:underline">Ver</NuxtLink>
+              <NuxtLink :to="`/store/${slug}/success?order=${order.id}`" class="text-slate-600 hover:underline">Seguimiento</NuxtLink>
+            </div>
+          </div>
+        </div>
+        <div class="hidden overflow-x-auto md:block">
+        <table class="min-w-[760px] w-full text-sm">
           <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th class="p-3">ID</th>
@@ -93,6 +119,7 @@
             </tr>
           </tbody>
         </table>
+        </div>
         <div class="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700">
           <span>Mostrando {{ paginatedOrders.length }} de {{ orders.length }} pedidos</span>
           <div class="flex items-center gap-2">
@@ -108,7 +135,6 @@
 
 <script setup lang="ts">
 import { onMounted, ref, computed, watch } from 'vue'
-import { definePageMeta, useRoute } from '#app'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
