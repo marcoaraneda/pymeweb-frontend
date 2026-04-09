@@ -74,6 +74,22 @@
             </div>
 
             <div class="space-y-2">
+              <label class="text-sm text-white/80">RUT</label>
+              <input
+                v-model.trim="form.rut"
+                :class="inputClass('rut')"
+                type="text"
+                required
+                autocomplete="off"
+                inputmode="text"
+                placeholder="12.345.678-5"
+                :aria-invalid="Boolean(validation.rut)"
+                @blur="onRutBlur"
+              />
+              <p v-if="validation.rut" class="text-xs text-red-200">{{ validation.rut }}</p>
+            </div>
+
+            <div class="space-y-2">
               <label class="text-sm text-white/80">Contraseña</label>
               <input
                 v-model="form.password"
@@ -135,29 +151,33 @@ import { computed, reactive, ref, watch } from 'vue'
 import { navigateTo } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
+import { formatRut, isValidRut, normalizeRut } from '~/utils/rut'
 
 const auth = useAuthStore()
 const theme = useThemeStore()
 const loading = ref(false)
-const form = reactive({ username: '', email: '', password: '', passwordConfirm: '', first_name: '', last_name: '' })
-type FieldKey = 'username' | 'email' | 'password' | 'passwordConfirm'
+const form = reactive({ username: '', email: '', rut: '', password: '', passwordConfirm: '', first_name: '', last_name: '' })
+type FieldKey = 'username' | 'email' | 'rut' | 'password' | 'passwordConfirm'
 
 const validation = computed(() => {
   const issues: Record<FieldKey, string | null> = {
     username: null,
     email: null,
+    rut: null,
     password: null,
     passwordConfirm: null,
   }
 
   const username = form.username.trim()
   const email = form.email.trim()
+  const rut = form.rut.trim()
   const password = form.password
   const passwordConfirm = form.passwordConfirm
 
   if (username.length < 3) issues.username = 'Mínimo 3 caracteres.'
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(email)) issues.email = 'Ingresa un email válido.'
+  if (!isValidRut(rut)) issues.rut = 'Ingresa un RUT válido (ej: 12.345.678-5).'
   const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
   if (!passwordRegex.test(password)) issues.password = 'Debe incluir letras, números y al menos 8 caracteres.'
   if (password && passwordConfirm && password !== passwordConfirm) issues.passwordConfirm = 'Las contraseñas no coinciden.'
@@ -195,11 +215,16 @@ const inputClass = (field: FieldKey) => [
 ]
 
 watch(
-  () => [form.username, form.email, form.password, form.passwordConfirm],
+  () => [form.username, form.email, form.rut, form.password, form.passwordConfirm],
   () => {
     if (auth.error) auth.error = null
   }
 )
+
+const onRutBlur = () => {
+  if (!form.rut.trim()) return
+  form.rut = formatRut(form.rut)
+}
 
 const submit = async () => {
   auth.error = null
@@ -214,6 +239,7 @@ const submit = async () => {
     const payload = {
       username: form.username.trim(),
       email: form.email.trim(),
+      rut: normalizeRut(form.rut),
       password: form.password,
       first_name: form.first_name.trim(),
       last_name: form.last_name.trim(),

@@ -17,10 +17,11 @@
               <span v-else-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta</span>
               <span class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-900">Marketplace</span>
             </div>
-            <p class="text-2xl font-bold" :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">
-              <span v-if="product.offer_price" class="mr-2 text-lg text-slate-400 line-through">${{ product.price }}</span>
-              ${{ product.offer_price || product.price }}
+            <p class="text-2xl font-bold" :class="product.offer_price ? 'text-red-600' : 'text-black'">
+              <span v-if="product.offer_price" class="mr-2 text-lg text-slate-400 line-through">{{ formatClp(product.price) }}</span>
+              {{ formatClp(displayPrice) }}
             </p>
+            <p v-if="product.offer_price && Number(product.offer_min_qty || 1) > 1" class="text-xs font-semibold text-rose-700">Oferta activa desde {{ Number(product.offer_min_qty) }} unidades.</p>
             <div class="flex flex-wrap gap-3 text-xs text-slate-500">
               <span v-if="product.submitted_by_name">
                 Vendedor:
@@ -92,11 +93,15 @@
             </div>
             <div class="space-y-1">
               <label class="text-xs text-amber-800">Precio</label>
-              <input v-model.number="editForm.price" type="number" step="0.01" class="w-full rounded-xl border border-amber-200 px-3 py-2 text-sm" />
+              <input v-model.number="editForm.price" type="number" min="0" step="1" class="w-full rounded-xl border border-amber-200 px-3 py-2 text-sm" />
             </div>
             <div class="space-y-1">
               <label class="text-xs text-amber-800">Precio oferta</label>
-              <input v-model.number="editForm.offer_price" type="number" step="0.01" class="w-full rounded-xl border border-amber-200 px-3 py-2 text-sm" />
+              <input v-model.number="editForm.offer_price" type="number" min="0" step="1" class="w-full rounded-xl border border-amber-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs text-amber-800">Cantidad mínima para oferta</label>
+              <input v-model.number="editForm.offer_min_qty" type="number" min="1" step="1" class="w-full rounded-xl border border-amber-200 px-3 py-2 text-sm" />
             </div>
             <div class="space-y-1">
               <label class="text-xs text-amber-800">Categoría</label>
@@ -178,13 +183,21 @@ const error = ref('')
 const saving = ref(false)
 const saveMessage = ref('')
 const saveError = ref('')
-const editForm = ref({ name: '', description: '', price: 0, offer_price: null as number | null, category: '' as string | number, stock_available: 0, stock_minimum: 0, image_url: '' })
+const editForm = ref({ name: '', description: '', price: 0, offer_price: null as number | null, offer_min_qty: 1, category: '' as string | number, stock_available: 0, stock_minimum: 0, image_url: '' })
 const categories = ref<any[]>([])
 const uploadingImage = ref(false)
 const uploadError = ref('')
 
 const accentStyle = computed(() => ({ backgroundColor: theme.accent || '#2563eb', color: '#fff' }))
 const productImage = computed(() => getProductImage(product.value))
+const displayPrice = computed(() => {
+  if (product.value?.offer_price && Number(product.value?.offer_min_qty || 1) <= 1) {
+    return Number(product.value.offer_price)
+  }
+  return Number(product.value?.price || 0)
+})
+const formatClp = (value: number | string) =>
+  new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value) || 0)
 const canEdit = computed(() => {
   const userId = String((auth.user as any)?.id ?? '')
   const username = String((auth.user as any)?.username ?? '').trim().toLowerCase()
@@ -265,6 +278,7 @@ const loadProduct = async () => {
       description: data.description || '',
       price: Number(data.price) || 0,
       offer_price: data.offer_price ? Number(data.offer_price) : null,
+      offer_min_qty: Math.max(1, Number(data.offer_min_qty || 1)),
       category: data.category?.id || '',
       stock_available: Number(data.stock_available || 0),
       stock_minimum: Number(data.stock_minimum || 0),
@@ -293,6 +307,7 @@ const loadProduct = async () => {
           description: data.description || '',
           price: Number(data.price) || 0,
           offer_price: data.offer_price ? Number(data.offer_price) : null,
+          offer_min_qty: Math.max(1, Number(data.offer_min_qty || 1)),
           category: data.category?.id || '',
           stock_available: Number(data.stock_available || 0),
           stock_minimum: Number(data.stock_minimum || 0),
@@ -378,6 +393,7 @@ const saveEdits = async () => {
           description: editForm.value.description,
           price: editForm.value.price,
           offer_price: editForm.value.offer_price,
+          offer_min_qty: Math.max(1, Number(editForm.value.offer_min_qty) || 1),
           category: editForm.value.category || null,
           stock_available: editForm.value.stock_available,
           stock_minimum: editForm.value.stock_minimum,

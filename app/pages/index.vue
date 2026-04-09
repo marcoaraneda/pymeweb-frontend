@@ -128,7 +128,7 @@
                   >
                     {{ product.store?.slug || 'tienda' }}
                   </span>
-                  <span class="text-slate-500">${{ product.offer_price || product.price }}</span>
+                  <span class="text-slate-500">{{ formatClp(displayPrice(product)) }}</span>
                 </div>
               </div>
             </NuxtLink>
@@ -489,6 +489,13 @@ const fetchLatestStoreProducts = async () => {
 }
 
 const storeAccent = (product: any) => product?.store?.color || product?.store?.brand_color || theme.accent
+const formatClp = (value: number | string) =>
+  new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value) || 0)
+const displayPrice = (product: any) => {
+  const minQty = Math.max(1, Number(product?.offer_min_qty || 1))
+  if (product?.offer_price && minQty <= 1) return Number(product.offer_price)
+  return Number(product?.price || 0)
+}
 const featuredStoreProducts = computed(() => (latestStoreProducts.value || []).slice(0, 3))
 
 const productFavoriteKey = (product: any) => makeProductFavoriteKey(product?.store?.slug, product?.slug || product?.id)

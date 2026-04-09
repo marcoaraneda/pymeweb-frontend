@@ -1,5 +1,12 @@
 <template>
-  <div class="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+  <div
+    class="group relative cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+    @click="goToStore"
+    @keydown.enter.prevent="goToStore"
+    @keydown.space.prevent="goToStore"
+    role="link"
+    tabindex="0"
+  >
     <div class="absolute inset-0 opacity-0 transition group-hover:opacity-100" :style="glowStyle" aria-hidden="true" />
     <div class="relative p-5 space-y-3">
       <button
@@ -46,6 +53,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { navigateTo } from 'nuxt/app'
 import { ChevronRight, Heart } from 'lucide-vue-next'
 import { useFavorites } from '~/composables/useFavorites'
 
@@ -64,4 +72,7 @@ const canDelete = computed(() => Boolean(props.canDelete))
 const { isStoreFavorite, toggleStoreFavorite } = useFavorites()
 
 const handleDelete = () => emit('delete', props.store)
+const goToStore = async () => {
+  await navigateTo(`/store/${props.store.slug}`)
+}
 </script>

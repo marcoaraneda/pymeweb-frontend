@@ -9,6 +9,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test --workers=1 tests/e2e/.*smoke\\.spec\\.ts",
     "test:e2e:auth": "playwright test tests/e2e/auth.setup.ts",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:install": "playwright install chromium"

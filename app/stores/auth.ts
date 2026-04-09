@@ -2,12 +2,13 @@ import { navigateTo, useCookie, useRuntimeConfig } from 'nuxt/app'
 import { defineStore } from 'pinia'
 
 type Credentials = { username: string; password: string }
-type SignupPayload = { username: string; email: string; password: string; first_name?: string; last_name?: string }
+type SignupPayload = { username: string; email: string; password: string; rut: string; first_name?: string; last_name?: string }
 type StoreLite = { id: number; name: string; slug: string }
 type UserProfile = {
   id: number
   username: string
   email: string
+  rut?: string | null
   first_name?: string
   last_name?: string
   avatar_url?: string | null
@@ -80,8 +81,8 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     restoreFromCookies() {
       const secure = process.env.NODE_ENV === 'production'
-      const tokenCookie = useCookie<string | null>('auth_token', { secure })
-      const refreshCookie = useCookie<string | null>('refresh_token', { secure })
+      const tokenCookie = useCookie<string | null>('auth_token', { secure, path: '/' })
+      const refreshCookie = useCookie<string | null>('refresh_token', { secure, path: '/' })
       this.token = tokenCookie.value || null
       this.refreshToken = refreshCookie.value || null
     },
@@ -135,8 +136,8 @@ export const useAuthStore = defineStore('auth', {
         this.refreshToken = data.refresh
 
         const secure = process.env.NODE_ENV === 'production'
-        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax', secure }).value = data.access
-        useCookie('refresh_token', { maxAge: 60 * 60 * 24 * 7, sameSite: 'lax', secure }).value = data.refresh
+        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax', secure, path: '/' }).value = data.access
+        useCookie('refresh_token', { maxAge: 60 * 60 * 24 * 7, sameSite: 'lax', secure, path: '/' }).value = data.refresh
 
         await this.fetchProfile()
       } catch (error: any) {
@@ -164,8 +165,8 @@ export const useAuthStore = defineStore('auth', {
         this.user = data.user
 
         const secure = process.env.NODE_ENV === 'production'
-        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax', secure }).value = data.access
-        useCookie('refresh_token', { maxAge: 60 * 60 * 24 * 7, sameSite: 'lax', secure }).value = data.refresh
+        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax', secure, path: '/' }).value = data.access
+        useCookie('refresh_token', { maxAge: 60 * 60 * 24 * 7, sameSite: 'lax', secure, path: '/' }).value = data.refresh
       } catch (error: any) {
         const detail = error?.response?._data?.detail || error?.response?._data || 'No pudimos registrar tu cuenta'
         this.error = detail
@@ -248,7 +249,7 @@ export const useAuthStore = defineStore('auth', {
 
         this.token = data.access
         const secure = process.env.NODE_ENV === 'production'
-        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax', secure }).value = data.access
+        useCookie('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax', secure, path: '/' }).value = data.access
         return data.access
       } catch (error) {
         this.logout()
@@ -299,8 +300,8 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.initialized = true
       const secure = process.env.NODE_ENV === 'production'
-      useCookie('auth_token', { secure }).value = null
-      useCookie('refresh_token', { secure }).value = null
+      useCookie('auth_token', { secure, path: '/' }).value = null
+      useCookie('refresh_token', { secure, path: '/' }).value = null
 
       navigateTo(redirect)
     },

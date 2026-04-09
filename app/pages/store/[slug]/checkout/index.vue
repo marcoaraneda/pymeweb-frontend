@@ -58,10 +58,10 @@
               <label class="flex items-center gap-2 text-sm text-slate-700">
                 <input type="radio" value="delivery" v-model="deliveryMethod" />
                 Envío a domicilio (costo automático)
-                <span v-if="deliveryMethod === 'delivery'" class="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">${{ shippingCost }}</span>
+                <span v-if="deliveryMethod === 'delivery'" class="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{{ formatClp(shippingCost) }}</span>
               </label>
             </div>
-            <p class="text-xs text-slate-500">El costo de envío se calcula automáticamente.</p>
+            <p class="text-xs text-slate-500">{{ shippingDetail }}</p>
           </div>
         </section>
 
@@ -85,24 +85,24 @@
                   <p class="font-semibold text-slate-900 line-clamp-1">{{ item.name }}</p>
                   <p class="text-xs text-slate-500">Cantidad: {{ item.quantity }}</p>
                 </div>
-                <p class="font-semibold" :style="{ color: accentColor }">${{ item.price * item.quantity }}</p>
+                <p class="font-semibold" :style="{ color: accentColor }">{{ formatClp(item.price * item.quantity) }}</p>
               </div>
             </div>
 
             <div class="space-y-2 text-sm text-slate-700">
               <div class="flex justify-between">
                 <span>Subtotal</span>
-                <span>${{ cart.totalPrice }}</span>
+                <span>{{ formatClp(cart.totalPrice) }}</span>
               </div>
               <div class="flex justify-between text-slate-500">
                 <span>Envío</span>
-                <span>{{ deliveryMethod === 'delivery' ? '$' + (shippingCost || 0) : 'Retiro en tienda' }}</span>
+                <span>{{ deliveryMethod === 'delivery' ? formatClp(shippingCost || 0) : 'Retiro en tienda' }}</span>
               </div>
             </div>
 
             <div class="flex items-center justify-between border-t border-slate-200 pt-3 text-lg font-bold text-slate-900">
               <span>Total</span>
-              <span>${{ totalWithShipping }}</span>
+              <span>{{ formatClp(totalWithShipping) }}</span>
             </div>
 
             <button
@@ -165,16 +165,72 @@ const form = reactive({
 
 const deliveryMethod = ref<'pickup' | 'delivery'>('pickup')
 const shippingCost = ref(0)
+const shippingDetail = ref('El costo de envío se calcula automáticamente.')
 
 const accentColor = computed(() => theme.accent || '#2563eb')
 const accentStyle = computed(() => ({ backgroundColor: accentColor.value, color: '#fff' }))
 const placeholder = 'https://via.placeholder.com/200x200.png?text=Producto'
+const formatClp = (value: number | string) =>
+  new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value) || 0)
+
+const inferZone = (text: string) => {
+  const normalized = String(text || '').toLowerCase()
+  const centerHints = ['santiago', 'providencia', 'nunoa', 'ñuñoa', 'las condes', 'vitacura', 'la reina', 'macul', 'estacion central']
+  const northSouthHints = ['maipu', 'maipú', 'puente alto', 'la florida', 'san miguel', 'huechuraba', 'quilicura', 'la cisterna', 'independencia']
+  if (centerHints.some((hint) => normalized.includes(hint))) return 'center'
+  if (northSouthHints.some((hint) => normalized.includes(hint))) return 'metro'
+  return 'outer'
+}
+
+const zoneCost = (fromZone: string, toZone: string) => {
+  const matrix: Record<string, Record<string, number>> = {
+    center: { center: 1800, metro: 2800, outer: 4200 },
+    metro: { center: 2600, metro: 3200, outer: 4700 },
+    outer: { center: 3800, metro: 4300, outer: 5600 },
+  }
+  return matrix[fromZone]?.[toZone] ?? 4800
+}
+
+const resolveBranches = () => {
+  const data: any = tenantStore.data || {}
+  const branches = Array.isArray(data.branch_locations) ? data.branch_locations : []
+  const normalized = branches
+    .map((branch: any) => {
+      const zone = inferZone(branch?.zone || branch?.address || '')
+      return {
+        label: branch?.label || 'Sucursal',
+        zone,
+        address: branch?.address || '',
+      }
+    })
+    .filter((branch: any) => branch.address || branch.zone)
+  if (normalized.length) return normalized
+  return [
+    {
+      label: 'Casa matriz',
+      zone: inferZone(data?.address || ''),
+      address: data?.address || '',
+    },
+  ]
+}
+
 const computeShipping = () => {
   if (deliveryMethod.value === 'pickup') return 0
-  const base = 2500
-  const perItem = Math.min(cart.totalItems * 250, 2000)
-  const discount = cart.totalPrice >= 50000 ? 1000 : 0
-  return Math.max(1500, base + perItem - discount)
+  const customerZone = inferZone(form.address)
+  const branches = resolveBranches()
+  const best = branches
+    .map((branch: any) => ({
+      ...branch,
+      cost: zoneCost(branch.zone, customerZone),
+    }))
+    .sort((a: any, b: any) => a.cost - b.cost)[0]
+
+  const perItem = Math.min(cart.totalItems * 200, 2200)
+  const bulkyFee = cart.totalPrice >= 120000 ? 800 : 0
+  const subtotalDiscount = cart.totalPrice >= 70000 ? 600 : 0
+  const estimated = Math.max(1600, Number(best?.cost || 3200) + perItem + bulkyFee - subtotalDiscount)
+  shippingDetail.value = `Estimado desde ${best?.label || 'sucursal'} (${best?.address || 'dirección principal'}) hacia tu zona.`
+  return estimated
 }
 const totalWithShipping = computed(() => {
   const extra = deliveryMethod.value === 'delivery' ? computeShipping() : 0
@@ -202,10 +258,21 @@ onMounted(async () => {
 watch(deliveryMethod, (val) => {
   if (val === 'pickup') {
     shippingCost.value = 0
+    shippingDetail.value = 'Retiro en tienda seleccionado. No se cobra envío.'
   } else {
     shippingCost.value = computeShipping()
   }
 })
+
+watch(
+  () => [form.address, cart.totalItems, cart.totalPrice, tenantStore.data?.branch_locations, tenantStore.data?.address],
+  () => {
+    if (deliveryMethod.value === 'delivery') {
+      shippingCost.value = computeShipping()
+    }
+  },
+  { deep: true }
+)
 
 const validateForm = () => {
   if (!form.name || !form.email || !form.phone || !form.address) {
@@ -244,7 +311,7 @@ const submitOrder = async (mode: 'webpay' | 'manual') => {
 
     if (mode === 'manual') {
       cart.clearCart()
-      router.push(`/store/${tenantStore.slug}/orden?id=${order.id}`)
+      router.push(`/store/${tenantStore.slug}/success?order=${order.id}`)
       return
     }
 
@@ -270,7 +337,7 @@ const submitOrder = async (mode: 'webpay' | 'manual') => {
         window.alert(payment.detail)
       }
       cart.clearCart()
-      router.push(`/store/${tenantStore.slug}/orden?id=${order.id}`)
+      router.push(`/store/${tenantStore.slug}/success?order=${order.id}`)
     }
   } catch (e: any) {
     const detail = e?.response?._data || 'Error al procesar el pedido'

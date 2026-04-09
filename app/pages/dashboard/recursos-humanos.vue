@@ -62,6 +62,59 @@
         </div>
       </section>
 
+      <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-white/60">Gestión</p>
+            <h2 class="text-xl font-semibold">Agregar usuario al equipo</h2>
+            <p class="text-white/70">Usa usuario, email o RUT y asigna uno o más roles.</p>
+          </div>
+        </div>
+
+        <div class="mt-4 grid gap-4 md:grid-cols-[1fr,2fr,auto]">
+          <div class="space-y-1">
+            <label class="text-xs text-white/60">Identificador</label>
+            <input
+              v-model="assignForm.identifier"
+              type="text"
+              class="w-full rounded-xl border border-white/20 bg-white text-sm text-slate-900 px-3 py-2"
+              placeholder="usuario, email o 12.345.678-5"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs text-white/60">Roles</label>
+            <div class="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-3 sm:grid-cols-2 lg:grid-cols-3">
+              <label v-for="role in availableRoles" :key="role.code" class="inline-flex items-center gap-2 text-sm text-white/90">
+                <input
+                  type="checkbox"
+                  :value="role.code"
+                  :checked="assignForm.roles.includes(role.code)"
+                  @change="toggleRole(role.code)"
+                />
+                {{ role.label }}
+              </label>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs text-white/60">Acción</label>
+            <button
+              class="w-full rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5 disabled:opacity-60"
+              :style="{ backgroundColor: theme.accent }"
+              :disabled="assigning"
+              @click="assignUser"
+            >
+              {{ assigning ? 'Guardando...' : 'Asignar roles' }}
+            </button>
+          </div>
+        </div>
+
+        <p v-if="assignMessage" class="mt-3 text-sm" :class="assignError ? 'text-rose-200' : 'text-emerald-200'">
+          {{ assignMessage }}
+        </p>
+      </section>
+
       <div v-if="loadError" class="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
         {{ loadError }}
       </div>
@@ -190,6 +243,21 @@ const staff = ref<StaffMember[]>([])
 const loading = ref(false)
 const loadError = ref('')
 const lastUpdated = ref<Date | null>(null)
+const assigning = ref(false)
+const assignMessage = ref('')
+const assignError = ref(false)
+
+const availableRoles = [
+  { code: 'ADMIN', label: 'Administrador' },
+  { code: 'HR', label: 'Recursos Humanos' },
+  { code: 'FINANCE', label: 'Finanzas' },
+  { code: 'REPORTS', label: 'Reportes' },
+  { code: 'DATA_ANALYST', label: 'Analista de datos' },
+  { code: 'INVENTORY', label: 'Inventario' },
+  { code: 'EDITOR', label: 'Editor' },
+]
+
+const assignForm = ref({ identifier: '', roles: ['FINANCE'] as string[] })
 
 const allowedStoreSlugs = computed(() => {
   const memberships = (auth.user?.memberships || []) as MembershipLite[]
@@ -312,7 +380,15 @@ const loadStaff = async () => {
   }
   loading.value = true
   try {
-    staff.value = await authedFetch<StaffMember[]>(`${apiBase}/stores/${filters.value.store}/staff/`)
+    const payload = await authedFetch<StaffMember[]>(`${apiBase}/stores/${filters.value.store}/staff/`)
+    staff.value = [...(payload || [])].sort((a, b) => {
+      const aAdmin = a.roles.includes('ADMIN') ? 1 : 0
+      const bAdmin = b.roles.includes('ADMIN') ? 1 : 0
+      if (aAdmin !== bAdmin) return bAdmin - aAdmin
+      const aName = fullName(a.user).toLowerCase()
+      const bName = fullName(b.user).toLowerCase()
+      return aName.localeCompare(bName)
+    })
     lastUpdated.value = new Date()
   } catch (error: any) {
     const detail = error?.response?._data?.detail || 'No pudimos cargar recursos humanos.'
@@ -320,6 +396,58 @@ const loadStaff = async () => {
     staff.value = []
   } finally {
     loading.value = false
+  }
+}
+
+const toggleRole = (roleCode: string) => {
+  const current = new Set(assignForm.value.roles)
+  if (current.has(roleCode)) {
+    current.delete(roleCode)
+  } else {
+    current.add(roleCode)
+  }
+  assignForm.value.roles = Array.from(current)
+}
+
+const assignUser = async () => {
+  assignMessage.value = ''
+  assignError.value = false
+  const identifier = assignForm.value.identifier.trim()
+  if (!filters.value.store) {
+    assignMessage.value = 'Selecciona una tienda antes de asignar roles.'
+    assignError.value = true
+    return
+  }
+  if (!identifier) {
+    assignMessage.value = 'Debes ingresar usuario, email o RUT.'
+    assignError.value = true
+    return
+  }
+  if (!assignForm.value.roles.length) {
+    assignMessage.value = 'Debes seleccionar al menos un rol.'
+    assignError.value = true
+    return
+  }
+
+  assigning.value = true
+  try {
+    await authedFetch(`${apiBase}/stores/${filters.value.store}/staff/`, {
+      method: 'POST',
+      body: { identifier, roles: assignForm.value.roles, is_active: true },
+    })
+    assignMessage.value = 'Roles actualizados correctamente.'
+    assignForm.value.identifier = ''
+    await loadStaff()
+  } catch (error: any) {
+    assignError.value = true
+    const detail = error?.response?._data
+    if (detail && typeof detail === 'object') {
+      assignMessage.value = Object.values(detail).flat().join(' ') || 'No pudimos asignar los roles.'
+    } else {
+      assignMessage.value = detail || 'No pudimos asignar los roles.'
+    }
+  } finally {
+    assigning.value = false
   }
 }
 

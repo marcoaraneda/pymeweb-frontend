@@ -48,12 +48,14 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { navigateTo, useRuntimeConfig } from 'nuxt/app'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 
 const auth = useAuthStore()
 const theme = useThemeStore()
 const config = useRuntimeConfig()
+const route = useRoute()
 
 const tickets = ref<any[]>([])
 const loading = ref(true)
@@ -105,6 +107,10 @@ onMounted(async () => {
     await navigateTo('/login')
     return
   }
+  const routeStatus = String(route.query.status || '').trim()
+  const routeStore = String(route.query.store || '').trim()
+  if (routeStatus) status.value = routeStatus
+  if (routeStore) storeSlug.value = routeStore
   storesMine.value = await auth.fetchMyStores()
   await loadTickets()
 })

@@ -80,6 +80,16 @@ Avance actual (2026-04-06):
 - UI admin resenas mejorada con filtros por estado y feedback de accion.
 - Smoke E2E resenas agregado y validado en suite completa.
 
+Avance actual (2026-04-08):
+- Se agrego filtro de lenguaje ofensivo en creacion publica de resenas (backend), incluyendo deteccion con normalizacion de acentos.
+- Mensajeria de error del formulario de resenas en storefront mejorada para mostrar validaciones reales del API.
+- Pruebas de resenas actualizadas y validadas localmente (8/8 en verde).
+- Moderacion manual de resenas deshabilitada en dashboard y API admin para reforzar transparencia.
+- Resenas nuevas quedan autoaprobadas al crearse (si pasan filtro ofensivo).
+- Smoke E2E publico agregado para validar bloqueo de groserias y publicacion inmediata de comentario valido.
+- Ajustado flujo de envio de resena para evitar falso error visual cuando la creacion fue exitosa pero falla una notificacion secundaria.
+- Smoke E2E publico de resenas validado nuevamente en verde (setup + prueba principal).
+
 ---
 
 ## 4) CMS (secciones home)
@@ -129,7 +139,8 @@ Avance actual (2026-04-07):
 ---
 
 ## 6) Ordenes / Pagos
-Estado: EN PROGRESO
+Estado: CORREGIDO (local)
+Estado CI remoto: PENDIENTE
 
 Pasos:
 1. Verificar creacion orden por tienda y marketplace.
@@ -141,7 +152,7 @@ Pasos:
 Checklist:
 - [x] Totales consistentes.
 - [x] Pago/fallback robusto.
-- [ ] Boleta correcta.
+- [x] Boleta correcta.
 
 Avance actual (2026-04-07):
 - Checkout de tienda actualizado para crear orden con filtro de tienda (param store) y evitar rechazo de backend.
@@ -149,10 +160,15 @@ Avance actual (2026-04-07):
 - Calculo de envio cambiado de aleatorio a deterministico para evitar variaciones injustificadas en total.
 - Smoke E2E de ordenes admin agregado (listado + detalle) con manejo de auth no disponible mediante skip controlado.
 
+Avance actual (2026-04-08):
+- Checkout de tienda redirigido a la boleta canonica (/store/{slug}/success?order={id}) para consistencia del comprobante final.
+- Flujo E2E de checkout/orden actualizado para validar boleta electronica y tracking.
+- Prueba E2E de checkout/orden validada en verde (setup + flujo principal).
+
 ---
 
 ## 7) Dashboard / Reportes
-Estado: EN PROGRESO
+Estado: CORREGIDO (local)
 
 Pasos:
 1. Validar acceso por roles (overview/hr/finance/analytics).
@@ -162,17 +178,26 @@ Pasos:
 5. Agregar smoke de navegacion.
 
 Checklist:
-- [ ] Roles correctos.
-- [ ] Datos correctos.
+- [x] Roles correctos.
+- [x] Datos correctos.
 - [x] Exportacion funcional.
 
 Avance actual (2026-04-07):
 - Smoke E2E dashboard/reportes agregado para validar carga base de overview + pantalla de reportes.
 
+Avance actual (2026-04-08):
+- Smoke E2E de rutas por seccion de dashboard agregado (RRHH, analisis financiero, analisis de datos) para usuario administrador.
+- Smoke validado en verde con autenticacion real.
+
+Avance actual (2026-04-09):
+- Pruebas backend de reportes reforzadas para validar aislamiento por permisos entre tiendas (403 sin membresia en tienda destino).
+- Pruebas backend de reportes reforzadas para validar metricas correctas por tienda cuando el usuario tiene rol REPORTS en multiples tiendas.
+- Suite de reportes validada en verde local (11/11).
+
 ---
 
 ## 8) Soporte / FAQ / Notificaciones
-Estado: EN PROGRESO
+Estado: CORREGIDO (local)
 
 Pasos:
 1. Verificar alta y visualizacion de tickets/preguntas.
@@ -190,11 +215,25 @@ Avance actual (2026-04-07):
 - Vista admin FAQ agregada con alta/listado y activacion/desactivacion de items.
 - Smoke E2E FAQ agregado para validar carga base del panel.
 
+Avance actual (2026-04-08):
+- Filtro de lenguaje ofensivo extendido a texto libre de soporte (titulo y descripcion de ticket).
+- Filtro de lenguaje ofensivo extendido a FAQ admin y preguntas/respuestas de producto en FAQ admin.
+
+Avance actual (2026-04-09):
+- Smoke E2E soporte/notificaciones validado en verde (carga base de tickets y feed).
+- Smoke E2E FAQ admin validado en verde (carga base del panel FAQ).
+- Suite backend de soporte y FAQ validada en verde local (11/11).
+
 ---
 
 ## Proximo foco activo
-- Modulo actual: Soporte / FAQ / Notificaciones.
+- Modulo actual: Validacion CI remoto de modulos CORREGIDO (local).
 - Criterio para marcar CORREGIDO:
   1. Funciona en UI.
   2. Sin errores criticos en consola/API.
   3. Prueba local automatizada o smoke validado.
+
+Avance actual (2026-04-09):
+- Regresion E2E smoke ejecutada en verde local: 10 passed, 2 skipped.
+- Se dejo en cuarentena temporal el smoke redundante de calzado por talla por inestabilidad intermitente.
+- Se dejo en cuarentena temporal el flujo extendido de catalogo por talla (no-smoke) por inestabilidad intermitente.

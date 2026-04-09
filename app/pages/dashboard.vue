@@ -116,28 +116,49 @@
         </div>
 
         <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
-          <p class="text-xs uppercase tracking-[0.2em] text-white/60">Actividad</p>
-          <h2 class="text-xl font-semibold">Ventas diarias</h2>
-          <p class="text-white/70">Pedidos y montos agregados por día</p>
-
-          <div class="mt-6 flex items-end gap-2" v-if="sparklineBars.length">
-            <div
-              v-for="(day, idx) in sparklineBars"
-              :key="idx"
-              class="flex-1 rounded-t-xl bg-white/20"
-              :style="{ height: `${day}px`, backgroundColor: barColor(idx) }"
-            />
-          </div>
-          <div v-else class="mt-6 h-24 rounded-2xl border border-white/10 bg-white/5" />
-
-          <div class="mt-6 flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-white/80">
-            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">
-              <Lightbulb class="h-5 w-5" aria-hidden="true" />
-            </span>
+          <div class="flex items-center justify-between gap-2">
             <div>
-              <p class="text-sm font-semibold">Tip</p>
-              <p class="text-xs text-white/60">Personaliza el color en la home para reflejar tu marca en todos los CTA.</p>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Soporte</p>
+              <h2 class="text-xl font-semibold">Resumen de tickets</h2>
+              <p class="text-white/70">Estado actual y acceso rápido al panel de soporte</p>
             </div>
+            <NuxtLink
+              :to="selectedStore ? `/dashboard/tickets?store=${selectedStore}` : '/dashboard/tickets'"
+              class="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white/80 hover:text-white hover:border-white/40"
+            >
+              Ver soporte
+            </NuxtLink>
+          </div>
+
+          <div class="mt-4 grid grid-cols-3 gap-2 text-xs">
+            <div class="rounded-xl bg-amber-500/15 px-3 py-2 text-amber-100">
+              <p class="text-[11px] uppercase">Abiertos</p>
+              <p class="mt-1 text-lg font-bold">{{ ticketStats.open }}</p>
+            </div>
+            <div class="rounded-xl bg-sky-500/15 px-3 py-2 text-sky-100">
+              <p class="text-[11px] uppercase">En progreso</p>
+              <p class="mt-1 text-lg font-bold">{{ ticketStats.inProgress }}</p>
+            </div>
+            <div class="rounded-xl bg-emerald-500/15 px-3 py-2 text-emerald-100">
+              <p class="text-[11px] uppercase">Resueltos</p>
+              <p class="mt-1 text-lg font-bold">{{ ticketStats.resolved }}</p>
+            </div>
+          </div>
+
+          <div v-if="loadingTickets" class="mt-4 text-sm text-white/70">Cargando tickets...</div>
+          <div v-else-if="!tickets.length" class="mt-4 rounded-xl border border-dashed border-white/15 bg-white/5 px-3 py-3 text-sm text-white/70">
+            No hay tickets para la tienda seleccionada.
+          </div>
+          <div v-else class="mt-4 space-y-2">
+            <button
+              v-for="t in tickets.slice(0, 4)"
+              :key="t.id"
+              class="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
+              @click="goToSupport(t)"
+            >
+              <p class="font-semibold text-white line-clamp-1">{{ t.title }}</p>
+              <p class="text-xs text-white/60">{{ t.store_slug || 'Sin tienda' }} • {{ ticketBadge(t.status).label }}</p>
+            </button>
           </div>
         </div>
       </section>
@@ -292,6 +313,7 @@
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-white/60">Comentarios</p>
             <h2 class="text-xl font-semibold">Lo que dicen los clientes</h2>
+            <p class="text-xs text-white/60">Reseñas públicas sin desactivación manual; solo se bloquea lenguaje ofensivo al crear.</p>
           </div>
           <button
             class="inline-flex items-center gap-2 rounded-2xl border border-white/20 px-4 py-2 text-sm font-semibold text-white/80 hover:text-white"
@@ -323,17 +345,22 @@
                 <p class="text-white font-semibold">Producto {{ review.product || '—' }}</p>
                 <p class="text-xs text-white/60">{{ review.customer_name || 'Cliente' }} • {{ review.store_slug }}</p>
               </div>
-              <div class="flex items-center gap-1 text-amber-300">
-                <StarIcon
-                  v-for="star in 5"
-                  :key="star"
-                  class="h-4 w-4"
-                  :class="star <= Number(review.rating) ? 'text-amber-400 fill-amber-400 stroke-amber-400' : 'text-white/30 fill-transparent stroke-white/40'"
-                />
+              <div class="flex flex-wrap items-center justify-end gap-2">
+                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="reviewStatusBadge(review.status).classes">
+                  {{ reviewStatusBadge(review.status).label }}
+                </span>
+                <div class="flex items-center gap-1 text-amber-300">
+                  <StarIcon
+                    v-for="star in 5"
+                    :key="star"
+                    class="h-4 w-4"
+                    :class="star <= Number(review.rating) ? 'text-amber-400 fill-amber-400 stroke-amber-400' : 'text-white/30 fill-transparent stroke-white/40'"
+                  />
+                </div>
               </div>
             </div>
             <p class="mt-2 text-white/80">{{ review.comment }}</p>
-            <p class="text-[11px] text-white/50">{{ new Date(review.created_at).toLocaleString() }}</p>
+            <p class="mt-2 text-[11px] text-white/50">{{ new Date(review.created_at).toLocaleString() }}</p>
           </div>
         </div>
       </section>
@@ -434,7 +461,7 @@ import { navigateTo, useRuntimeConfig } from 'nuxt/app'
 import { useRoute } from 'vue-router'
 import StoreCard from '~/components/StoreCard.vue'
 import StatCard from '~/components/StatCard.vue'
-import { Building2, Eye, ShoppingCart, Headset, Lightbulb, MessageSquare, Star as StarIcon } from 'lucide-vue-next'
+import { Building2, Eye, ShoppingCart, Headset, MessageSquare, Star as StarIcon } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { useDashboardAccess } from '~/composables/useDashboardAccess'
@@ -608,6 +635,24 @@ const ticketBadge = (status: string) => {
   return map[status] || { label: status, classes: 'bg-white/10 text-white' }
 }
 
+const ticketStats = computed(() => ({
+  open: tickets.value.filter((ticket) => ticket.status === 'open').length,
+  inProgress: tickets.value.filter((ticket) => ticket.status === 'in_progress').length,
+  resolved: tickets.value.filter((ticket) => ticket.status === 'resolved').length,
+}))
+
+const normalizeReviewStatus = (status?: string) => String(status || 'PENDING').toUpperCase()
+
+const reviewStatusBadge = (status?: string) => {
+  const normalized = normalizeReviewStatus(status)
+  const map: Record<string, { label: string; classes: string }> = {
+    PENDING: { label: 'Pendiente', classes: 'bg-amber-100/80 text-amber-900' },
+    APPROVED: { label: 'Aprobada', classes: 'bg-emerald-100/80 text-emerald-900' },
+    REJECTED: { label: 'Rechazada', classes: 'bg-rose-100/80 text-rose-900' },
+  }
+  return map[normalized] || { label: normalized, classes: 'bg-white/20 text-white' }
+}
+
 const currency = (value: number) =>
   new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(Number(value) || 0)
 
@@ -636,7 +681,7 @@ const loadData = async () => {
     if (!selectedStore.value || !storesMine.value.find((s) => s.slug === selectedStore.value)) {
       selectedStore.value = storesMine.value[0].slug
     }
-    await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews()])
+    await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews(), loadTickets()])
   } catch (error) {
     console.error('No se pudo cargar el dashboard', error)
     loadError.value = 'No se pudo cargar el dashboard. Intenta actualizar.'
@@ -770,6 +815,14 @@ const loadTickets = async () => {
   } finally {
     loadingTickets.value = false
   }
+}
+
+const goToSupport = async (ticket?: TicketItem) => {
+  const query = new URLSearchParams()
+  if (selectedStore.value) query.set('store', selectedStore.value)
+  if (ticket?.status) query.set('status', ticket.status)
+  const suffix = query.toString()
+  await navigateTo(suffix ? `/dashboard/tickets?${suffix}` : '/dashboard/tickets')
 }
 
 const loadRecentReviews = async (notify = false) => {
@@ -980,6 +1033,6 @@ watch(selectedStore, async () => {
   if (!selectedStore.value) return
   pendingPage.value = 1
   deliveredPage.value = 1
-  await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews()])
+  await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews(), loadTickets()])
 })
 </script>

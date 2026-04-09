@@ -39,9 +39,10 @@
             <p class="text-sm font-semibold text-white line-clamp-1">{{ product.name }}</p>
             <p class="text-sm text-amber-100 line-clamp-2">{{ product.description }}</p>
             <p class="text-base font-bold text-red-200">
-              <span v-if="product.offer_price" class="mr-1 text-amber-100/70 line-through">${{ product.price }}</span>
-              ${{ product.offer_price || product.price }}
+              <span v-if="product.offer_price" class="mr-1 text-slate-300 line-through">{{ formatClp(product.price) }}</span>
+              {{ formatClp(displayPrice(product)) }}
             </p>
+            <p v-if="product.offer_price && Number(product.offer_min_qty || 1) > 1" class="text-[11px] font-semibold text-rose-200">Oferta desde {{ Number(product.offer_min_qty) }} unidades</p>
           </article>
           <div v-if="!filteredProducts.length" class="col-span-2 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-amber-100">
             Sin productos cargados todavía.
@@ -216,6 +217,14 @@ const activeFilters = computed(() => {
   if (mineOnly.value) items.push('Solo mis productos')
   return items
 })
+const formatClp = (value: number | string) =>
+  new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value) || 0)
+
+const displayPrice = (product: any) => {
+  const minQty = Math.max(1, Number(product?.offer_min_qty || 1))
+  if (product?.offer_price && minQty <= 1) return Number(product.offer_price)
+  return Number(product?.price || 0)
+}
 
 const filteredProducts = computed(() => {
   let data = [...products.value]

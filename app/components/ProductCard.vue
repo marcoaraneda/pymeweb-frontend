@@ -91,6 +91,7 @@
       <div class="flex flex-wrap items-center gap-2">
         <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
         <span v-else-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta</span>
+        <span v-if="product.offer_price && offerMinQty > 1" class="rounded-full bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700">Desde {{ offerMinQty }} unidades</span>
         <span v-else-if="isMarketplace" class="rounded-full px-2 py-1 text-[11px] font-semibold" :class="marketBadgeClass">Marketplace</span>
           <div v-if="!hideStock" class="flex flex-wrap items-center gap-2 text-sm font-semibold" :class="stockDescriptor.tone">
             <span class="rounded-full px-3 py-1" :class="stockDescriptor.pill">
@@ -99,9 +100,9 @@
           </div>
       </div>
 
-      <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : ''" :style="product.offer_price ? {} : { color: accentColor }">
-        <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">${{ product.price }}</span>
-        ${{ product.offer_price || product.price }}
+      <p class="text-base font-bold" :class="product.offer_price ? 'text-red-600' : 'text-black'">
+        <span v-if="product.offer_price" class="mr-1 text-slate-400 line-through">{{ formatClp(product.price) }}</span>
+        {{ formatClp(effectivePrice) }}
       </p>
 
       <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
@@ -165,10 +166,19 @@ const describeStock = (value: number) => {
 }
 const stockDescriptor = computed(() => describeStock(availableStock.value))
 const hideStock = computed(() => Boolean(props.hideStock))
+const offerMinQty = computed(() => Math.max(1, Number(product?.offer_min_qty || 1)))
+const effectivePrice = computed(() => {
+  if (product?.offer_price && offerMinQty.value <= 1) {
+    return Number(product.offer_price)
+  }
+  return Number(product?.price || 0)
+})
 const addToCartLabel = computed(() => {
   if (!canAddToCart.value) return 'Sin stock'
   return isMarketplace.value ? 'Agregar al carrito' : 'Agregar'
 })
+const formatClp = (value: number | string) =>
+  new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value) || 0)
 
 const { isProductFavoriteKey, toggleProductFavoriteKey } = useFavorites()
 const productFavoriteKey = (p: any) => makeProductFavoriteKey(p?.store?.slug, p?.slug || p?.id)

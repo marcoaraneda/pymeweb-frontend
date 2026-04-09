@@ -43,6 +43,14 @@
                       <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
                       Dashboard
                     </NuxtLink>
+                    <NuxtLink
+                      v-if="isHydrated && auth.isAuthenticated"
+                      to="/seguimiento"
+                      class="flex items-center gap-2 rounded-xl px-3 py-2 text-slate-800 hover:bg-slate-50"
+                    >
+                      <Truck class="h-4 w-4" aria-hidden="true" />
+                      Ver seguimiento
+                    </NuxtLink>
                   </div>
                 </div>
               </div>
@@ -236,6 +244,10 @@
               <UserRound class="h-4 w-4" aria-hidden="true" />
               <span>Perfil</span>
             </NuxtLink>
+            <NuxtLink v-if="isHydrated && auth.isAuthenticated" to="/seguimiento" :class="mobileButtonClass">
+              <Truck class="h-4 w-4" aria-hidden="true" />
+              <span>Ver seguimiento</span>
+            </NuxtLink>
             <NuxtLink v-else to="/login" :class="mobileButtonClass">
               <LogIn class="h-4 w-4" aria-hidden="true" />
               <span>Iniciar sesión</span>
@@ -296,6 +308,7 @@ import {
   Home,
   Store as StoreIcon,
   ShoppingBag,
+  Truck,
   Info,
   Headset,
   LayoutDashboard,

@@ -4,6 +4,9 @@ type CartItem = {
   id: number | string
   name: string
   price: number
+  basePrice?: number
+  offerPrice?: number | null
+  offerMinQty?: number
   image?: string | null
   quantity: number
   max?: number | null
@@ -30,6 +33,26 @@ export const useCartStore = defineStore('cart', {
   },
 
   actions: {
+    resolveUnitPrice(basePrice: number, offerPrice?: number | null, offerMinQty = 1, quantity = 1) {
+      const safeBase = Number.isFinite(basePrice) ? Number(basePrice) : 0
+      const safeOffer = Number.isFinite(Number(offerPrice)) ? Number(offerPrice) : null
+      const minQty = Math.max(1, Number(offerMinQty) || 1)
+      if (safeOffer != null && safeOffer >= 0 && quantity >= minQty) {
+        return safeOffer
+      }
+      return safeBase
+    },
+
+    recalculateItemPrice(item: CartItem) {
+      const basePrice = Number.isFinite(Number(item.basePrice)) ? Number(item.basePrice) : Number(item.price || 0)
+      const offerPrice = Number.isFinite(Number(item.offerPrice)) ? Number(item.offerPrice) : null
+      const offerMinQty = Math.max(1, Number(item.offerMinQty) || 1)
+      item.basePrice = basePrice
+      item.offerPrice = offerPrice
+      item.offerMinQty = offerMinQty
+      item.price = this.resolveUnitPrice(basePrice, offerPrice, offerMinQty, item.quantity)
+    },
+
     clampQuantity(qty: number, max?: number | null) {
       const safe = Number.isFinite(qty) ? qty : 0
       const limited = max && Number.isFinite(max) ? Math.min(safe, max) : safe
@@ -58,7 +81,9 @@ export const useCartStore = defineStore('cart', {
       const list = this.ensureContext()
       const existing = list.find((item) => item.id === product.id)
 
-      const unitPrice = Number(product.offer_price || product.price || 0)
+      const basePrice = Number(product.price || 0)
+      const offerPrice = product.offer_price != null ? Number(product.offer_price) : null
+      const offerMinQty = Math.max(1, Number(product.offer_min_qty) || 1)
       const max = Number.isFinite(product?.stock_available) ? Number(product.stock_available) : null
 
       if (existing) {
@@ -66,17 +91,28 @@ export const useCartStore = defineStore('cart', {
         existing.quantity = qty
         existing.max = max ?? existing.max
         existing.storeSlug = product.store?.slug || existing.storeSlug || 'marketplace'
+        existing.basePrice = basePrice
+        existing.offerPrice = offerPrice
+        existing.offerMinQty = offerMinQty
+        this.recalculateItemPrice(existing)
         this.setNotice(clamped ? `Stock limitado a ${qty} unidades` : '')
       } else {
         const { qty, clamped } = this.limitQuantity(1, max)
-        list.push({
+        const item: CartItem = {
           id: product.id,
           name: product.name,
-          price: Number.isFinite(unitPrice) ? unitPrice : 0,
+          price: Number.isFinite(basePrice) ? basePrice : 0,
+          basePrice: Number.isFinite(basePrice) ? basePrice : 0,
+          offerPrice,
+          offerMinQty,
           image: product.images?.[0]?.image || product.image || null,
           quantity: qty,
           max,
           storeSlug: product.store?.slug || 'marketplace',
+        }
+        this.recalculateItemPrice(item)
+        list.push({
+          ...item,
         })
         this.setNotice(clamped ? `Stock limitado a ${qty} unidades` : '')
       }
@@ -97,6 +133,7 @@ export const useCartStore = defineStore('cart', {
 
       const { qty: limited, clamped } = this.limitQuantity(qty, item.max)
       item.quantity = limited
+      this.recalculateItemPrice(item)
       this.setNotice(clamped ? `Stock limitado a ${limited} unidades` : '')
       this.saveToStorage()
     },
@@ -127,6 +164,9 @@ export const useCartStore = defineStore('cart', {
       } catch (e) {
         this.itemsByContext = { marketplace: [] }
       }
+      Object.values(this.itemsByContext).forEach((items) => {
+        items.forEach((item) => this.recalculateItemPrice(item as CartItem))
+      })
       if (!this.itemsByContext[this.currentContext]) {
         this.itemsByContext[this.currentContext] = []
       }

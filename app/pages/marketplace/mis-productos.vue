@@ -161,10 +161,11 @@
               </div>
             </div>
             <p class="text-sm text-slate-600 line-clamp-2">{{ item.description || 'Sin descripción' }}</p>
-            <p class="text-base font-bold" :class="item.offer_price ? 'text-red-600' : 'text-slate-900'">
-              <span v-if="item.offer_price" class="mr-1 text-slate-400 line-through">${{ item.price }}</span>
-              ${{ item.offer_price || item.price }}
+            <p class="text-base font-bold" :class="item.offer_price ? 'text-red-600' : 'text-black'">
+              <span v-if="item.offer_price" class="mr-1 text-slate-400 line-through">{{ formatClp(item.price) }}</span>
+              {{ formatClp(displayPrice(item)) }}
             </p>
+            <p v-if="item.offer_price && Number(item.offer_min_qty || 1) > 1" class="text-xs font-semibold text-rose-700">Oferta desde {{ Number(item.offer_min_qty) }} unidades</p>
             <div class="flex items-center gap-2 text-xs text-slate-500">
               <span>Slug: {{ item.slug }}</span>
               <span>·</span>
@@ -198,6 +199,13 @@ import { CheckCircle2, XCircle, Loader2 } from 'lucide-vue-next'
 definePageMeta({ middleware: ['auth'], requiresAuth: true })
 
 const openMenuId = ref<number|null>(null)
+const formatClp = (value: number | string) =>
+  new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value) || 0)
+const displayPrice = (item: any) => {
+  const minQty = Math.max(1, Number(item?.offer_min_qty || 1))
+  if (item?.offer_price && minQty <= 1) return Number(item.offer_price)
+  return Number(item?.price || 0)
+}
 const openMenu = (id:number) => {
   openMenuId.value = openMenuId.value === id ? null : id
 }

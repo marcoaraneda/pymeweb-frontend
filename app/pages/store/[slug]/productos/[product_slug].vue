@@ -262,8 +262,11 @@
 
       <div class="flex flex-col gap-3">
         <div class="flex items-center gap-3 text-2xl font-bold" v-if="!editing.price">
-          <span v-if="product.offer_price" class="text-slate-400 line-through text-xl">${{ product.price }}</span>
-          <span :class="product.offer_price ? 'text-red-600' : 'text-slate-900'">${{ product.offer_price || product.price }}</span>
+          <span v-if="product.offer_price" class="text-slate-400 line-through text-xl">{{ formatClp(product.price) }}</span>
+          <span :class="product.offer_price ? 'text-red-600' : 'text-black'">{{ formatClp(displayPrice) }}</span>
+          <span v-if="product.offer_price && Number(product.offer_min_qty || 1) > 1" class="rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">
+            Desde {{ Number(product.offer_min_qty) }} unidades
+          </span>
           <button
             v-if="isStoreOwner"
             type="button"
@@ -278,11 +281,15 @@
           <div class="grid gap-3 sm:grid-cols-2">
             <div class="space-y-1">
               <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Precio</label>
-              <input v-model.number="form.price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+              <input v-model.number="form.price" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <div class="space-y-1">
               <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Precio oferta</label>
-              <input v-model.number="form.offer_price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+              <input v-model.number="form.offer_price" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-1 sm:col-span-2">
+              <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Cantidad mínima para oferta</label>
+              <input v-model.number="form.offer_min_qty" type="number" min="1" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
@@ -856,6 +863,7 @@ const form = reactive({
   description: '',
   price: 0,
   offer_price: null as number | null,
+  offer_min_qty: 1,
   image_url: '',
   stock_available: 0,
   stock_minimum: 0,
@@ -998,6 +1006,14 @@ const availableStock = computed(() => {
   const value = Number(product.value?.stock_available ?? 0)
   return Number.isFinite(value) ? value : 0
 })
+const displayPrice = computed(() => {
+  if (product.value?.offer_price && Number(product.value?.offer_min_qty || 1) <= 1) {
+    return Number(product.value.offer_price)
+  }
+  return Number(product.value?.price || 0)
+})
+const formatClp = (value: number | string) =>
+  new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value) || 0)
 const stockDescriptor = computed(() => describeStock(availableStock.value))
 const canAddToCart = computed(() => availableStock.value > 0 && (!isClothing.value || Boolean(selectedSize.value)))
 const displayTags = computed(() => {
@@ -1034,6 +1050,7 @@ const hydrateForm = (data: any) => {
   form.description = data?.description || ''
   form.price = Number(data?.price || 0)
   form.offer_price = data?.offer_price ?? null
+  form.offer_min_qty = Math.max(1, Number(data?.offer_min_qty || 1))
   form.image_url = data?.images?.[0]?.image || data?.image_url || data?.image || ''
   form.stock_available = Number(data?.stock_available ?? 0) || 0
   form.stock_minimum = Number(data?.stock_minimum ?? 0) || 0
@@ -1260,7 +1277,11 @@ const saveDescription = async () => {
 
 const savePrice = async () => {
   savingField.value = 'price'
-  const payload: any = { price: form.price, offer_price: form.offer_price }
+  const payload: any = {
+    price: form.price,
+    offer_price: form.offer_price,
+    offer_min_qty: Math.max(1, Number(form.offer_min_qty) || 1),
+  }
   const ok = await updateProduct(payload)
   if (ok) editing.price = false
 }
@@ -1496,6 +1517,27 @@ const fetchReviews = async () => {
   }
 }
 
+const parseReviewError = (error: any): string => {
+  const payload = error?.response?._data
+  if (typeof payload === 'string' && payload.trim()) {
+    return payload
+  }
+  if (Array.isArray(payload) && payload.length) {
+    return String(payload[0])
+  }
+  if (payload && typeof payload === 'object') {
+    for (const value of Object.values(payload)) {
+      if (Array.isArray(value) && value.length) {
+        return String(value[0])
+      }
+      if (typeof value === 'string' && value.trim()) {
+        return value
+      }
+    }
+  }
+  return 'No pudimos enviar la reseña'
+}
+
 const sendReview = async () => {
   if (!product.value) return
   if (reviewForm.value.rating <= 0) {
@@ -1521,25 +1563,29 @@ const sendReview = async () => {
     reviewForm.value = { rating: 0, comment: '', customer_name: '' }
     reviewHover.value = 0
     reviews.value = [pendingReview, ...reviews.value]
-    notificationStore.pushNotification({
-      type: 'review:new',
-      message: `Nueva reseña para ${product.value?.name}`,
-      count: 1,
-      store: product.value?.store?.slug,
-      product_slug: pendingReview.product_slug || product.value?.slug,
-    })
-    if (process.client) {
-      window.dispatchEvent(
-        new CustomEvent(REVIEW_EVENT, {
-          detail: {
-            store: product.value?.store?.slug,
-            product: pendingReview.product_slug || product.value?.slug,
-          },
-        })
-      )
+    try {
+      notificationStore.pushNotification({
+        type: 'review:new',
+        message: `Nueva reseña para ${product.value?.name}`,
+        count: 1,
+        store: product.value?.store?.slug,
+        product_slug: pendingReview.product_slug || product.value?.slug,
+      })
+      if (process.client) {
+        window.dispatchEvent(
+          new CustomEvent(REVIEW_EVENT, {
+            detail: {
+              store: product.value?.store?.slug,
+              product: pendingReview.product_slug || product.value?.slug,
+            },
+          })
+        )
+      }
+    } catch (notifyError) {
+      console.warn('No se pudo notificar la reseña nueva', notifyError)
     }
   } catch (error: any) {
-    reviewMessage.value = error?.response?._data || 'No pudimos enviar la reseña'
+    reviewMessage.value = parseReviewError(error)
     reviewStatus.value = 'error'
   } finally {
     sendingReview.value = false

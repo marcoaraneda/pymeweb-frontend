@@ -113,6 +113,15 @@
               <input v-model="storeForm.phone" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Dirección principal</label>
+              <input v-model="storeForm.address" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Ej: Av. Principal 123, Providencia" />
+            </div>
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Sucursales para cálculo de envío</label>
+              <textarea v-model="storeForm.branch_locations_text" rows="4" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Casa Matriz|Providencia|Av. Principal 123\nSucursal Norte|Huechuraba|Calle 2 #45"></textarea>
+              <p class="text-xs text-slate-500">Formato por línea: Nombre|Comuna/Zona|Dirección. Si no hay sucursales, se usa la dirección principal.</p>
+            </div>
+            <div class="space-y-2 md:col-span-2">
               <label class="text-sm text-slate-600">Logo (URL)</label>
               <input v-model="storeForm.logo_url" type="url" placeholder="https://..." class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
               <p class="text-xs text-slate-500">Al guardar, el header usará esta imagen.</p>
@@ -255,7 +264,7 @@ const config = useRuntimeConfig()
 
 type StoreCategory = string | { name: string; slug: string }
 
-const storeForm = reactive({ name: '', slug: '', logo_url: '', description: '', about: '', contact_email: '', phone: '' })
+const storeForm = reactive({ name: '', slug: '', logo_url: '', description: '', about: '', contact_email: '', phone: '', address: '', branch_locations_text: '' })
 const showStoreForm = ref(false)
 const updatingStore = ref(false)
 const updateMessage = ref('')
@@ -366,6 +375,7 @@ const loadData = async () => {
 
 const hydrateForm = () => {
   const data = tenantStore.data || {}
+  const branches = Array.isArray(data.branch_locations) ? data.branch_locations : []
   storeForm.name = data.name || ''
   storeForm.slug = data.slug || slug.value || ''
   storeForm.logo_url = data.logo_url || data.logo || ''
@@ -373,6 +383,10 @@ const hydrateForm = () => {
    storeForm.about = data.about || data.about_us || data.about_text || ''
   storeForm.contact_email = data.contact_email || data.email || ''
   storeForm.phone = data.phone || ''
+  storeForm.address = data.address || ''
+  storeForm.branch_locations_text = branches
+    .map((branch: any) => [branch?.label || '', branch?.zone || '', branch?.address || ''].join('|'))
+    .join('\n')
 }
 
 type StoreUpdateResponse = {
@@ -384,8 +398,25 @@ type StoreUpdateResponse = {
   contact_email?: string
   about?: string
   phone?: string
+  address?: string
+  branch_locations?: Array<{ label?: string; zone?: string; address?: string }>
   [key: string]: unknown
 }
+
+const parseBranchLocations = (raw: string) =>
+  String(raw || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [label = '', zone = '', address = ''] = line.split('|').map((part) => part.trim())
+      return {
+        label: label || 'Sucursal',
+        zone,
+        address,
+      }
+    })
+    .filter((branch) => branch.address || branch.zone)
 
 const saveStore = async () => {
   if (!canEditTheme.value) return
@@ -401,6 +432,8 @@ const saveStore = async () => {
       contact_email: storeForm.contact_email,
       about: storeForm.about,
       phone: storeForm.phone,
+      address: storeForm.address,
+      branch_locations: parseBranchLocations(storeForm.branch_locations_text),
     }
 
     const updated = await $fetch<StoreUpdateResponse>(`${config.public.apiBase}/stores/${previousSlug}/`, {

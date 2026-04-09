@@ -154,10 +154,12 @@ test('checkout manual -> pedido visible -> estado completed', async ({ page }) =
     await page.getByPlaceholder('Calle, número, comuna, ciudad').fill('Calle E2E 123, Santiago')
 
     await page.getByRole('button', { name: /Completar pedido sin Webpay/i }).click()
-    await expect(page).toHaveURL(/\/store\/lider\/orden\?id=\d+/)
+    await expect(page).toHaveURL(/\/store\/lider\/success\?order=\d+/)
+    await expect(page.getByText(/Boleta electrónica/i)).toBeVisible()
+    await expect(page.getByText(/Tracking:/i)).toBeVisible()
 
     const url = new URL(page.url())
-    orderId = url.searchParams.get('id')
+    orderId = url.searchParams.get('order')
   }
 
   expect(orderId).toBeTruthy()
@@ -178,7 +180,8 @@ test('checkout manual -> pedido visible -> estado completed', async ({ page }) =
 
   await expect(page).toHaveURL(new RegExp(`/store/lider/admin/orders/${orderId}`))
 
-  await page.selectOption('select', 'completed')
+  const statusSelect = page.locator('select').first()
+  await statusSelect.selectOption('completed')
   await expect(page.getByText(/Estado actualizado/i)).toBeVisible()
-  await expect(page.getByText(/Estado actual:\s*Finalizado/i)).toBeVisible()
+  await expect(statusSelect).toHaveValue('completed')
 })

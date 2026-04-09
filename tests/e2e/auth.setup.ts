@@ -5,6 +5,7 @@ import { dirname } from 'node:path'
 const authFile = 'tests/e2e/.auth/user.json'
 const E2E_USER = process.env.E2E_USER || ''
 const E2E_PASSWORD = process.env.E2E_PASSWORD || ''
+const API_BASE = process.env.E2E_API_BASE || 'http://127.0.0.1:8000/api'
 
 const parseJwtExp = (token: string): number => {
   const payload = token.split('.')[1]
@@ -30,6 +31,39 @@ const hasValidStoredAuth = (): boolean => {
   }
 }
 
+const bootstrapAuthCookies = async (page: any): Promise<boolean> => {
+  if (!E2E_USER || !E2E_PASSWORD) return false
+
+  const tokenResponse = await page.request
+    .post(`${API_BASE}/token/`, {
+      data: {
+        username: E2E_USER,
+        password: E2E_PASSWORD,
+      },
+    })
+    .catch(() => null)
+
+  if (!tokenResponse || !tokenResponse.ok()) return false
+
+  const tokenData = (await tokenResponse.json().catch(() => null)) as { access?: string; refresh?: string } | null
+  const access = tokenData?.access || ''
+  const refresh = tokenData?.refresh || ''
+  if (!access || !refresh) return false
+
+  await page.goto('/login')
+  const domain = new URL(page.url()).hostname
+
+  await page.context().addCookies([
+    { name: 'auth_token', value: access, domain, path: '/' },
+    { name: 'refresh_token', value: refresh, domain, path: '/' },
+  ])
+
+  await page.goto('/dashboard')
+  await expect(page).toHaveURL(/\/dashboard/)
+
+  return true
+}
+
 setup('authenticate', async ({ page, context }) => {
   if (!E2E_USER || !E2E_PASSWORD) {
     if (hasValidStoredAuth()) {
@@ -37,6 +71,12 @@ setup('authenticate', async ({ page, context }) => {
     }
     // Allow smoke specs to decide whether to skip when auth is unavailable.
     console.warn('E2E auth not available: define E2E_USER/E2E_PASSWORD or refresh tests/e2e/.auth/user.json')
+    return
+  }
+
+  if (await bootstrapAuthCookies(page)) {
+    mkdirSync(dirname(authFile), { recursive: true })
+    await context.storageState({ path: authFile })
     return
   }
 
@@ -52,7 +92,7 @@ setup('authenticate', async ({ page, context }) => {
   await password.fill(E2E_PASSWORD)
   await page.getByRole('button', { name: /entrar/i }).click()
 
-  await expect(page.getByRole('button', { name: /perfil|marko|ma/i }).first()).toBeVisible({ timeout: 20_000 })
+  await expect(page).toHaveURL(/\/dashboard/)
 
   mkdirSync(dirname(authFile), { recursive: true })
   await context.storageState({ path: authFile })

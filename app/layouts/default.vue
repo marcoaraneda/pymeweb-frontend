@@ -149,6 +149,7 @@
               v-if="showMenu"
               class="absolute right-0 top-full mt-2 w-48 rounded-xl border border-slate-200 bg-white py-2 text-sm shadow-lg"
             >
+              <NuxtLink to="/seguimiento" class="block px-3 py-2 text-slate-700 hover:bg-slate-50">Ver seguimiento</NuxtLink>
               <NuxtLink to="/profile" class="block px-3 py-2 text-slate-700 hover:bg-slate-50">Editar perfil</NuxtLink>
               <button class="block w-full px-3 py-2 text-left text-red-600 hover:bg-slate-50" @click="auth.logout()">Cerrar sesión</button>
             </div>
@@ -170,6 +171,7 @@
           </NuxtLink>
           <div class="my-2 border-t border-slate-200" />
           <NuxtLink v-if="isHydrated && auth.isAuthenticated && hasDashboardAccess" :to="defaultDashboardRoute" class="rounded-lg px-3 py-2 hover:bg-slate-100" @click.prevent="goDashboard">Dashboard</NuxtLink>
+          <NuxtLink v-if="isHydrated && auth.isAuthenticated" to="/seguimiento" class="rounded-lg px-3 py-2 hover:bg-slate-100">Ver seguimiento</NuxtLink>
           <NuxtLink v-if="isHydrated && auth.isAuthenticated" to="/profile" class="rounded-lg px-3 py-2 hover:bg-slate-100">Editar perfil</NuxtLink>
           <button v-if="isHydrated && auth.isAuthenticated" class="rounded-lg px-3 py-2 text-left text-red-600 hover:bg-slate-100" @click="handleLogout">Cerrar sesión</button>
           <NuxtLink v-if="!isHydrated || !auth.isAuthenticated" to="/login" class="rounded-lg px-3 py-2 hover:bg-slate-100">Iniciar sesión</NuxtLink>

@@ -3,7 +3,7 @@
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 class="text-2xl font-bold text-gray-800">Reseñas de la tienda</h1>
-        <p class="text-sm text-gray-500">Aprueba o rechaza reseñas públicas de esta tienda.</p>
+        <p class="text-sm text-gray-500">Listado de reseñas públicas registradas en la tienda (sin opción de desactivación manual).</p>
       </div>
       <button @click="loadReviews" class="text-sm bg-gray-200 px-4 py-2 rounded-lg">Actualizar</button>
     </div>
@@ -51,14 +51,6 @@
             <span class="text-sm text-amber-600">{{ '★'.repeat(review.rating) }}</span>
           </div>
         </div>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <button class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50" :disabled="review.status === 'APPROVED' || savingId === review.id" @click="updateStatus(review, 'APPROVED')">
-            Aprobar
-          </button>
-          <button class="rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50" :disabled="review.status === 'REJECTED' || savingId === review.id" @click="updateStatus(review, 'REJECTED')">
-            Rechazar
-          </button>
-        </div>
       </article>
     </div>
   </div>
@@ -91,7 +83,6 @@ const reviews = ref<ReviewRow[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
-const savingId = ref<number | null>(null)
 const selectedStatus = ref<'ALL' | ReviewRow['status']>('ALL')
 const statusOptions = [
   { value: 'ALL' as const, label: 'Todas' },
@@ -135,24 +126,6 @@ const loadReviews = async () => {
     reviews.value = []
   } finally {
     loading.value = false
-  }
-}
-
-const updateStatus = async (review: ReviewRow, status: ReviewRow['status']) => {
-  savingId.value = review.id
-  errorMessage.value = ''
-  successMessage.value = ''
-  try {
-    const updated = await authedFetch<ReviewRow>(`${config.public.apiBase}/store/${slug}/admin/resenas/reviews/${review.id}/`, {
-      method: 'PATCH',
-      body: { status },
-    })
-    reviews.value = reviews.value.map((item) => (item.id === review.id ? { ...item, ...updated } : item))
-    successMessage.value = `Reseña #${review.id} actualizada a ${status}.`
-  } catch (error: any) {
-    errorMessage.value = error?.response?._data?.detail || 'No se pudo actualizar la reseña.'
-  } finally {
-    savingId.value = null
   }
 }
 

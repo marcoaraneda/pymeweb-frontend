@@ -33,11 +33,15 @@
           <div class="grid gap-4 sm:grid-cols-2">
             <div class="space-y-2">
               <label class="text-sm text-slate-600">Precio</label>
-              <input v-model.number="form.price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+              <input v-model.number="form.price" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <div class="space-y-2">
               <label class="text-sm text-slate-600">Precio oferta (opcional)</label>
-              <input v-model.number="form.offer_price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+              <input v-model.number="form.offer_price" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-2 sm:col-span-2">
+              <label class="text-sm text-slate-600">Cantidad mínima para activar oferta</label>
+              <input v-model.number="form.offer_min_qty" type="number" min="1" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </div>
           </div>
           <div class="grid gap-4 sm:grid-cols-2">
@@ -57,6 +61,19 @@
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
             </select>
             <p class="text-xs text-slate-500">Selecciona una categoría para este producto.</p>
+          </div>
+          <div v-if="requiresSizeQty" class="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div>
+              <p class="text-sm font-semibold text-slate-900">Cantidad por talla {{ isShoesCategory ? 'de zapatilla' : '' }}</p>
+              <p class="text-xs text-slate-500">Define unidades por talla. El total reemplaza el stock disponible.</p>
+            </div>
+            <div class="grid gap-2 sm:grid-cols-3">
+              <label v-for="size in activeSizeOptions" :key="size" class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                <span class="font-semibold text-slate-700">{{ size }}</span>
+                <input v-model.number="sizeQty[size]" type="number" min="0" step="1" class="w-20 rounded-lg border border-slate-200 px-2 py-1 text-right" />
+              </label>
+            </div>
+            <p class="text-xs text-slate-600">Total por talla: <span class="font-semibold">{{ sizeQtyTotal }}</span> unidades.</p>
           </div>
 
           <div class="flex flex-wrap gap-4">
@@ -135,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { definePageMeta } from '#imports'
@@ -163,6 +180,7 @@ const form = reactive({
   description: '',
   price: 0,
   offer_price: null as number | null,
+  offer_min_qty: 1,
   is_featured: false,
   product_of_week: false,
   is_active: true,
@@ -178,11 +196,51 @@ const deleting = ref(false)
 const message = ref('')
 const messageType = ref<'ok' | 'error'>('ok')
 const variants = ref<any[]>([])
+const clothingSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+const shoeSizes = ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44']
+const sizeOptions = [...clothingSizes, ...shoeSizes]
+const sizeQty = reactive<Record<string, number>>({})
+sizeOptions.forEach((size) => {
+  sizeQty[size] = 0
+})
 
 const accentStyle = computed(() => ({ backgroundColor: theme.accent, color: '#fff' }))
 const categories = ref<any[]>([])
+const selectedCategoryName = computed(() => {
+  const selected = categories.value.find((cat: any) => String(cat.id) === String(form.category))
+  return String(selected?.name || '').toLowerCase()
+})
+const isShoesCategory = computed(() => /calzado|zapat|shoe|sneaker/.test(selectedCategoryName.value))
+const isClothingCategory = computed(() => /ropa|vest|camis|pantal/.test(selectedCategoryName.value))
+const requiresSizeQty = computed(() => isShoesCategory.value || isClothingCategory.value)
+const activeSizeOptions = computed(() => (isShoesCategory.value ? shoeSizes : clothingSizes))
+const sizeQtyTotal = computed(() => activeSizeOptions.value.reduce((acc, size) => acc + (Number(sizeQty[size]) || 0), 0))
+
+const normalizedSizeStockMap = computed(() => {
+  const map: Record<string, number> = {}
+  activeSizeOptions.value.forEach((size) => {
+    const qty = Math.max(0, Number(sizeQty[size]) || 0)
+    if (qty > 0) map[size] = qty
+  })
+  return map
+})
+
+watch(
+  () => [requiresSizeQty.value, sizeQtyTotal.value],
+  () => {
+    if (requiresSizeQty.value) {
+      form.stock_available = sizeQtyTotal.value
+    }
+  }
+)
 
 const authedFetch = async <T>(url: string, options: Record<string, any> = {}) => {
+  if (!auth.token) {
+    await auth.initializeSession()
+  }
+  if (!auth.token && auth.refreshToken) {
+    await auth.refreshTokens()
+  }
   if (!auth.token) throw new Error('No autenticado')
   const doFetch = (token: string) =>
     $fetch<T>(url as any, {
@@ -248,6 +306,7 @@ const load = async () => {
     form.description = data.description
     form.price = data.price
     form.offer_price = data.offer_price
+    form.offer_min_qty = Number(data.offer_min_qty || 1)
     form.is_featured = data.is_featured
     form.product_of_week = data.product_of_week
     form.is_active = data.is_active
@@ -257,6 +316,15 @@ const load = async () => {
     form.stock_available = data.stock_available ?? 0
     form.stock_minimum = data.stock_minimum ?? 0
     variants.value = data.variants || []
+    sizeOptions.forEach((size) => {
+      sizeQty[size] = 0
+    })
+    const incomingMap = (data?.size_stock_map && typeof data.size_stock_map === 'object') ? data.size_stock_map : {}
+    Object.entries(incomingMap).forEach(([size, qty]) => {
+      if (Object.prototype.hasOwnProperty.call(sizeQty, size)) {
+        sizeQty[size] = Math.max(0, Number(qty) || 0)
+      }
+    })
   } catch (error) {
     message.value = 'No pudimos cargar el producto'
     messageType.value = 'error'
@@ -300,12 +368,14 @@ const save = async () => {
       description: form.description,
       price: form.price,
       offer_price: form.offer_price,
+      offer_min_qty: Math.max(1, Number(form.offer_min_qty) || 1),
       is_featured: form.is_featured,
       product_of_week: form.product_of_week,
       is_active: form.is_active,
       is_marketplace: form.is_marketplace,
       stock_available: Number(form.stock_available) || 0,
       stock_minimum: Number(form.stock_minimum) || 0,
+      size_stock_map: requiresSizeQty.value ? normalizedSizeStockMap.value : {},
     }
 
     if (form.image_url) payload.image_url = form.image_url
@@ -327,10 +397,7 @@ const save = async () => {
 }
 
 onMounted(async () => {
-  auth.restoreFromCookies()
-  if (auth.token && !auth.user) {
-    await auth.fetchProfile()
-  }
+  await auth.initializeSession()
   tenantStore.setSlug(slug)
   theme.loadFromStorage()
   theme.applyStoreTheme(slug)

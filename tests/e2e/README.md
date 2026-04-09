@@ -13,6 +13,7 @@ This test automates:
 Set these variables before running in a clean environment:
 
 - `E2E_BASE_URL` (optional, default: `http://localhost:3001`)
+- `E2E_BASE_URL` (optional, default: `http://localhost:3000`)
 - `E2E_USER`
 - `E2E_PASSWORD`
 
@@ -24,6 +25,8 @@ Set these variables before running in a clean environment:
   - `npm run test:e2e:auth`
 - Run tests headless:
   - `npm run test:e2e`
+- Run smoke suite:
+  - `npm run test:e2e:smoke`
 - Run tests headed:
   - `npm run test:e2e:headed`
 
@@ -32,3 +35,7 @@ Auth behavior:
 - If `E2E_USER` and `E2E_PASSWORD` are provided, the setup test logs in and rewrites `tests/e2e/.auth/user.json`.
 - If credentials are not provided but `tests/e2e/.auth/user.json` exists, setup reuses it.
 - If neither credentials nor auth state are available, tests fail with an explicit authentication error.
+
+Notes:
+
+- `catalogo-shoe-sizes-flow.spec.ts` creates a temporary product and deletes it automatically at the end of the test.
