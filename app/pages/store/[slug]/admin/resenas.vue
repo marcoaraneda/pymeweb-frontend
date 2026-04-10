@@ -37,7 +37,7 @@
         No hay reseñas registradas.
       </div>
 
-      <article v-for="review in filteredReviews" :key="review.id" class="rounded-xl border bg-white p-4 shadow-sm">
+      <article v-for="review in paginatedReviews" :key="review.id" class="rounded-xl border bg-white p-4 shadow-sm">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p class="font-semibold text-slate-900">{{ review.product_name || `Producto #${review.product}` }}</p>
@@ -52,12 +52,30 @@
           </div>
         </div>
       </article>
+
+      <div v-if="filteredReviews.length > perPage" class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+        <button
+          class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+          :disabled="page === 1"
+          @click="page -= 1"
+        >
+          Anterior
+        </button>
+        <p>Mostrando {{ pageStart }}-{{ pageEnd }} de {{ filteredReviews.length }}</p>
+        <button
+          class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+          :disabled="page === totalPages"
+          @click="page += 1"
+        >
+          Siguiente
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 
@@ -84,6 +102,8 @@ const loading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const selectedStatus = ref<'ALL' | ReviewRow['status']>('ALL')
+const page = ref(1)
+const perPage = 10
 const statusOptions = [
   { value: 'ALL' as const, label: 'Todas' },
   { value: 'PENDING' as const, label: 'Pendientes' },
@@ -94,6 +114,13 @@ const filteredReviews = computed(() => {
   if (selectedStatus.value === 'ALL') return reviews.value
   return reviews.value.filter((review) => review.status === selectedStatus.value)
 })
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredReviews.value.length / perPage)))
+const paginatedReviews = computed(() => {
+  const start = (page.value - 1) * perPage
+  return filteredReviews.value.slice(start, start + perPage)
+})
+const pageStart = computed(() => (filteredReviews.value.length ? (page.value - 1) * perPage + 1 : 0))
+const pageEnd = computed(() => Math.min(page.value * perPage, filteredReviews.value.length))
 
 const authedFetch = async <T>(url: string, options: Record<string, any> = {}) => {
   if (!auth.token) throw new Error('No autenticado')
@@ -138,4 +165,12 @@ const statusClasses = (status: ReviewRow['status']) => {
 const formatDate = (value: string) => new Date(value).toLocaleString('es-CL')
 
 onMounted(loadReviews)
+
+watch(selectedStatus, () => {
+  page.value = 1
+})
+
+watch(filteredReviews, () => {
+  if (page.value > totalPages.value) page.value = totalPages.value
+})
 </script>

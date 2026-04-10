@@ -53,7 +53,7 @@
       <div v-else-if="!faqs.length" class="mt-4 text-sm text-slate-500">No hay preguntas frecuentes configuradas.</div>
 
       <ul v-else class="mt-4 divide-y divide-slate-100">
-        <li v-for="faq in faqs" :key="faq.id" class="py-3 space-y-2">
+        <li v-for="faq in pagedFaqs" :key="faq.id" class="py-3 space-y-2">
           <div class="flex items-start justify-between gap-2">
             <div>
               <p class="text-sm font-semibold text-slate-900">{{ faq.question }}</p>
@@ -69,12 +69,17 @@
           </div>
         </li>
       </ul>
+      <div v-if="faqTotalPages > 1" class="mt-4 flex items-center justify-between text-xs text-slate-600">
+        <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="faqPage === 1" @click="faqPage -= 1">Anterior</button>
+        <span>Página {{ faqPage }} / {{ faqTotalPages }}</span>
+        <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="faqPage === faqTotalPages" @click="faqPage += 1">Siguiente</button>
+      </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
@@ -100,6 +105,8 @@ const saving = ref(false)
 const message = ref('')
 const messageType = ref<'ok' | 'error'>('ok')
 const faqs = ref<FAQItem[]>([])
+const faqPage = ref(1)
+const faqPageSize = 10
 
 const form = reactive({
   question: '',
@@ -107,6 +114,11 @@ const form = reactive({
 })
 
 const accentColor = computed(() => theme.accent || '#2563eb')
+const faqTotalPages = computed(() => Math.max(1, Math.ceil(faqs.value.length / faqPageSize)))
+const pagedFaqs = computed(() => {
+  const start = (faqPage.value - 1) * faqPageSize
+  return faqs.value.slice(start, start + faqPageSize)
+})
 
 const authedFetch = async <T>(url: string, options: Record<string, any> = {}) => {
   if (!auth.token) throw new Error('No autenticado')
@@ -135,6 +147,7 @@ const loadFaqs = async () => {
   loading.value = true
   try {
     faqs.value = await authedFetch<FAQItem[]>(`${config.public.apiBase}/store/${slug}/admin/faq/faqs/`)
+    faqPage.value = 1
   } catch (error) {
     faqs.value = []
   } finally {
@@ -196,5 +209,9 @@ onMounted(async () => {
   theme.loadFromStorage()
   theme.applyStoreTheme(slug)
   await loadFaqs()
+})
+
+watch(faqs, () => {
+  if (faqPage.value > faqTotalPages.value) faqPage.value = faqTotalPages.value
 })
 </script>

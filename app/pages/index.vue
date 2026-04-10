@@ -9,33 +9,31 @@
       class="relative z-10 bg-slate-950 text-white reveal"
       :style="heroStyle"
     >
-      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 pt-6">
-        <div class="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/80 shadow-lg shadow-blue-900/30">
-          Panel principal
-          <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-        </div>
-        <div class="flex flex-wrap items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-900/30 backdrop-blur">
-          <NuxtLink to="/marketplace" class="rounded-full px-3 py-1 hover:bg-white/20">Marketplace</NuxtLink>
-          <NuxtLink to="/tiendas" class="rounded-full px-3 py-1 hover:bg-white/20">Tiendas</NuxtLink>
-          <NuxtLink to="/login" class="rounded-full px-3 py-1 hover:bg-white/20">Acceder</NuxtLink>
-          <NuxtLink to="/register" class="rounded-full px-3 py-1 hover:bg-white/20">Crear cuenta</NuxtLink>
-        </div>
-      </div>
       <div class="max-w-6xl mx-auto px-6 py-16 lg:py-24 grid lg:grid-cols-[1.1fr,0.9fr] gap-12 items-center">
         <div>
           <p class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.2em]">
-            Gestiona y personaliza
+            Bienvenido a Pymeweb
           </p>
           <h1 class="mt-6 text-4xl md:text-5xl font-extrabold leading-tight">
-            Tu ecosistema de tiendas, con el estilo que necesitas
+            Lanza, personaliza y escala tu tienda digital en minutos
           </h1>
           <p class="mt-4 text-lg text-white/80 max-w-2xl">
-            Inicia sesión, consulta tus tiendas, explora todas las disponibles y ajusta los colores para que tu marca se sienta en casa.
+            Pymeweb te da una vitrina moderna para vender con identidad propia: crea tu tienda, publica productos y convierte visitas en compras.
           </p>
 
           <div class="mt-8 grid gap-3 sm:grid-cols-3">
+            <button
+              v-if="auth.isAuthenticated"
+              type="button"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5"
+              :style="{ backgroundColor: theme.accent, color: '#fff' }"
+              @click="openCreateStoreModal"
+            >
+              Crear tienda ahora
+              <Star class="h-4 w-4" aria-hidden="true" />
+            </button>
             <NuxtLink
-              v-if="!auth.isAuthenticated"
+              v-else
               to="/login"
               class="inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5"
               :style="{ backgroundColor: theme.accent, color: '#fff' }"
@@ -43,15 +41,6 @@
               Iniciar sesión
               <ChevronRight class="h-4 w-4" aria-hidden="true" />
             </NuxtLink>
-            <a
-              v-else
-              href="#crear-tienda"
-              class="inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5"
-              :style="{ backgroundColor: theme.accent, color: '#fff' }"
-            >
-              Crear tienda
-              <Star class="h-4 w-4" aria-hidden="true" />
-            </a>
             <a
               href="#tiendas"
               class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/20 px-5 py-3 font-semibold text-white hover:border-white/40 hover:bg-white/5 transition"
@@ -66,31 +55,33 @@
           <div class="absolute -inset-8 rounded-3xl bg-white/5 blur-2xl" />
           <div class="relative rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
             <div class="flex items-center justify-between text-sm text-white/80">
-              <span>Panel de tiendas</span>
-              <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs">
-                Sincronizado
-                <span class="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-              </span>
+              <span>Tutorial Pymeweb</span>
+              <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs">3 pasos</span>
             </div>
 
-            <div v-if="auth.isAuthenticated" class="mt-4 space-y-3">
-              <div
-                v-for="s in storesMine.slice(0, 3)"
-                :key="s.slug"
-                class="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3"
-              >
+            <div class="mt-4 space-y-3">
+              <div class="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
                 <div>
-                  <p class="text-sm text-white/70">{{ s.slug }}</p>
-                  <p class="text-base font-semibold">{{ s.name }}</p>
+                  <p class="text-xs uppercase text-white/60">Paso 1</p>
+                  <p class="text-base font-semibold">Crea tu tienda con tu marca</p>
                 </div>
-                <span class="rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">Activa</span>
+                <span class="rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">Inicio</span>
               </div>
-              <p class="text-xs text-white/60">Vista previa de tus tiendas. Ajusta colores dentro de cada tienda.</p>
-            </div>
-
-            <div v-else class="mt-4 space-y-3 text-white/80">
-              <p class="text-sm">Explora las tiendas disponibles y compra sin registrar.</p>
-              <p class="text-xs text-white/60">Inicia sesión para administrar tus propias tiendas.</p>
+              <div class="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
+                <div>
+                  <p class="text-xs uppercase text-white/60">Paso 2</p>
+                  <p class="text-base font-semibold">Publica productos y ofertas</p>
+                </div>
+                <span class="rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">Catálogo</span>
+              </div>
+              <div class="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
+                <div>
+                  <p class="text-xs uppercase text-white/60">Paso 3</p>
+                  <p class="text-base font-semibold">Gestiona pedidos desde dashboard</p>
+                </div>
+                <span class="rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">Ventas</span>
+              </div>
+              <p class="text-xs text-white/60">Todo en un flujo conectado para que puedas vender sin fricciones.</p>
             </div>
           </div>
         </div>
@@ -99,99 +90,70 @@
 
     <section class="relative z-10 max-w-6xl mx-auto px-6 py-12 space-y-6 reveal" style="animation-delay: 0.03s;">
       <div class="grid gap-6 lg:grid-cols-1">
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Últimas novedades</p>
-              <h3 class="text-lg font-semibold text-slate-900">Lo más nuevo de las tiendas, con su color</h3>
+              <h3 class="text-xl font-semibold text-slate-900">Lo nuevo para vender mejor hoy</h3>
             </div>
-            <NuxtLink to="/marketplace" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Marketplace</NuxtLink>
+            <NuxtLink to="/marketplace" class="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-slate-300">Marketplace</NuxtLink>
           </div>
           <div v-if="loadingStoreProducts" class="text-slate-500 mt-3">Cargando productos de tiendas...</div>
           <div v-else-if="storeProductsError" class="text-red-600 mt-3">{{ storeProductsError }}</div>
           <div v-else-if="!featuredStoreProducts.length" class="text-slate-600 mt-3">Sin productos recientes publicados.</div>
-          <div v-else class="mt-3 space-y-3">
+          <div v-else class="mt-4 grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
             <NuxtLink
-              v-for="product in featuredStoreProducts"
-              :key="product.id"
-              :to="productDetailPath(product)"
-              class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 transition hover:-translate-y-0.5 hover:shadow"
+              :to="productDetailPath(featuredMainProduct)"
+              class="rounded-2xl border border-slate-200 bg-slate-900 p-4 text-white transition hover:-translate-y-0.5 hover:shadow-lg"
             >
-              <img :src="product.images?.[0]?.image || product.image || productImage(product)" :alt="product.name" class="h-16 w-16 rounded-xl object-cover" />
-              <div class="flex-1">
-                <p class="text-xs uppercase tracking-wide text-slate-500">{{ product.category?.name || 'General' }}</p>
-                <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ product.name }}</p>
-                <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                  <span
-                    class="rounded-full px-2 py-1"
-                    :style="{ backgroundColor: `${storeAccent(product)}22`, color: storeAccent(product) }"
-                  >
-                    {{ product.store?.slug || 'tienda' }}
-                  </span>
-                  <span class="text-slate-500">{{ formatClp(displayPrice(product)) }}</span>
+              <div class="flex h-full flex-col gap-4">
+                <img :src="productImage(featuredMainProduct)" :alt="featuredMainProduct?.name" class="h-44 w-full rounded-xl object-cover" />
+                <div>
+                  <p class="text-xs uppercase tracking-wide text-slate-300">{{ featuredMainProduct?.category?.name || 'General' }}</p>
+                  <p class="text-xl font-semibold line-clamp-1">{{ featuredMainProduct?.name }}</p>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="rounded-full bg-white/10 px-3 py-1">{{ featuredMainProduct?.store?.slug || 'tienda' }}</span>
+                  <span class="font-semibold">{{ formatClp(displayPrice(featuredMainProduct)) }}</span>
                 </div>
               </div>
             </NuxtLink>
+
+            <div class="space-y-3">
+              <NuxtLink
+                v-for="product in featuredSecondaryProducts"
+                :key="product.id"
+                :to="productDetailPath(product)"
+                class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 transition hover:-translate-y-0.5 hover:shadow"
+              >
+                <img :src="productImage(product)" :alt="product.name" class="h-16 w-16 rounded-xl object-cover" />
+                <div class="flex-1">
+                  <p class="text-xs uppercase tracking-wide text-slate-500">{{ product.category?.name || 'General' }}</p>
+                  <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ product.name }}</p>
+                  <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                    <span
+                      class="rounded-full px-2 py-1"
+                      :style="{ backgroundColor: `${storeAccent(product)}22`, color: storeAccent(product) }"
+                    >
+                      {{ product.store?.slug || 'tienda' }}
+                    </span>
+                    <span class="text-slate-500">{{ formatClp(displayPrice(product)) }}</span>
+                  </div>
+                </div>
+              </NuxtLink>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
       <section id="tiendas" class="relative z-10 max-w-6xl mx-auto px-6 py-14 space-y-10 reveal" style="animation-delay: 0.05s;">
-        <div class="grid gap-8" :class="auth.isAuthenticated ? 'lg:grid-cols-[1.1fr,0.9fr]' : 'lg:grid-cols-1'">
-          <div v-if="auth.isAuthenticated" class="space-y-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Mis tiendas</p>
-                <h3 class="text-xl font-semibold text-slate-900">Creadas o administradas por ti</h3>
-              </div>
-              <a
-                href="#crear-tienda"
-                class="text-sm font-semibold text-slate-600 underline decoration-dashed"
-              >
-                Crear tienda
-              </a>
-            </div>
-
-            <div class="space-y-4">
-              <div
-                id="crear-tienda"
-                class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-              >
-                <div class="flex flex-col gap-3 sm:flex-row">
-                  <input
-                    v-model="newStoreName"
-                    type="text"
-                    placeholder="Nombre de tu nueva tienda"
-                    class="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-slate-800 shadow-inner focus:border-slate-400 focus:outline-none"
-                  />
-                  <button
-                    class="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-white shadow-lg shadow-black/10 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                    :style="{ backgroundColor: theme.accent }"
-                    :disabled="creating || !newStoreName.trim()"
-                    @click="createStore"
-                  >
-                    {{ creating ? 'Creando…' : 'Crear tienda' }}
-                  </button>
-                </div>
-                <p v-if="createError" class="mt-2 text-sm text-red-600">{{ createError }}</p>
-                <p v-else-if="createMessage" class="mt-2 text-sm text-green-600">{{ createMessage }}</p>
-              </div>
-
-              <div v-if="loadingMine" class="text-slate-500">Cargando tus tiendas...</div>
-              <div v-else-if="storesMine.length === 0" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
-                No tienes tiendas asociadas aún. Crea una o solicita acceso.
-              </div>
-              <div v-else class="grid gap-4 sm:grid-cols-2">
-                <StoreCard v-for="store in storesMine" :key="store.slug" :store="store" :accent="theme.accent" />
-              </div>
-            </div>
-          </div>
+        <div class="grid gap-8 lg:grid-cols-1">
           <div class="space-y-4">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Todas las tiendas</p>
-                <h3 class="text-xl font-semibold text-slate-900">Explora el marketplace</h3>
+                <h3 class="text-2xl font-semibold text-slate-900">Descubre tiendas activas en Pymeweb</h3>
               </div>
               <div class="flex flex-wrap items-center justify-end gap-3">
                 <NuxtLink
@@ -249,7 +211,7 @@
             <div v-else-if="filteredStoresAll.length === 0" class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
               {{ emptyStoresMessage }}
             </div>
-            <div v-else class="grid gap-4 sm:grid-cols-2">
+            <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <StoreCard v-for="store in paginatedStores" :key="store.slug" :store="store" :accent="theme.accent" />
             </div>
 
@@ -319,9 +281,110 @@
           No hay productos de marketplace publicados todavía.
         </div>
         <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <ProductCard v-for="product in displayMarketplaceProducts" :key="product.id" :product="product" :isMarketplace="true" />
+          <ProductCard v-for="product in paginatedMarketplaceProducts" :key="product.id" :product="product" :isMarketplace="true" />
+        </div>
+
+        <div v-if="displayMarketplaceProducts.length > marketplacePerPage" class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+          <button
+            class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+            :disabled="marketplacePage === 1"
+            @click="marketplacePage -= 1"
+          >
+            Anterior
+          </button>
+          <p>Mostrando {{ marketplacePageStart }}-{{ marketplacePageEnd }} de {{ displayMarketplaceProducts.length }}</p>
+          <button
+            class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+            :disabled="marketplacePage === marketplaceTotalPages"
+            @click="marketplacePage += 1"
+          >
+            Siguiente
+          </button>
         </div>
       </section>
+
+    <section v-if="showCreateStoreModal" class="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-900/70 px-4 py-10">
+      <div class="relative w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <button
+          class="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100"
+          @click="closeCreateStoreModal"
+          aria-label="Cerrar creación"
+        >
+          ×
+        </button>
+
+        <div class="space-y-4">
+          <div>
+            <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Nueva tienda</p>
+            <h2 class="text-xl font-semibold text-slate-900">Crea tu tienda en Pymeweb</h2>
+            <p class="text-slate-600">Completa los datos principales. Puedes seguir editando dentro de tu tienda luego de crearla.</p>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="space-y-2">
+              <label class="text-sm text-slate-600">Nombre</label>
+              <input v-model="createForm.name" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm text-slate-600">Slug (opcional)</label>
+              <input v-model="createForm.slug" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Tipo de tienda</label>
+              <select v-model="createForm.store_type" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                <option value="retail">Retail</option>
+                <option value="fast_food">Comida rápida</option>
+                <option value="bakery">Pastelería</option>
+                <option value="pharmacy">Farmacia</option>
+                <option value="fashion">Moda</option>
+                <option value="bookstore">Librería</option>
+              </select>
+            </div>
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Descripción</label>
+              <textarea v-model="createForm.description" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"></textarea>
+            </div>
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Acerca de</label>
+              <textarea v-model="createForm.about" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"></textarea>
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm text-slate-600">Email de contacto</label>
+              <input v-model="createForm.contact_email" type="email" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm text-slate-600">Teléfono</label>
+              <input v-model="createForm.phone" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm text-slate-600">WhatsApp</label>
+              <input v-model="createForm.whatsapp" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Dirección</label>
+              <input v-model="createForm.address" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Logo URL (opcional)</label>
+              <input v-model="createForm.logo_url" type="url" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <button
+              class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow"
+              :style="{ backgroundColor: theme.accent }"
+              :disabled="creating || !createForm.name.trim()"
+              @click="createStore"
+            >
+              {{ creating ? 'Creando...' : 'Crear tienda' }}
+            </button>
+            <p v-if="createError" class="text-sm text-red-600">{{ createError }}</p>
+            <p v-else-if="createMessage" class="text-sm text-emerald-600">{{ createMessage }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <footer class="relative z-10 border-t bg-white/80 backdrop-blur">
       <div class="max-w-6xl mx-auto px-6 py-6 text-center text-sm text-slate-500">
@@ -334,7 +397,7 @@
 <script setup lang="ts">
 import { ChevronRight, Heart, Star } from 'lucide-vue-next'
 import ProductCard from '~/components/ProductCard.vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
@@ -343,7 +406,7 @@ import { useCartStore } from '~/stores/cart'
 import { makeProductFavoriteKey, useFavorites } from '../composables/useFavorites'
 import { useMarketplaceRequests } from '~/composables/useMarketplaceRequests'
 
-type Store = { id: number; name: string; slug: string }
+type Store = { id: number; name: string; slug: string; store_type?: string }
 
 const config = useRuntimeConfig()
 const apiBase = String(config.public.apiBase || '')
@@ -365,6 +428,8 @@ const marketplaceProducts = ref<any[]>([])
 const loadingMarketplace = ref(true)
 const marketplaceError = ref('')
 const latestStoreProducts = ref<any[]>([])
+const shuffledStoreProducts = ref<any[]>([])
+const highlightedStoreProductId = ref<number | string | null>(null)
 const loadingStoreProducts = ref(true)
 const storeProductsError = ref('')
 const error = ref('')
@@ -372,11 +437,26 @@ const newStoreName = ref('')
 const creating = ref(false)
 const createError = ref('')
 const createMessage = ref('')
+const showCreateStoreModal = ref(false)
+const createForm = ref({
+  name: '',
+  slug: '',
+  store_type: 'retail',
+  description: '',
+  about: '',
+  contact_email: '',
+  phone: '',
+  whatsapp: '',
+  address: '',
+  logo_url: '',
+})
 const filterQuery = ref('')
 const storesPage = ref(1)
 const storesPerPage = 4
 const showFavoriteStoresOnly = ref(false)
 const showFavoriteProductsOnly = ref(false)
+const marketplacePage = ref(1)
+const marketplacePerPage = 6
 
 const heroStyle = computed(() => ({
   backgroundImage: `linear-gradient(120deg, ${theme.gradientFrom}, ${theme.gradientTo})`,
@@ -472,6 +552,7 @@ const fetchLatestStoreProducts = async () => {
         : await $fetch<any[]>(url as any)
       if (data?.length) {
         latestStoreProducts.value = data
+        shuffleFeaturedProducts()
         loadingStoreProducts.value = false
         return
       }
@@ -484,6 +565,7 @@ const fetchLatestStoreProducts = async () => {
     .filter((p: any) => !p.store_is_marketplace)
     .sort((a: any, b: any) => new Date(b.created_at || b.created || b.id).getTime() - new Date(a.created_at || a.created || a.id).getTime())
   latestStoreProducts.value = fallback.slice(0, 6)
+  shuffleFeaturedProducts()
   storeProductsError.value = ''
   loadingStoreProducts.value = false
 }
@@ -496,7 +578,53 @@ const displayPrice = (product: any) => {
   if (product?.offer_price && minQty <= 1) return Number(product.offer_price)
   return Number(product?.price || 0)
 }
-const featuredStoreProducts = computed(() => (latestStoreProducts.value || []).slice(0, 3))
+const shuffleArray = <T,>(items: T[]) => {
+  const clone = [...items]
+  for (let i = clone.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const temp = clone[i]
+    clone[i] = clone[j]
+    clone[j] = temp
+  }
+  return clone
+}
+
+const shuffleFeaturedProducts = () => {
+  const base = shuffleArray((latestStoreProducts.value || []).filter(Boolean))
+  shuffledStoreProducts.value = base
+  if (!base.length) {
+    highlightedStoreProductId.value = null
+    return
+  }
+  if (!base.some((product) => String(product?.id) === String(highlightedStoreProductId.value))) {
+    highlightedStoreProductId.value = base[0]?.id ?? null
+  }
+}
+
+const rotateHighlightedFeaturedProduct = () => {
+  const source = shuffledStoreProducts.value.length ? shuffledStoreProducts.value : latestStoreProducts.value
+  if (!source.length) {
+    highlightedStoreProductId.value = null
+    return
+  }
+  const currentId = highlightedStoreProductId.value
+  const candidates = source.filter((product) => String(product?.id) !== String(currentId))
+  const pool = candidates.length ? candidates : source
+  const randomIndex = Math.floor(Math.random() * pool.length)
+  highlightedStoreProductId.value = pool[randomIndex]?.id ?? source[0]?.id ?? null
+}
+
+const featuredStoreProducts = computed(() => {
+  const source = shuffledStoreProducts.value.length ? shuffledStoreProducts.value : (latestStoreProducts.value || [])
+  if (!source.length) return []
+  const highlighted = source.find((product) => String(product?.id) === String(highlightedStoreProductId.value)) || source[0]
+  const rest = source.filter((product) => String(product?.id) !== String(highlighted?.id)).slice(0, 2)
+  return [highlighted, ...rest]
+})
+
+const featuredMainProduct = computed(() => featuredStoreProducts.value[0] || null)
+const featuredSecondaryProducts = computed(() => featuredStoreProducts.value.slice(1))
+let featuredRotationTimer: ReturnType<typeof setInterval> | null = null
 
 const productFavoriteKey = (product: any) => makeProductFavoriteKey(product?.store?.slug, product?.slug || product?.id)
 const isProductFavorite = (product: any) => isProductFavoriteKey(productFavoriteKey(product))
@@ -506,8 +634,15 @@ const displayMarketplaceProducts = computed(() => {
   const filtered = showFavoriteProductsOnly.value ? base.filter((p: any) => isProductFavorite(p)) : base
   return [...filtered].sort((a: any, b: any) => Number(isProductFavorite(b)) - Number(isProductFavorite(a)))
 })
+const marketplaceTotalPages = computed(() => Math.max(1, Math.ceil(displayMarketplaceProducts.value.length / marketplacePerPage)))
+const paginatedMarketplaceProducts = computed(() => {
+  const start = (marketplacePage.value - 1) * marketplacePerPage
+  return displayMarketplaceProducts.value.slice(start, start + marketplacePerPage)
+})
+const marketplacePageStart = computed(() => (displayMarketplaceProducts.value.length ? (marketplacePage.value - 1) * marketplacePerPage + 1 : 0))
+const marketplacePageEnd = computed(() => Math.min(marketplacePage.value * marketplacePerPage, displayMarketplaceProducts.value.length))
 
-const productImage = (product: any) => product?.images?.[0]?.image || '/logoPW.png'
+const productImage = (product: any) => product?.image_url || product?.image || product?.images?.[0]?.image || '/logoPW.png'
 
 const addToCart = async (product: any) => {
   if (!product) return
@@ -526,12 +661,24 @@ const fetchMyStores = async () => {
   }
 }
 
+const openCreateStoreModal = () => {
+  if (!auth.isAuthenticated) {
+    router.push('/login')
+    return
+  }
+  showCreateStoreModal.value = true
+}
+
+const closeCreateStoreModal = () => {
+  showCreateStoreModal.value = false
+}
+
 const createStore = async () => {
   if (!auth.token) {
     await router.push('/login')
     return
   }
-  if (!newStoreName.value.trim()) {
+  if (!createForm.value.name.trim()) {
     createError.value = 'Escribe el nombre de tu tienda'
     return
   }
@@ -542,11 +689,34 @@ const createStore = async () => {
   try {
     const created = await $fetch<Store>(`${apiBase}/stores/` as any, {
       method: 'POST',
-      body: { name: newStoreName.value },
+      body: {
+        name: createForm.value.name,
+        slug: createForm.value.slug,
+        store_type: createForm.value.store_type,
+        description: createForm.value.description,
+        about: createForm.value.about,
+        contact_email: createForm.value.contact_email,
+        phone: createForm.value.phone,
+        whatsapp: createForm.value.whatsapp,
+        address: createForm.value.address,
+        logo_url: createForm.value.logo_url,
+      },
       headers: { Authorization: `Bearer ${auth.token}` },
     })
     createMessage.value = 'Tienda creada correctamente'
-    newStoreName.value = ''
+    createForm.value = {
+      name: '',
+      slug: '',
+      store_type: 'retail',
+      description: '',
+      about: '',
+      contact_email: '',
+      phone: '',
+      whatsapp: '',
+      address: '',
+      logo_url: '',
+    }
+    showCreateStoreModal.value = false
     await Promise.all([fetchAllStores(), fetchMyStores()])
     if (created?.slug) {
       await router.push({ path: '/store/' + created.slug, query: { edit: 'true' } } as any)
@@ -583,10 +753,27 @@ onMounted(async () => {
   await fetchAllStores()
   await fetchMarketplace()
   await fetchLatestStoreProducts()
+  rotateHighlightedFeaturedProduct()
+  featuredRotationTimer = setInterval(() => {
+    shuffleFeaturedProducts()
+    rotateHighlightedFeaturedProduct()
+  }, 6000)
   if (auth.token) {
     await fetchMyStores()
   }
   theme.applyTheme()
+})
+
+onBeforeUnmount(() => {
+  if (featuredRotationTimer) {
+    clearInterval(featuredRotationTimer)
+    featuredRotationTimer = null
+  }
+})
+
+watch(latestStoreProducts, () => {
+  shuffleFeaturedProducts()
+  rotateHighlightedFeaturedProduct()
 })
 
 watch(
@@ -602,6 +789,14 @@ watch(
 
 watch(filterQuery, () => {
   storesPage.value = 1
+})
+
+watch(displayMarketplaceProducts, () => {
+  if (marketplacePage.value > marketplaceTotalPages.value) marketplacePage.value = marketplaceTotalPages.value
+})
+
+watch(showFavoriteProductsOnly, () => {
+  marketplacePage.value = 1
 })
 </script>
 

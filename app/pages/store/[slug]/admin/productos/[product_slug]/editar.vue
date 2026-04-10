@@ -62,6 +62,11 @@
             </select>
             <p class="text-xs text-slate-500">Selecciona una categoría para este producto.</p>
           </div>
+          <div class="space-y-2">
+            <label class="text-sm text-slate-600">Marca (opcional)</label>
+            <input v-model="form.brand" type="text" placeholder="Ej: Nike, Samsung, Oster" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            <p class="text-xs text-slate-500">Se usa para dividir vitrinas por marca dentro de cada categoría.</p>
+          </div>
           <div v-if="requiresSizeQty" class="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div>
               <p class="text-sm font-semibold text-slate-900">Cantidad por talla {{ isShoesCategory ? 'de zapatilla' : '' }}</p>
@@ -159,6 +164,7 @@ import { definePageMeta } from '#imports'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { useTenantStore } from '~/stores/tenant'
+import { getCatalogCategorySeedsByStoreType } from '~/constants/catalogCategorySeeds'
 
 definePageMeta({ layout: 'store', middleware: ['tenant', 'auth'], requiresAuth: true })
 const route = useRoute() as any
@@ -177,6 +183,7 @@ const form = reactive({
   id: null as number | null,
   name: '',
   slug: '',
+  brand: '',
   description: '',
   price: 0,
   offer_price: null as number | null,
@@ -211,7 +218,7 @@ const selectedCategoryName = computed(() => {
   return String(selected?.name || '').toLowerCase()
 })
 const isShoesCategory = computed(() => /calzado|zapat|shoe|sneaker/.test(selectedCategoryName.value))
-const isClothingCategory = computed(() => /ropa|vest|camis|pantal/.test(selectedCategoryName.value))
+const isClothingCategory = computed(() => /ropa|vest|camis|pantal|polera|poleron|polerón/.test(selectedCategoryName.value))
 const requiresSizeQty = computed(() => isShoesCategory.value || isClothingCategory.value)
 const activeSizeOptions = computed(() => (isShoesCategory.value ? shoeSizes : clothingSizes))
 const sizeQtyTotal = computed(() => activeSizeOptions.value.reduce((acc, size) => acc + (Number(sizeQty[size]) || 0), 0))
@@ -291,7 +298,36 @@ const totalStock = computed(() => {
 const loadCategories = async () => {
   try {
     tenantStore.setSlug(slug)
-    categories.value = await authedFetch(`${config.public.apiBase}/store/${slug}/catalogo/categories/`)
+    if (!tenantStore.data) {
+      await tenantStore.fetchTienda()
+    }
+
+    const storeType = String((tenantStore.data as any)?.store_type || 'retail')
+    const allowedSeeds = getCatalogCategorySeedsByStoreType(storeType)
+    const allowedSlugs = new Set(allowedSeeds.map((seed) => seed.slug))
+
+    let fetchedCategories = await authedFetch<any[]>(`${config.public.apiBase}/store/${slug}/catalogo/categories/`)
+    const existingSlugs = new Set(fetchedCategories.map((cat: any) => String(cat?.slug || '').toLowerCase()))
+    let createdAny = false
+
+    for (const seed of allowedSeeds) {
+      if (existingSlugs.has(seed.slug)) continue
+      try {
+        await authedFetch(`${config.public.apiBase}/store/${slug}/catalogo/categories/`, {
+          method: 'POST',
+          body: seed,
+        })
+        createdAny = true
+      } catch {
+        // Si no se puede crear por permisos o estado, mantenemos flujo sin bloquear.
+      }
+    }
+
+    if (createdAny) {
+      fetchedCategories = await authedFetch<any[]>(`${config.public.apiBase}/store/${slug}/catalogo/categories/`)
+    }
+
+    categories.value = fetchedCategories.filter((cat: any) => allowedSlugs.has(String(cat?.slug || '').toLowerCase()))
   } catch (error) {
     categories.value = []
   }
@@ -303,6 +339,7 @@ const load = async () => {
     form.id = data.id
     form.name = data.name
     form.slug = data.slug
+    form.brand = data.brand || ''
     form.description = data.description
     form.price = data.price
     form.offer_price = data.offer_price
@@ -365,6 +402,7 @@ const save = async () => {
     const payload: any = {
       name: form.name,
       slug: form.slug,
+      brand: String(form.brand || '').trim(),
       description: form.description,
       price: form.price,
       offer_price: form.offer_price,

@@ -7,14 +7,14 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useAuthStore } from '~/stores/auth'
-import { useCartStore } from '~/stores/cart'
-import { useThemeStore } from '~/stores/theme'
+import { useAuthStore } from './app/stores/auth'
+import { useCartStore } from './app/stores/cart'
+import { useThemeStore } from './app/stores/theme'
 
 const cart = useCartStore()
 const auth = useAuthStore()
 const theme = useThemeStore()
-const pageTransition = { name: 'page', mode: 'out-in', appear: true }
+const pageTransition = { name: 'route-fade', mode: 'out-in', appear: true }
 
 onMounted(async () => {
   await auth.initializeSession()
@@ -24,25 +24,50 @@ onMounted(async () => {
 </script>
 
 <style>
-.page-enter-active,
-.page-leave-active {
-  transition: opacity 0.35s ease, transform 0.35s ease;
+.route-fade-enter-active {
+  transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), filter 0.45s ease;
 }
 
-.page-enter-from,
-.page-leave-to {
+.route-fade-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.route-fade-enter-from,
+.route-fade-leave-to {
   opacity: 0;
-  transform: translateY(12px) scale(0.99);
+  transform: translateY(14px) scale(0.99);
 }
 
-.page-enter-to,
-.page-leave-from {
+.route-fade-enter-from {
+  filter: blur(6px);
+}
+
+.route-fade-enter-to,
+.route-fade-leave-from {
   opacity: 1;
   transform: translateY(0) scale(1);
+  filter: blur(0);
 }
 
 .reveal {
   animation: fade-up 0.6s ease both;
+}
+
+.page-enter {
+  animation: page-enter-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes page-enter-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.995);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
 }
 
 @keyframes fade-up {
@@ -57,9 +82,10 @@ onMounted(async () => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-enter-active,
-  .page-leave-active,
-  .reveal {
+  .route-fade-enter-active,
+  .route-fade-leave-active,
+  .reveal,
+  .page-enter {
     transition: none;
     animation: none;
   }

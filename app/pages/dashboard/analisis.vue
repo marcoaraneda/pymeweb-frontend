@@ -1,6 +1,6 @@
 <template>
   <ClientOnly>
-    <div class="min-h-screen bg-slate-950 text-white">
+    <div class="page-enter min-h-screen bg-slate-950 text-white">
     <div class="mx-auto max-w-6xl px-6 py-10 space-y-8">
       <nav class="flex flex-wrap items-center justify-center gap-2">
         <NuxtLink
@@ -124,14 +124,29 @@
             <span class="text-xs text-white/60">{{ periodSeries.length }} puntos</span>
           </div>
           <div v-if="!periodSeries.length" class="mt-4 text-white/70">Sin datos para este rango.</div>
-          <div v-else class="mt-4 flex items-end gap-2">
-            <div
-              v-for="(p, idx) in chartBars"
-              :key="p.label + idx"
-              class="flex-1 rounded-t-xl bg-white/20"
-              :style="{ height: `${p.height}px`, backgroundColor: barColor(idx) }"
-              :title="`${p.label}: ${money(p.value)}`"
-            />
+          <div v-else>
+            <div class="mt-4 space-y-2">
+              <div
+                v-for="point in periodSeries"
+                :key="`period-row-${point.period}`"
+                class="rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+              >
+                <div class="flex items-center justify-between text-xs text-white/70">
+                  <span>{{ formatPeriod(point.period) }}</span>
+                  <span>{{ point.orders_count }} pedidos</span>
+                </div>
+                <div class="mt-1 flex items-center justify-between text-sm">
+                  <span class="font-semibold text-white">{{ money(point.revenue) }}</span>
+                  <span class="text-white/60">{{ point.paid_orders }} pagados</span>
+                </div>
+                <div class="mt-2 h-2 w-full rounded-full bg-white/10">
+                  <div
+                    class="h-2 rounded-full"
+                    :style="{ width: `${Math.max(5, Math.round((Number(point.revenue || 0) / periodSeriesMaxRevenue) * 100))}%`, backgroundColor: theme.accent }"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -183,6 +198,52 @@
                 <p class="text-xs text-white/60">{{ cat.total_qty }} ventas</p>
               </div>
               <p class="font-semibold" :style="{ color: theme.accent }">{{ money(cat.total_revenue) }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid gap-4 lg:grid-cols-[1.1fr,0.9fr]">
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Conversión</p>
+              <h2 class="text-xl font-semibold">Pagadas por periodo</h2>
+            </div>
+            <span class="text-xs text-white/60">{{ conversionSeries.length }} puntos</span>
+          </div>
+          <div v-if="!conversionSeries.length" class="mt-4 text-white/70">Sin datos de conversión.</div>
+          <div v-else class="mt-4 space-y-2">
+            <div v-for="point in conversionSeries" :key="`conv-analytics-${point.period}`" class="space-y-1">
+              <div class="flex items-center justify-between text-xs text-white/70">
+                <span>{{ point.label }}</span>
+                <span>{{ point.rate }}%</span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-white/10">
+                <div class="h-2 rounded-full" :style="{ width: `${Math.max(4, point.rate)}%`, backgroundColor: theme.accent }" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Participación</p>
+              <h2 class="text-xl font-semibold">Ingresos por categoría</h2>
+            </div>
+            <span class="text-xs text-white/60">Top {{ categoryShare.length }}</span>
+          </div>
+          <div v-if="!categoryShare.length" class="mt-4 text-white/70">Sin categorías con ventas.</div>
+          <div v-else class="mt-4 space-y-2">
+            <div v-for="cat in categoryShare" :key="`cat-share-${cat.category}`" class="space-y-1">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-white/80">{{ cat.category }}</span>
+                <span class="text-white/60">{{ cat.percent }}%</span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-white/10">
+                <div class="h-2 rounded-full" :style="{ width: `${Math.max(4, cat.percent)}%`, backgroundColor: '#22c55e' }" />
+              </div>
             </div>
           </div>
         </div>
@@ -358,6 +419,32 @@ const chartBars = computed(() => {
     label: formatPeriod(p.period),
     value: Number(p.revenue) || 0,
     height: 24 + Math.round(((Number(p.revenue) || 0) / max) * 120),
+  }))
+})
+
+const periodSeriesMaxRevenue = computed(() => {
+  if (!periodSeries.value.length) return 1
+  return Math.max(...periodSeries.value.map((point) => Number(point.revenue || 0)), 1)
+})
+
+const conversionSeries = computed(() =>
+  periodSeries.value.map((point) => {
+    const total = Number(point.orders_count || 0)
+    const paid = Number(point.paid_orders || 0)
+    return {
+      period: point.period,
+      label: formatPeriod(point.period),
+      rate: total > 0 ? Math.round((paid / total) * 100) : 0,
+    }
+  }),
+)
+
+const categoryShare = computed(() => {
+  const totalRevenue = topCategories.value.reduce((acc, item) => acc + Number(item.total_revenue || 0), 0)
+  if (!totalRevenue) return []
+  return topCategories.value.slice(0, 6).map((item) => ({
+    category: item.category,
+    percent: Math.round((Number(item.total_revenue || 0) / totalRevenue) * 100),
   }))
 })
 

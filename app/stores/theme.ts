@@ -66,9 +66,9 @@ export const useThemeStore = defineStore('theme', {
         gradientTo: this.gradientTo,
       }
       this.perStore[slug] = {
-        accent: values.accent || current.accent,
-        gradientFrom: values.gradientFrom || current.gradientFrom,
-        gradientTo: values.gradientTo || current.gradientTo,
+        accent: values.accent ?? current.accent,
+        gradientFrom: values.gradientFrom ?? current.gradientFrom,
+        gradientTo: values.gradientTo ?? current.gradientTo,
       }
       this.applyTheme(this.perStore[slug])
       this.saveToStorage()

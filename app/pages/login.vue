@@ -1,5 +1,5 @@
 <template>
-  <div class="relative min-h-screen bg-slate-950 text-white">
+  <div class="page-enter relative min-h-screen bg-slate-950 text-white">
     <div class="pointer-events-none absolute inset-0" aria-hidden="true">
       <div class="absolute -left-24 top-10 h-80 w-80 rounded-full bg-gradient-to-r from-[var(--gradient-from,#111827)] to-[var(--gradient-to,#0b2358)] blur-3xl opacity-70" />
       <div class="absolute -right-10 bottom-10 h-72 w-72 rounded-full bg-gradient-to-r from-[var(--gradient-from,#111827)] to-[var(--gradient-to,#0b2358)] blur-3xl opacity-60" />
@@ -114,6 +114,11 @@ const submit = async () => {
     const identifier = credentials.username.trim()
     const normalizedIdentifier = isValidRut(identifier) ? normalizeRut(identifier) : identifier
     await auth.login({ username: normalizedIdentifier, password: credentials.password })
+    const stores = await auth.fetchMyStores()
+    if (!stores.length) {
+      await navigateTo('/')
+      return
+    }
     await navigateTo('/dashboard')
   } catch (error) {
     /* El store ya maneja el mensaje */

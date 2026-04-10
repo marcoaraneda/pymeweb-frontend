@@ -193,6 +193,7 @@ Avance actual (2026-04-09):
 - Pruebas backend de reportes reforzadas para validar aislamiento por permisos entre tiendas (403 sin membresia en tienda destino).
 - Pruebas backend de reportes reforzadas para validar metricas correctas por tienda cuando el usuario tiene rol REPORTS en multiples tiendas.
 - Suite de reportes validada en verde local (11/11).
+- Smoke E2E de dashboard roles estabilizado para degradar a skip controlado cuando no hay sesion/permisos en entorno local.
 
 ---
 
@@ -237,3 +238,10 @@ Avance actual (2026-04-09):
 - Regresion E2E smoke ejecutada en verde local: 10 passed, 2 skipped.
 - Se dejo en cuarentena temporal el smoke redundante de calzado por talla por inestabilidad intermitente.
 - Se dejo en cuarentena temporal el flujo extendido de catalogo por talla (no-smoke) por inestabilidad intermitente.
+
+Avance actual (2026-04-09 - cierre tecnico):
+- Error de imports de stores en app.vue corregido para entorno con srcDir app/.
+- Estado de migraciones local normalizado: sin migraciones pendientes tras aplicar stores.0008, catalogo.0016, orders.0007 y usuarios.0007.
+- catalogo.0016 robustecida con backfill automatico para productos legacy con store null.
+- Suites backend de catalogo/reportes/support/faq validadas en verde (28 tests).
+- Smoke E2E actual sin fallos duros: 3 passed, 9 skipped (skips controlados por auth/permisos del entorno).

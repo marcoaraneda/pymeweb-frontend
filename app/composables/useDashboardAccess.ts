@@ -41,10 +41,12 @@ export const useDashboardAccess = () => {
     return roles
   })
 
-  const hasStores = computed(() => memberships.value.length > 0 || Boolean(auth.user?.is_staff))
+  const hasStores = computed(() => memberships.value.length > 0)
 
   const canAccessSection = (section: DashboardSection) => {
-    if (section === 'overview') return hasStores.value
+    if (section === 'overview') return true
+    if (section === 'finance') return true
+    if (!hasStores.value) return false
     return SECTION_ROLES[section].some((role) => roleSet.value.has(role))
   }
 

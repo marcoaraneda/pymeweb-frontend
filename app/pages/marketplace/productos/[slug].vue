@@ -1,45 +1,15 @@
 <template>
   <div class="min-h-screen bg-slate-50 px-4 py-10">
-    <div class="mx-auto max-w-5xl space-y-6">
+    <div class="mx-auto max-w-5xl space-y-8">
       <NuxtLink to="/marketplace#productos" class="text-sm font-semibold text-slate-700 hover:text-slate-900">← Volver</NuxtLink>
 
-      <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div v-if="loading" class="text-slate-500">Cargando producto...</div>
         <div v-else-if="error" class="text-red-600">{{ error }}</div>
         <div v-else-if="!product" class="text-slate-600">Producto no encontrado.</div>
-        <div v-else class="relative grid gap-6 md:grid-cols-[1.3fr,1fr] md:items-start">
-          <div class="space-y-3">
-            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">{{ product.category?.name || 'General' }}</p>
-            <h1 class="text-2xl font-bold text-slate-900">{{ product.name }}</h1>
-            <p class="text-sm text-slate-600 whitespace-pre-line">{{ product.description }}</p>
-            <div class="flex flex-wrap items-center gap-2">
-              <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
-              <span v-else-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta</span>
-              <span class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-900">Marketplace</span>
-            </div>
-            <p class="text-2xl font-bold" :class="product.offer_price ? 'text-red-600' : 'text-black'">
-              <span v-if="product.offer_price" class="mr-2 text-lg text-slate-400 line-through">{{ formatClp(product.price) }}</span>
-              {{ formatClp(displayPrice) }}
-            </p>
-            <p v-if="product.offer_price && Number(product.offer_min_qty || 1) > 1" class="text-xs font-semibold text-rose-700">Oferta activa desde {{ Number(product.offer_min_qty) }} unidades.</p>
-            <div class="flex flex-wrap gap-3 text-xs text-slate-500">
-              <span v-if="product.submitted_by_name">
-                Vendedor:
-                <NuxtLink
-                  v-if="product.submitted_by"
-                  :to="`/marketplace/vendedores/${product.submitted_by}`"
-                  class="font-semibold text-amber-700 hover:underline"
-                >
-                  {{ product.submitted_by_name }}
-                </NuxtLink>
-                <span v-else>{{ product.submitted_by_name }}</span>
-              </span>
-              <span>ID: {{ product.id }}</span>
-            </div>
-          </div>
-
-          <div class="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div class="relative aspect-[4/3] overflow-hidden rounded-lg bg-white">
+        <div v-else class="relative grid gap-8 md:grid-cols-[1.05fr,0.95fr] md:items-start">
+          <div class="space-y-4">
+            <div class="relative aspect-square overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
               <img :src="productImage || '/logoPW.png'" :alt="product.name" class="h-full w-full object-cover" @error="onImgError($event)" />
               <button
                 v-if="canEdit"
@@ -53,6 +23,51 @@
                 </svg>
               </button>
             </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Detalle</p>
+              <p class="mt-2 text-sm text-slate-600 whitespace-pre-line">{{ product.description || 'Sin descripción disponible.' }}</p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-500">
+              <span>{{ product.category?.name || 'General' }}</span>
+              <span class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-900">Marketplace</span>
+              <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
+            </div>
+
+            <h1 class="text-3xl font-bold text-slate-900">{{ product.name }}</h1>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <span v-if="product.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">{{ discountBadge }}</span>
+              <span v-if="product.free_shipping" class="rounded-full bg-sky-100 px-2 py-1 text-[11px] font-semibold text-sky-800">Envío gratis</span>
+              <span v-if="product.offer_price && Number(product.offer_min_qty || 1) > 1" class="rounded-full bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700">Desde {{ Number(product.offer_min_qty) }} unidades</span>
+            </div>
+
+            <p class="text-3xl font-bold" :class="product.offer_price ? 'text-red-600' : 'text-black'">
+              <span v-if="product.offer_price" class="mr-2 text-xl text-slate-400 line-through">{{ formatClp(product.price) }}</span>
+              {{ formatClp(displayPrice) }}
+            </p>
+
+            <div class="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p class="text-xs text-slate-500">Publicación</p>
+              <div class="flex flex-wrap gap-3 text-xs text-slate-600">
+                <span v-if="product.submitted_by_name">
+                  Vendedor:
+                  <NuxtLink
+                    v-if="product.submitted_by"
+                    :to="`/marketplace/vendedores/${product.submitted_by}`"
+                    class="font-semibold text-slate-700 hover:underline"
+                  >
+                    {{ product.submitted_by_name }}
+                  </NuxtLink>
+                  <span v-else class="font-semibold text-slate-700">{{ product.submitted_by_name }}</span>
+                </span>
+                <span>ID: {{ product.id }}</span>
+              </div>
+            </div>
+
+            <div class="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <NuxtLink
               v-if="product.store?.slug && !product.store_is_marketplace"
               :to="`/store/${product.store.slug}/productos/${product.slug}`"
@@ -62,19 +77,22 @@
               Ver en tienda
             </NuxtLink>
             <button
-              class="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white shadow"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow"
               :style="accentStyle"
               @click="handleAddToCart"
             >
-              Agregar al carrito
+              <ShoppingCart class="h-4 w-4" aria-hidden="true" />
+              Agregar
             </button>
-            <NuxtLink
+            <button
               v-if="canEdit"
-              to="/marketplace#mis-productos"
+              type="button"
               class="block w-full rounded-xl border border-amber-200 px-4 py-3 text-center text-sm font-semibold text-amber-800 hover:bg-amber-50"
+              @click="showEditForm = true"
             >
               Editar mi publicación
-            </NuxtLink>
+            </button>
+            </div>
           </div>
         </div>
 
@@ -95,11 +113,17 @@
               <label class="text-xs text-amber-800">Precio</label>
               <input v-model.number="editForm.price" type="number" min="0" step="1" class="w-full rounded-xl border border-amber-200 px-3 py-2 text-sm" />
             </div>
-            <div class="space-y-1">
+            <div class="space-y-1 md:col-span-2">
+              <label class="inline-flex items-center gap-2 text-xs text-amber-800">
+                <input v-model="hasOffer" type="checkbox" />
+                Activar oferta
+              </label>
+            </div>
+            <div v-if="hasOffer" class="space-y-1">
               <label class="text-xs text-amber-800">Precio oferta</label>
               <input v-model.number="editForm.offer_price" type="number" min="0" step="1" class="w-full rounded-xl border border-amber-200 px-3 py-2 text-sm" />
             </div>
-            <div class="space-y-1">
+            <div v-if="hasOffer" class="space-y-1">
               <label class="text-xs text-amber-800">Cantidad mínima para oferta</label>
               <input v-model.number="editForm.offer_min_qty" type="number" min="1" step="1" class="w-full rounded-xl border border-amber-200 px-3 py-2 text-sm" />
             </div>
@@ -117,6 +141,29 @@
             <div class="space-y-1">
               <label class="text-xs text-amber-800">Stock mínimo</label>
               <input v-model.number="editForm.stock_minimum" type="number" min="0" step="1" class="w-full rounded-xl border border-amber-200 px-3 py-2 text-sm" />
+            </div>
+            <div v-if="supportsSizeStock" class="space-y-2 md:col-span-2">
+              <label class="text-xs text-amber-800">Cantidad por talla</label>
+              <div class="grid gap-2 sm:grid-cols-3">
+                <div v-for="size in availableSizes" :key="`detail-size-${size}`" class="rounded-lg border border-amber-200 bg-white px-3 py-2">
+                  <p class="text-xs font-semibold text-amber-900">{{ size }}</p>
+                  <input
+                    :value="sizeStockMap[size] || 0"
+                    type="number"
+                    min="0"
+                    step="1"
+                    class="mt-1 w-full rounded-lg border border-amber-200 px-2 py-1 text-sm"
+                    @input="updateSizeQty(size, $event)"
+                  />
+                </div>
+              </div>
+              <p class="text-[11px] text-amber-800">El stock disponible se calcula automáticamente como suma de tallas.</p>
+            </div>
+            <div class="space-y-1 md:col-span-2">
+              <label class="inline-flex items-center gap-2 text-xs text-amber-800">
+                <input v-model="editForm.free_shipping" type="checkbox" />
+                Envío gratis
+              </label>
             </div>
             <div class="space-y-1 md:col-span-2">
               <label class="text-xs text-amber-800">Imagen (URL)</label>
@@ -154,7 +201,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { definePageMeta } from '#imports'
@@ -164,6 +211,7 @@ import { useThemeStore } from '~/stores/theme'
 import { useAuthStore } from '~/stores/auth'
 import { useImages } from '~/composables/useImages'
 import { useMarketplaceRequests } from '~/composables/useMarketplaceRequests'
+import { ShoppingCart } from 'lucide-vue-next'
 
 definePageMeta({ layout: 'default' })
 
@@ -183,19 +231,55 @@ const error = ref('')
 const saving = ref(false)
 const saveMessage = ref('')
 const saveError = ref('')
-const editForm = ref({ name: '', description: '', price: 0, offer_price: null as number | null, offer_min_qty: 1, category: '' as string | number, stock_available: 0, stock_minimum: 0, image_url: '' })
+const editForm = ref({ name: '', description: '', price: 0, offer_price: null as number | null, offer_min_qty: 1, category: '' as string | number, stock_available: 0, stock_minimum: 0, image_url: '', free_shipping: false })
 const categories = ref<any[]>([])
+const sizeStockMap = reactive<Record<string, number>>({})
 const uploadingImage = ref(false)
 const uploadError = ref('')
+const hasOffer = ref(false)
+const apparelSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+const shoeSizes = ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45']
+
+const selectedCategoryName = computed(() => {
+  const selected = categories.value.find((cat: any) => String(cat.id) === String(editForm.value.category))
+  return String(selected?.name || product.value?.category?.name || '').toLowerCase()
+})
+
+const supportsSizeStock = computed(() => /calzado|poleron|polerón|pantalon|pantalón/.test(selectedCategoryName.value))
+const availableSizes = computed(() => (/calzado/.test(selectedCategoryName.value) ? shoeSizes : apparelSizes))
+
+const syncStockFromSizes = () => {
+  if (!supportsSizeStock.value) return
+  editForm.value.stock_available = Object.values(sizeStockMap).reduce((acc, qty) => acc + (Number(qty) || 0), 0)
+}
+
+const updateSizeQty = (size: string, event: Event) => {
+  const target = event.target as HTMLInputElement | null
+  const qty = Math.max(0, Number(target?.value || 0))
+  sizeStockMap[size] = qty
+  syncStockFromSizes()
+}
 
 const accentStyle = computed(() => ({ backgroundColor: theme.accent || '#2563eb', color: '#fff' }))
-const productImage = computed(() => getProductImage(product.value))
+const productImage = computed(() => {
+  if (editForm.value.image_url) return editForm.value.image_url
+  if (product.value?.image_url) return product.value.image_url
+  if (product.value?.image) return product.value.image
+  return getProductImage(product.value)
+})
 const displayPrice = computed(() => {
   if (product.value?.offer_price && Number(product.value?.offer_min_qty || 1) <= 1) {
     return Number(product.value.offer_price)
   }
   return Number(product.value?.price || 0)
 })
+const discountPercent = computed(() => {
+  const price = Number(product.value?.price || 0)
+  const offer = Number(product.value?.offer_price || 0)
+  if (!price || !offer || offer >= price) return 0
+  return Math.round(((price - offer) / price) * 100)
+})
+const discountBadge = computed(() => (discountPercent.value > 0 ? `${discountPercent.value}%` : ''))
 const formatClp = (value: number | string) =>
   new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value) || 0)
 const canEdit = computed(() => {
@@ -283,7 +367,15 @@ const loadProduct = async () => {
       stock_available: Number(data.stock_available || 0),
       stock_minimum: Number(data.stock_minimum || 0),
       image_url: data.image_url || '',
+      free_shipping: Boolean(data.free_shipping),
     }
+    Object.keys(sizeStockMap).forEach((key) => delete sizeStockMap[key])
+    const map = data?.size_stock_map || {}
+    Object.entries(map).forEach(([size, qty]) => {
+      const n = Math.max(0, Number(qty || 0))
+      if (n > 0) sizeStockMap[size] = n
+    })
+    hasOffer.value = editForm.value.offer_price != null
     if (data?.store?.slug) {
       tenantStore.setSlug(data.store.slug)
       theme.applyStoreTheme(data.store.slug)
@@ -312,7 +404,9 @@ const loadProduct = async () => {
           stock_available: Number(data.stock_available || 0),
           stock_minimum: Number(data.stock_minimum || 0),
           image_url: data.image_url || '',
+          free_shipping: Boolean(data.free_shipping),
         }
+        hasOffer.value = editForm.value.offer_price != null
         if (data?.store?.slug) {
           tenantStore.setSlug(data.store.slug)
           theme.applyStoreTheme(data.store.slug)
@@ -353,13 +447,17 @@ const saveEdits = async () => {
     saveError.value = 'El precio debe ser mayor a 0'
     return
   }
-  if (editForm.value.offer_price != null) {
-    if (editForm.value.offer_price <= 0) {
+  if (hasOffer.value) {
+    if (editForm.value.offer_price == null || editForm.value.offer_price <= 0) {
       saveError.value = 'La oferta debe ser mayor a 0'
       return
     }
-    if (editForm.value.offer_price >= editForm.value.price) {
+    if (Number(editForm.value.offer_price) >= Number(editForm.value.price)) {
       saveError.value = 'La oferta debe ser menor al precio'
+      return
+    }
+    if (Number(editForm.value.offer_min_qty || 0) < 1) {
+      saveError.value = 'La cantidad mínima para oferta debe ser al menos 1'
       return
     }
   }
@@ -392,12 +490,14 @@ const saveEdits = async () => {
           name: editForm.value.name,
           description: editForm.value.description,
           price: editForm.value.price,
-          offer_price: editForm.value.offer_price,
-          offer_min_qty: Math.max(1, Number(editForm.value.offer_min_qty) || 1),
+          offer_price: hasOffer.value ? editForm.value.offer_price : null,
+          offer_min_qty: hasOffer.value ? Math.max(1, Number(editForm.value.offer_min_qty) || 1) : 1,
           category: editForm.value.category || null,
           stock_available: editForm.value.stock_available,
           stock_minimum: editForm.value.stock_minimum,
+          size_stock_map: supportsSizeStock.value ? Object.fromEntries(Object.entries(sizeStockMap).filter(([_, qty]) => Number(qty) > 0)) : {},
           image_url: editForm.value.image_url,
+          free_shipping: Boolean(editForm.value.free_shipping),
         },
         headers: { Authorization: `Bearer ${auth.token}` },
         backoffMs: 10_000,
@@ -468,4 +568,33 @@ onMounted(async () => {
     showEditForm.value = true
   }
 })
+
+watch(
+  () => editForm.value.offer_price,
+  (value) => {
+    if (value == null) return
+    hasOffer.value = true
+  },
+)
+
+watch(hasOffer, (enabled) => {
+  if (!enabled) {
+    editForm.value.offer_price = null
+    editForm.value.offer_min_qty = 1
+  }
+})
+
+watch([supportsSizeStock, availableSizes], () => {
+  if (!supportsSizeStock.value) {
+    Object.keys(sizeStockMap).forEach((key) => delete sizeStockMap[key])
+    return
+  }
+  availableSizes.value.forEach((size) => {
+    if (sizeStockMap[size] == null) sizeStockMap[size] = 0
+  })
+  Object.keys(sizeStockMap).forEach((size) => {
+    if (!availableSizes.value.includes(size)) delete sizeStockMap[size]
+  })
+  syncStockFromSizes()
+}, { immediate: true })
 </script>

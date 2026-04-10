@@ -47,7 +47,7 @@
         <div v-if="loading" class="mt-4 text-slate-600">Cargando...</div>
         <div v-else-if="!tickets.length" class="mt-4 text-slate-600">Aún no has enviado tickets.</div>
         <div v-else class="mt-4 divide-y divide-slate-200">
-          <article v-for="t in tickets" :key="t.id" class="py-4 space-y-3">
+          <article v-for="t in paginatedTickets" :key="t.id" class="py-4 space-y-3">
             <div class="flex items-start justify-between gap-3">
               <div>
                 <p class="font-semibold text-slate-900">{{ t.title }}</p>
@@ -73,6 +73,24 @@
               </div>
             </div>
           </article>
+        </div>
+
+        <div v-if="tickets.length > perPage" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+          <button
+            class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+            :disabled="page === 1"
+            @click="page -= 1"
+          >
+            Anterior
+          </button>
+          <p>Mostrando {{ pageStart }}-{{ pageEnd }} de {{ tickets.length }}</p>
+          <button
+            class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+            :disabled="page === totalPages"
+            @click="page += 1"
+          >
+            Siguiente
+          </button>
         </div>
       </div>
     </section>
@@ -109,8 +127,17 @@ type TicketItem = {
 
 const tickets = ref<TicketItem[]>([])
 const loading = ref(false)
+const page = ref(1)
+const perPage = 8
 
 const accentStyle = computed(() => ({ backgroundColor: accentColor.value }))
+const totalPages = computed(() => Math.max(1, Math.ceil(tickets.value.length / perPage)))
+const paginatedTickets = computed(() => {
+  const start = (page.value - 1) * perPage
+  return tickets.value.slice(start, start + perPage)
+})
+const pageStart = computed(() => (tickets.value.length ? (page.value - 1) * perPage + 1 : 0))
+const pageEnd = computed(() => Math.min(page.value * perPage, tickets.value.length))
 
 const formatStatus = (value: string) => {
   const map: Record<string, string> = {
@@ -202,5 +229,9 @@ onMounted(async () => {
 })
 
 watch(() => slug.value, () => loadTickets())
+
+watch(tickets, () => {
+  if (page.value > totalPages.value) page.value = totalPages.value
+})
 definePageMeta({ layout: 'store' })
 </script>

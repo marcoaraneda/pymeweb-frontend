@@ -135,7 +135,16 @@ const getErrorMessage = (err: any) => {
   const detail = err?.response?._data?.detail || err?.response?._data
   if (typeof detail === 'string') return detail
   if (Array.isArray(detail)) return detail.join(', ')
-  if (detail && typeof detail === 'object') return Object.values(detail).flat().join(', ')
+  if (detail && typeof detail === 'object') {
+    const flatten = (value: any): string[] => {
+      if (typeof value === 'string') return [value]
+      if (Array.isArray(value)) return value.flatMap(flatten)
+      if (value && typeof value === 'object') return Object.values(value).flatMap(flatten)
+      return []
+    }
+    const parsed = flatten(detail).filter(Boolean)
+    if (parsed.length) return parsed.join(', ')
+  }
   return err?.message || 'Ocurrió un error'
 }
 

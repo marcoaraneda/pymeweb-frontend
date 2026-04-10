@@ -795,6 +795,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, reactive } from 'vue'
 import { useRoute } from 'vue-router'
+import { definePageMeta } from '#imports'
 import { useProducts } from '~/composables/useProducts'
 import { useCartStore } from '~/stores/cart'
 import { useImages } from '~/composables/useImages'
@@ -805,6 +806,8 @@ import { useTenantStore } from '~/stores/tenant'
 import ProductCard from '~/components/ProductCard.vue'
 import { ShoppingCart, Star, Search, Pencil, X } from 'lucide-vue-next'
 import { useNotificationStore } from '~/stores/notifications'
+
+definePageMeta({ layout: 'store' })
 
 const route = useRoute()
 const cart = useCartStore()
@@ -1204,7 +1207,7 @@ const updateProduct = async (payload: Record<string, any>) => {
   }
 
   const endpointSlug = product.value?.slug || (route.params.product_slug as string)
-  const endpoint = `${config.public.apiBase}/store/${route.params.slug}/productos/${endpointSlug}/`
+  const endpoint = `${config.public.apiBase}/store/${route.params.slug}/catalogo/products/${endpointSlug}/`
 
   const doPatch = (tokenOverride?: string) =>
     $fetch(endpoint, {

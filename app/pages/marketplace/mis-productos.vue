@@ -28,9 +28,19 @@
             <label class="text-sm text-slate-600">Precio</label>
             <input v-model.number="form.price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
           </div>
-          <div class="space-y-2">
+          <div class="space-y-2 md:col-span-2">
+            <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+              <input v-model="hasOffer" type="checkbox" />
+              Activar oferta
+            </label>
+          </div>
+          <div v-if="hasOffer" class="space-y-2">
             <label class="text-sm text-slate-600">Precio oferta (opcional)</label>
             <input v-model.number="form.offer_price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div v-if="hasOffer" class="space-y-2">
+            <label class="text-sm text-slate-600">Cantidad mínima para oferta</label>
+            <input v-model.number="form.offer_min_qty" type="number" min="1" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
           </div>
           <div class="space-y-2">
             <label class="text-sm text-slate-600">Categoría</label>
@@ -40,12 +50,35 @@
             </select>
           </div>
           <div class="space-y-2">
+            <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+              <input v-model="form.free_shipping" type="checkbox" />
+              Envío gratis
+            </label>
+          </div>
+          <div class="space-y-2">
             <label class="text-sm text-slate-600">Stock disponible</label>
             <input v-model.number="form.stock_available" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
           </div>
           <div class="space-y-2">
             <label class="text-sm text-slate-600">Stock mínimo</label>
             <input v-model.number="form.stock_minimum" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div v-if="supportsSizeStock" class="space-y-2 md:col-span-2">
+            <label class="text-sm text-slate-600">Cantidad por talla</label>
+            <div class="grid gap-2 sm:grid-cols-3">
+              <div v-for="size in availableSizes" :key="`size-${size}`" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p class="text-xs font-semibold text-slate-700">{{ size }}</p>
+                <input
+                  :value="sizeStockMap[size] || 0"
+                  type="number"
+                  min="0"
+                  step="1"
+                  class="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                  @input="updateSizeQty(size, $event)"
+                />
+              </div>
+            </div>
+            <p class="text-xs text-slate-500">Disponible para calzado, poleron y pantalon. El stock disponible se calcula automáticamente.</p>
           </div>
           <div class="space-y-2">
             <label class="text-sm text-slate-600">Imagen (URL)</label>
@@ -129,9 +162,9 @@
             {{ toggleError }}
           </div>
           <article
-            v-for="item in submissions"
+            v-for="item in paginatedSubmissions"
             :key="item.id"
-            class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+            class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
           >
             <div class="flex items-center justify-between gap-2 relative">
               <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ item.name }}</p>
@@ -160,7 +193,11 @@
                 </div>
               </div>
             </div>
-            <p class="text-sm text-slate-600 line-clamp-2">{{ item.description || 'Sin descripción' }}</p>
+            <p class="text-sm text-slate-600 line-clamp-1">{{ item.description || 'Sin descripción' }}</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <span v-if="item.offer_price" class="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Oferta {{ discountBadge(item) }}</span>
+              <span v-if="item.free_shipping" class="rounded-full bg-sky-100 px-2 py-1 text-[11px] font-semibold text-sky-800">Envío gratis</span>
+            </div>
             <p class="text-base font-bold" :class="item.offer_price ? 'text-red-600' : 'text-black'">
               <span v-if="item.offer_price" class="mr-1 text-slate-400 line-through">{{ formatClp(item.price) }}</span>
               {{ formatClp(displayPrice(item)) }}
@@ -183,13 +220,31 @@
             </div>
           </article>
         </div>
+
+        <div v-if="submissions.length > perPage" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+          <button
+            class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+            :disabled="page === 1"
+            @click="page -= 1"
+          >
+            Anterior
+          </button>
+          <p>Mostrando {{ pageStart }}-{{ pageEnd }} de {{ submissions.length }}</p>
+          <button
+            class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+            :disabled="page === totalPages"
+            @click="page += 1"
+          >
+            Siguiente
+          </button>
+        </div>
       </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref, computed } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, computed, watch } from 'vue'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
@@ -205,6 +260,16 @@ const displayPrice = (item: any) => {
   const minQty = Math.max(1, Number(item?.offer_min_qty || 1))
   if (item?.offer_price && minQty <= 1) return Number(item.offer_price)
   return Number(item?.price || 0)
+}
+const discountPercent = (item: any) => {
+  const price = Number(item?.price || 0)
+  const offer = Number(item?.offer_price || 0)
+  if (!price || !offer || offer >= price) return 0
+  return Math.round(((price - offer) / price) * 100)
+}
+const discountBadge = (item: any) => {
+  const pct = discountPercent(item)
+  return pct > 0 ? `-${pct}%` : ''
 }
 const openMenu = (id:number) => {
   openMenuId.value = openMenuId.value === id ? null : id
@@ -259,12 +324,15 @@ const config = useRuntimeConfig()
 const { controlledGet, controlledMutation, getBackoffSeconds, getErrorRetryAfterSeconds } = useMarketplaceRequests()
 
 const submissions = ref<any[]>([])
+const page = ref(1)
+const perPage = 12
 const loading = ref(false)
 const error = ref('')
 const submitting = ref(false)
 const togglingId = ref<number | null>(null)
 const toggleError = ref('')
 const categories = ref<any[]>([])
+const sizeStockMap = reactive<Record<string, number>>({})
 const uploadingImage = ref(false)
 const uploadError = ref('')
 const SUBMISSIONS_CACHE_KEY = 'marketplace_submissions_cache_v1'
@@ -277,16 +345,53 @@ const form = reactive({
   name: '',
   price: null as number | null,
   offer_price: null as number | null,
+  offer_min_qty: 1,
   description: '',
   image_url: '',
   is_active: true,
   category: '' as string | number,
   stock_available: 0,
   stock_minimum: 0,
+  free_shipping: false,
 })
+const hasOffer = ref(false)
+const apparelSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+const shoeSizes = ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45']
+
+const selectedCategoryName = computed(() => {
+  const selected = categories.value.find((cat: any) => String(cat.id) === String(form.category))
+  return String(selected?.name || '').toLowerCase()
+})
+
+const supportsSizeStock = computed(() => /calzado|poleron|polerón|pantalon|pantalón/.test(selectedCategoryName.value))
+const availableSizes = computed(() => (/calzado/.test(selectedCategoryName.value) ? shoeSizes : apparelSizes))
+
+const syncStockFromSizes = () => {
+  if (!supportsSizeStock.value) return
+  form.stock_available = Object.values(sizeStockMap).reduce((acc, qty) => acc + (Number(qty) || 0), 0)
+}
+
+const updateSizeQty = (size: string, event: Event) => {
+  const target = event.target as HTMLInputElement | null
+  const qty = Math.max(0, Number(target?.value || 0))
+  sizeStockMap[size] = qty
+  syncStockFromSizes()
+}
 
 const formMessage = ref('')
 const formMessageType = ref<'ok' | 'error'>('ok')
+
+const totalPages = computed(() => Math.max(1, Math.ceil(submissions.value.length / perPage)))
+const paginatedSubmissions = computed(() => {
+  const start = (page.value - 1) * perPage
+  return submissions.value.slice(start, start + perPage)
+})
+const pageStart = computed(() => (submissions.value.length ? (page.value - 1) * perPage + 1 : 0))
+const pageEnd = computed(() => Math.min(page.value * perPage, submissions.value.length))
+
+watch(submissions, () => {
+  if (page.value > totalPages.value) page.value = totalPages.value
+})
 
 const accentStyle = computed(() => ({ backgroundColor: theme.accent, color: '#fff' }))
 
@@ -418,12 +523,16 @@ const resetForm = () => {
   form.name = ''
   form.price = null
   form.offer_price = null
+  form.offer_min_qty = 1
   form.description = ''
   form.image_url = ''
   form.is_active = true
   form.category = ''
   form.stock_available = 0
   form.stock_minimum = 0
+  form.free_shipping = false
+  Object.keys(sizeStockMap).forEach((key) => delete sizeStockMap[key])
+  hasOffer.value = false
 }
 
 const fetchCategories = async () => {
@@ -479,14 +588,19 @@ const submit = async () => {
     formMessageType.value = 'error'
     return
   }
-  if (form.offer_price != null) {
-    if (form.offer_price <= 0) {
+  if (hasOffer.value) {
+    if (form.offer_price == null || form.offer_price <= 0) {
       formMessage.value = 'La oferta debe ser mayor a 0'
       formMessageType.value = 'error'
       return
     }
-    if (form.offer_price >= form.price) {
+    if (Number(form.offer_price) >= Number(form.price)) {
       formMessage.value = 'La oferta debe ser menor al precio'
+      formMessageType.value = 'error'
+      return
+    }
+    if (form.offer_min_qty < 1) {
+      formMessage.value = 'La cantidad mínima de oferta debe ser al menos 1'
       formMessageType.value = 'error'
       return
     }
@@ -521,8 +635,13 @@ const submit = async () => {
       is_active: form.is_active,
       stock_available: form.stock_available,
       stock_minimum: form.stock_minimum,
+      size_stock_map: supportsSizeStock.value ? Object.fromEntries(Object.entries(sizeStockMap).filter(([_, qty]) => Number(qty) > 0)) : {},
+      free_shipping: form.free_shipping,
     }
-    if (form.offer_price) payload.offer_price = form.offer_price
+    if (hasOffer.value) {
+      payload.offer_price = form.offer_price
+      payload.offer_min_qty = Math.max(1, Number(form.offer_min_qty) || 1)
+    }
     if (form.image_url) payload.image_url = form.image_url
     if (form.category) payload.category = form.category
 
@@ -611,4 +730,33 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   stopRetryCooldown()
 })
+
+watch(
+  () => form.offer_price,
+  (value) => {
+    if (value == null) return
+    hasOffer.value = true
+  },
+)
+
+watch(hasOffer, (enabled) => {
+  if (!enabled) {
+    form.offer_price = null
+    form.offer_min_qty = 1
+  }
+})
+
+watch([supportsSizeStock, availableSizes], () => {
+  if (!supportsSizeStock.value) {
+    Object.keys(sizeStockMap).forEach((key) => delete sizeStockMap[key])
+    return
+  }
+  availableSizes.value.forEach((size) => {
+    if (sizeStockMap[size] == null) sizeStockMap[size] = 0
+  })
+  Object.keys(sizeStockMap).forEach((size) => {
+    if (!availableSizes.value.includes(size)) delete sizeStockMap[size]
+  })
+  syncStockFromSizes()
+}, { immediate: true })
 </script>

@@ -66,6 +66,24 @@
     </section>
 
     <section class="mx-auto max-w-6xl px-6 py-12 space-y-5">
+      <div class="grid gap-3 md:grid-cols-3">
+        <article class="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm">
+          <p class="text-xs uppercase tracking-[0.2em] text-amber-700">Recomendado</p>
+          <h2 class="mt-2 text-lg font-semibold text-slate-900">Descubre nuevas marcas locales</h2>
+          <p class="mt-1 text-sm text-slate-600">Explora tiendas con catálogo activo y atención directa.</p>
+        </article>
+        <article class="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white p-4 shadow-sm">
+          <p class="text-xs uppercase tracking-[0.2em] text-sky-700">Más rápido</p>
+          <h2 class="mt-2 text-lg font-semibold text-slate-900">Filtra y encuentra en segundos</h2>
+          <p class="mt-1 text-sm text-slate-600">Busca por nombre o slug y entra directo a comprar.</p>
+        </article>
+        <article class="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm">
+          <p class="text-xs uppercase tracking-[0.2em] text-emerald-700">Confiable</p>
+          <h2 class="mt-2 text-lg font-semibold text-slate-900">Compra en tiendas verificadas</h2>
+          <p class="mt-1 text-sm text-slate-600">Todas las tiendas visibles están activas en Pymeweb.</p>
+        </article>
+      </div>
+
       <div class="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
         <span v-if="filterQuery">Mostrando resultados para "{{ filterQuery }}"</span>
         <button v-if="filterQuery" class="rounded-full border border-slate-200 px-3 py-1 hover:bg-slate-100" @click="filterQuery = ''">Limpiar búsqueda</button>

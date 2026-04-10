@@ -20,9 +20,17 @@ export const useTenantStore = defineStore('tenant', {
         const config = useRuntimeConfig()
         const response = await $fetch(`${config.public.apiBase}/stores/${this.slug}/`)
         this.data = response
-        // Aplica el tema guardado para esta tienda si existe
+        // Aplica tema persistido en backend (fallback al tema local si ya existía).
         const theme = useThemeStore()
         theme.loadFromStorage()
+        const storeAny = response as any
+        if (storeAny?.accent_color || storeAny?.gradient_from || storeAny?.gradient_to) {
+          theme.setStoreTheme(this.slug, {
+            accent: storeAny?.accent_color || undefined,
+            gradientFrom: storeAny?.gradient_from || undefined,
+            gradientTo: storeAny?.gradient_to || undefined,
+          })
+        }
         theme.applyStoreTheme(this.slug)
       } catch (error) {
         console.error("Error tienda:", error)

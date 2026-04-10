@@ -28,7 +28,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in inventory" :key="item.id" class="border-b hover:bg-gray-50">
+          <tr v-for="item in pagedInventory" :key="item.id" class="border-b hover:bg-gray-50">
             <td class="p-4">
               <p class="font-medium">{{ item.product_name }}</p>
               <p class="text-xs text-gray-500">{{ item.variant_name }} (SKU: {{ item.sku }})</p>
@@ -49,6 +49,13 @@
           </tr>
         </tbody>
       </table>
+      <div v-if="inventoryTotalPages > 1" class="border-t bg-white px-4 py-3 text-xs text-slate-600">
+        <div class="flex items-center justify-between">
+          <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="inventoryPage === 1" @click="inventoryPage -= 1">Anterior</button>
+          <span>Página {{ inventoryPage }} / {{ inventoryTotalPages }}</span>
+          <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="inventoryPage === inventoryTotalPages" @click="inventoryPage += 1">Siguiente</button>
+        </div>
+      </div>
     </div>
 
     <div v-if="adjustingItem" class="rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -125,12 +132,21 @@ const targetStock = ref<number>(0)
 const adjustReason = ref('')
 const adjustError = ref('')
 const savingAdjustment = ref(false)
+const inventoryPage = ref(1)
+const inventoryPageSize = 15
+
+const inventoryTotalPages = computed(() => Math.max(1, Math.ceil(inventory.value.length / inventoryPageSize)))
+const pagedInventory = computed(() => {
+  const start = (inventoryPage.value - 1) * inventoryPageSize
+  return inventory.value.slice(start, start + inventoryPageSize)
+})
 
 const refreshStock = async () => {
   loading.value = true
   errorMessage.value = ''
   try {
     inventory.value = await getStock()
+    inventoryPage.value = 1
   } catch (e: any) {
     errorMessage.value = e?.message || 'No se pudo cargar el inventario.'
   } finally {
@@ -187,4 +203,8 @@ const confirmAdjustment = async () => {
 }
 
 onMounted(refreshStock)
+
+watch(inventory, () => {
+  if (inventoryPage.value > inventoryTotalPages.value) inventoryPage.value = inventoryTotalPages.value
+})
 </script>

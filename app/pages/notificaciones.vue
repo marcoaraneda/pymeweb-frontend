@@ -46,7 +46,7 @@
 
         <ul v-else class="mt-4 space-y-3">
           <li
-            v-for="item in filteredFeed"
+            v-for="item in paginatedFeed"
             :key="item.id"
             class="rounded-xl border border-slate-200 bg-slate-50 p-4"
           >
@@ -68,13 +68,31 @@
             </div>
           </li>
         </ul>
+
+        <div v-if="filteredFeed.length > perPage" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+          <button
+            class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+            :disabled="page === 1"
+            @click="page -= 1"
+          >
+            Anterior
+          </button>
+          <p>Mostrando {{ pageStart }}-{{ pageEnd }} de {{ filteredFeed.length }}</p>
+          <button
+            class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+            :disabled="page === totalPages"
+            @click="page += 1"
+          >
+            Siguiente
+          </button>
+        </div>
       </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '~/stores/auth'
 import { useNotificationStore, type NotificationFeedItem } from '~/stores/notifications'
@@ -87,6 +105,8 @@ const notificationStore = useNotificationStore()
 const refreshing = ref(false)
 const typeFilter = ref<'all' | string>('all')
 const onlyUnread = ref(false)
+const page = ref(1)
+const perPage = 12
 
 const availableTypes = computed(() => notificationStore.types)
 const feed = computed(() => notificationStore.feed)
@@ -97,6 +117,14 @@ const filteredFeed = computed(() => {
     .filter((n) => (typeFilter.value === 'all' ? true : n.type === typeFilter.value))
     .filter((n) => (onlyUnread.value ? !n.read : true))
 })
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredFeed.value.length / perPage)))
+const paginatedFeed = computed(() => {
+  const start = (page.value - 1) * perPage
+  return filteredFeed.value.slice(start, start + perPage)
+})
+const pageStart = computed(() => (filteredFeed.value.length ? (page.value - 1) * perPage + 1 : 0))
+const pageEnd = computed(() => Math.min(page.value * perPage, filteredFeed.value.length))
 
 const formatType = (type: string) => {
   const map: Record<string, string> = {
@@ -149,5 +177,13 @@ const formatDate = (value: string | Date) => {
 onMounted(() => {
   notificationStore.loadReadIds()
   refreshFeed()
+})
+
+watch([typeFilter, onlyUnread], () => {
+  page.value = 1
+})
+
+watch(filteredFeed, () => {
+  if (page.value > totalPages.value) page.value = totalPages.value
 })
 </script>

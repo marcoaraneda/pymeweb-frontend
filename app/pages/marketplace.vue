@@ -24,6 +24,13 @@
             >
               Gestionar mis productos
             </NuxtLink>
+            <NuxtLink
+              v-if="myMarketplaceProfilePath"
+              :to="myMarketplaceProfilePath"
+              class="inline-flex items-center gap-2 rounded-xl border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+            >
+              Ver mi perfil
+            </NuxtLink>
             <a
               href="#productos"
               class="inline-flex items-center gap-2 rounded-xl border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
@@ -35,9 +42,9 @@
 
         <div class="grid w-full max-w-xl grid-cols-2 gap-3 rounded-2xl bg-white/5 p-4 backdrop-blur">
           <article v-for="product in filteredProducts.slice(0, 4)" :key="product.id" class="rounded-xl border border-white/10 bg-white/5 p-3">
+            <img :src="product.image_url || product.images?.[0]?.image || product.image || '/logoPW.png'" :alt="product.name" class="mb-2 h-20 w-full rounded-lg object-cover" />
             <p class="text-xs uppercase text-amber-200/80">{{ product.category?.name || 'General' }}</p>
             <p class="text-sm font-semibold text-white line-clamp-1">{{ product.name }}</p>
-            <p class="text-sm text-amber-100 line-clamp-2">{{ product.description }}</p>
             <p class="text-base font-bold text-red-200">
               <span v-if="product.offer_price" class="mr-1 text-slate-300 line-through">{{ formatClp(product.price) }}</span>
               {{ formatClp(displayPrice(product)) }}
@@ -58,23 +65,23 @@
           <h2 class="text-2xl font-semibold text-slate-900">Productos publicados</h2>
           <p class="text-slate-600">Compra directo en la tienda donde se publicó.</p>
         </div>
-        <div class="flex flex-wrap gap-3">
+        <div class="grid w-full gap-3 md:w-auto md:grid-cols-2 xl:grid-cols-[190px_190px_auto_260px] xl:items-center">
           <select
             v-model="categoryFilter"
-            class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
+            class="h-10 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
           >
             <option value="">Todas las categorías</option>
             <option v-for="cat in categories" :key="cat.slug" :value="cat.slug">{{ cat.name }}</option>
           </select>
           <select
             v-model="sortOrder"
-            class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
+            class="h-10 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
           >
             <option value="">Ordenar por precio</option>
             <option value="price_asc">Menor a mayor</option>
             <option value="price_desc">Mayor a menor</option>
           </select>
-          <label v-if="auth.isAuthenticated" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-inner">
+          <label v-if="auth.isAuthenticated" class="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-inner">
             <input v-model="mineOnly" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500" />
             Solo mis productos
           </label>
@@ -82,13 +89,14 @@
             v-model="productSearch"
             type="text"
             placeholder="Buscar producto..."
-            class="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none md:w-64"
+            class="h-10 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
           />
         </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-2 text-sm text-slate-600">
         <span class="rounded-full border border-slate-200 bg-white px-3 py-1">{{ filteredProducts.length }} resultados</span>
+        <span class="rounded-full border border-slate-200 bg-white px-3 py-1">Página {{ page }} de {{ totalPages }}</span>
         <span v-for="item in activeFilters" :key="item" class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-800">{{ item }}</span>
         <button
           v-if="activeFilters.length"
@@ -160,15 +168,33 @@
           </NuxtLink>
         </div>
       </div>
-      <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div v-else class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <ProductCard
-          v-for="product in filteredProducts"
+          v-for="product in paginatedProducts"
           :key="product.id"
           :product="product"
           :accent="marketplaceAccent"
           :isMarketplace="true"
           :isMine="isMine(product)"
         />
+      </div>
+
+      <div v-if="filteredProducts.length > perPage" class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+        <button
+          class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+          :disabled="page === 1"
+          @click="page -= 1"
+        >
+          Anterior
+        </button>
+        <p>Mostrando {{ pageStart }}-{{ pageEnd }} de {{ filteredProducts.length }}</p>
+        <button
+          class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+          :disabled="page === totalPages"
+          @click="page += 1"
+        >
+          Siguiente
+        </button>
       </div>
     </section>
 
@@ -204,6 +230,12 @@ const categoryFilter = ref('')
 const sortOrder = ref('')
 const mineOnly = ref(false)
 const categories = ref<{ slug: string; name: string }[]>([])
+const page = ref(1)
+const perPage = 12
+const myMarketplaceProfilePath = computed(() => {
+  const id = (auth.user as any)?.id
+  return id ? `/marketplace/vendedores/${id}` : ''
+})
 
 const activeFilters = computed(() => {
   const items: string[] = []
@@ -240,11 +272,20 @@ const filteredProducts = computed(() => {
   return data
 })
 
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredProducts.value.length / perPage)))
+const paginatedProducts = computed(() => {
+  const start = (page.value - 1) * perPage
+  return filteredProducts.value.slice(start, start + perPage)
+})
+const pageStart = computed(() => (filteredProducts.value.length ? (page.value - 1) * perPage + 1 : 0))
+const pageEnd = computed(() => Math.min(page.value * perPage, filteredProducts.value.length))
+
 const clearFilters = () => {
   productSearch.value = ''
   categoryFilter.value = ''
   sortOrder.value = ''
   mineOnly.value = false
+  page.value = 1
 }
 
 const isMine = (product: any) => {
@@ -291,7 +332,18 @@ const scheduleFetch = () => {
   fetchTimer = setTimeout(fetchProducts, 250)
 }
 
-watch([productSearch, categoryFilter, sortOrder], scheduleFetch)
+watch([productSearch, categoryFilter, sortOrder], () => {
+  page.value = 1
+  scheduleFetch()
+})
+
+watch(mineOnly, () => {
+  page.value = 1
+})
+
+watch(filteredProducts, () => {
+  if (page.value > totalPages.value) page.value = totalPages.value
+})
 
 onMounted(async () => {
   theme.loadFromStorage()

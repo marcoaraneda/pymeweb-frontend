@@ -1,10 +1,11 @@
 <template>
-  <div class="min-h-screen bg-slate-50 text-slate-900">
-    <section class="relative overflow-hidden bg-gradient-to-br from-[var(--gradient-from,#111827)] to-[var(--gradient-to,#0b2358)] text-white">
+  <div class="min-h-screen text-slate-900" :class="pageShellClass">
+    <section class="relative overflow-hidden bg-gradient-to-br from-[var(--gradient-from,#111827)] to-[var(--gradient-to,#0b2358)] text-white" :class="heroSectionClass" :style="heroBackgroundStyle">
       <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.08),transparent_45%)]" aria-hidden="true" />
+      <div class="absolute inset-0 opacity-80" :style="heroPatternStyle" aria-hidden="true" />
       <div class="relative mx-auto flex max-w-6xl flex-col gap-10 px-6 py-16 lg:flex-row lg:items-center lg:py-20">
         <div class="space-y-5 lg:w-1/2">
-          <p class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.25em]">Tienda oficial</p>
+          <p class="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs uppercase tracking-[0.25em]" :class="heroBadgeClass">{{ heroBadgeLabel }}</p>
           <div class="flex items-center gap-3">
             <h1 class="text-4xl font-bold leading-tight md:text-5xl">{{ tenantStore.data?.name || 'Tu tienda online' }}</h1>
             <button
@@ -28,21 +29,21 @@
               class="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-lg shadow-black/20 transition hover:-translate-y-0.5"
               :style="accentStyle"
             >
-              Ver catálogo
+              {{ primaryCtaLabel }}
               <span aria-hidden="true">→</span>
             </NuxtLink>
             <a href="#destacados" class="inline-flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 text-sm font-semibold text-white hover:border-white/40 hover:bg-white/5 transition">
-              Ofertas y destacados
+              {{ secondaryCtaLabel }}
             </a>
           </div>
           <div class="flex flex-wrap gap-2 text-sm text-white/75">
-            <span class="rounded-full border border-white/15 px-3 py-1">Pago seguro</span>
-            <span class="rounded-full border border-white/15 px-3 py-1">Envíos rápidos</span>
+            <span class="rounded-full border border-white/15 px-3 py-1">{{ chipOne }}</span>
+            <span class="rounded-full border border-white/15 px-3 py-1">{{ chipTwo }}</span>
               <span v-if="tenantStore.categories.length" class="rounded-full border border-white/15 px-3 py-1">{{ tenantStore.categories.length }} categorías</span>
               <span
                 v-for="cat in tenantStore.categories"
                 :key="categoryKey(cat)"
-                class="rounded-full border border-slate-200 px-3 py-1 text-slate-700"
+                class="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-white"
               >
                 {{ categoryLabel(cat) }}
               </span>
@@ -50,17 +51,86 @@
         </div>
 
         <div class="relative lg:w-1/2">
-          <div class="absolute -inset-6 rounded-3xl bg-white/10 blur-2xl" />
-          <div class="relative rounded-3xl border border-white/15 bg-white/10 p-6 shadow-2xl backdrop-blur">
+          <div class="absolute -inset-6 rounded-3xl blur-2xl" :class="quickGlowClass" />
+          <div class="relative rounded-3xl border p-6 shadow-2xl backdrop-blur" :class="quickPanelClass">
             <p class="text-sm text-white/80">Vista rápida</p>
-            <div class="mt-4 grid gap-4 sm:grid-cols-2">
-              <div v-for="product in previewProducts" :key="product.id" class="rounded-2xl bg-white/10 p-4 shadow-inner">
-                <p class="text-xs uppercase text-white/60">{{ product.category?.name || 'General' }}</p>
-                <p class="text-lg font-semibold">{{ product.name }}</p>
-                <p class="text-sm text-white/80">${{ product.price }}</p>
+            <div class="mt-4 space-y-3">
+              <div class="relative overflow-hidden rounded-2xl border border-white/20 bg-black/20">
+                <div v-if="isProductsSlide" class="grid h-56 grid-rows-2 gap-2 bg-white/10 p-3 sm:h-64 sm:grid-cols-2 sm:grid-rows-1">
+                  <div v-for="product in previewProducts" :key="product.id" class="relative h-full overflow-hidden rounded-xl bg-white/10 shadow-inner">
+                    <img
+                      :src="getProductImage(product) || '/logoPW.png'"
+                      :alt="product.name || 'Producto'"
+                      class="h-full w-full object-cover"
+                    />
+                    <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/55 to-transparent px-3 pb-2 pt-6">
+                      <p class="line-clamp-1 text-xs font-semibold text-white sm:text-sm">{{ product.name }}</p>
+                      <p class="text-base font-extrabold leading-tight sm:text-lg" :style="priceTextStyle">${{ product.price }}</p>
+                    </div>
+                  </div>
+                  <div v-if="!previewProducts.length" class="flex items-center justify-center rounded-2xl border border-dashed border-white/30 text-sm text-white/80 sm:col-span-2">
+                    Aún no hay productos recomendados para mostrar.
+                  </div>
+                </div>
+                <img
+                  v-else-if="activeQuickMedia?.type === 'image'"
+                  :src="activeQuickMedia.url"
+                  alt="Vista rápida de tienda"
+                  class="h-56 w-full object-cover sm:h-64"
+                />
+                <video
+                  v-else-if="activeQuickMedia"
+                  :src="activeQuickMedia.url"
+                  class="h-56 w-full object-cover sm:h-64"
+                  controls
+                  muted
+                  playsinline
+                />
+                <button
+                  v-if="quickSlideCount > 1"
+                  class="absolute left-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-slate-900/45 text-white hover:bg-slate-900/65"
+                  aria-label="Elemento anterior"
+                  @click="previousQuickMedia"
+                >
+                  <span aria-hidden="true">‹</span>
+                </button>
+                <button
+                  v-if="quickSlideCount > 1"
+                  class="absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-slate-900/45 text-white hover:bg-slate-900/65"
+                  aria-label="Siguiente elemento"
+                  @click="nextQuickMedia"
+                >
+                  <span aria-hidden="true">›</span>
+                </button>
+              </div>
+              <div class="flex items-center justify-center gap-2">
+                <button
+                  v-for="n in quickSlideCount"
+                  :key="`quick-dot-${n - 1}`"
+                  class="h-2.5 w-2.5 rounded-full transition"
+                  :class="n - 1 === activeQuickMediaIndex ? 'bg-white' : 'bg-white/40 hover:bg-white/70'"
+                  :aria-label="`Ir al elemento ${n}`"
+                  @click="setQuickMediaIndex(n - 1)"
+                />
+                <button
+                  v-if="canEditTheme"
+                  class="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/35 bg-white/10 text-sm font-semibold text-white hover:bg-white/20"
+                  title="Agregar foto o video"
+                  aria-label="Agregar foto o video"
+                  @click="openQuickMediaPicker"
+                >
+                  +
+                </button>
+                <input
+                  ref="quickMediaPicker"
+                  type="file"
+                  class="hidden"
+                  accept="image/*,video/*"
+                  @change="onQuickMediaUpload"
+                />
               </div>
             </div>
-            <p v-if="!previewProducts.length" class="text-white/70">Aún no hay productos cargados.</p>
+            <p v-if="!previewProducts.length && !quickMediaItems.length" class="text-white/70">Aún no hay productos cargados.</p>
           </div>
         </div>
       </div>
@@ -97,6 +167,27 @@
               <p class="text-xs text-slate-500">Ejemplo: /store/{{ storeForm.slug || 'mitienda' }}</p>
             </div>
             <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Tipo de tienda</label>
+              <select v-model="storeForm.store_type" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                <option value="retail">Retail</option>
+                <option value="fast_food">Comida rápida</option>
+                <option value="bakery">Pastelería</option>
+                <option value="pharmacy">Farmacia</option>
+                <option value="fashion">Moda</option>
+                <option value="bookstore">Librería</option>
+              </select>
+              <div class="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                  :disabled="syncingCategories || updatingStore"
+                  @click="syncStoreTypeCategories()"
+                >
+                  {{ syncingCategories ? 'Sincronizando categorías...' : 'Sincronizar categorías de este tipo' }}
+                </button>
+                <p class="text-xs text-slate-500">Crea categorías faltantes del tipo elegido y ajusta las visibles en formularios.</p>
+              </div>
+            </div>
+            <div class="space-y-2 md:col-span-2">
               <label class="text-sm text-slate-600">Descripción</label>
               <textarea v-model="storeForm.description" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"></textarea>
             </div>
@@ -112,6 +203,10 @@
               <label class="text-sm text-slate-600">Teléfono</label>
               <input v-model="storeForm.phone" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </div>
+            <div class="space-y-2">
+              <label class="text-sm text-slate-600">WhatsApp</label>
+              <input v-model="storeForm.whatsapp" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </div>
             <div class="space-y-2 md:col-span-2">
               <label class="text-sm text-slate-600">Dirección principal</label>
               <input v-model="storeForm.address" type="text" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Ej: Av. Principal 123, Providencia" />
@@ -126,6 +221,65 @@
               <input v-model="storeForm.logo_url" type="url" placeholder="https://..." class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
               <p class="text-xs text-slate-500">Al guardar, el header usará esta imagen.</p>
             </div>
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Banner principal (URL, opcional)</label>
+              <input v-model="pendingTheme.banner_url" type="url" placeholder="https://..." class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+              <p class="text-xs text-slate-500">Si defines banner, la portada usa imagen en vez de fondo plano.</p>
+            </div>
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Color de acento</label>
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  v-for="c in palette"
+                  :key="`pending-accent-${c}`"
+                  class="h-8 w-8 rounded-full border border-slate-200 shadow-inner transition hover:-translate-y-0.5"
+                  :style="{ backgroundColor: c }"
+                  @click="queueAccent(c)"
+                />
+                <input v-model="customAccent" type="color" class="h-9 w-14 rounded border border-slate-200" />
+                <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="queueCustomAccent">Usar personalizado</button>
+              </div>
+            </div>
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm text-slate-600">Degradado</label>
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  v-for="g in gradients"
+                  :key="`pending-gradient-${g.from}-${g.to}`"
+                  class="h-10 w-14 rounded-xl border border-slate-200 shadow-inner transition hover:-translate-y-0.5"
+                  :style="{ backgroundImage: `linear-gradient(120deg, ${g.from}, ${g.to})` }"
+                  @click="queueGradient(g.from, g.to)"
+                />
+                <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="acceptThemePreview">Aceptar tema</button>
+              </div>
+            </div>
+            <div class="space-y-3 md:col-span-2">
+              <div>
+                <label class="text-sm text-slate-600">Vista rápida: fotos o videos</label>
+                <p class="text-xs text-slate-500">Sube uno o varios archivos. Se mostrarán como carrusel automático en portada al guardar.</p>
+              </div>
+              <input
+                type="file"
+                multiple
+                accept="image/*,video/*"
+                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                @change="onQuickMediaUpload"
+              />
+              <p class="text-xs text-slate-500">Máximo 12 archivos y 15MB por archivo.</p>
+              <div v-if="quickMediaDraft.length" class="grid gap-3 md:grid-cols-2">
+                <div v-for="(item, index) in quickMediaDraft" :key="item.id" class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div class="mb-2 overflow-hidden rounded-lg border border-slate-200 bg-black/5">
+                    <img v-if="item.type === 'image'" :src="item.url" alt="Elemento de vista rápida" class="h-28 w-full object-cover" />
+                    <video v-else :src="item.url" class="h-28 w-full object-cover" controls muted playsinline />
+                  </div>
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="truncate text-xs text-slate-500">Elemento {{ index + 1 }} · {{ item.type === 'image' ? 'Foto' : 'Video' }}</p>
+                    <button class="rounded-lg border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50" @click="removeQuickMedia(item.id)">Quitar</button>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="text-xs text-slate-500">No has agregado fotos o videos para esta vista.</p>
+            </div>
           </div>
 
           <div class="flex flex-wrap items-center gap-3">
@@ -137,41 +291,7 @@
             >
               {{ updatingStore ? 'Guardando...' : 'Guardar cambios de tienda' }}
             </button>
-            <p class="text-sm text-slate-600">Cambiar el slug redirige a la nueva URL.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="canEditTheme" class="mx-auto max-w-6xl px-6 py-10" id="personaliza">
-      <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Tema de esta tienda</p>
-            <h2 class="text-xl font-semibold text-slate-900">Personaliza colores de acento y fondo</h2>
-            <p class="text-slate-600">Se guarda localmente por tienda.</p>
-          </div>
-          <div class="flex flex-wrap gap-3">
-            <div class="flex items-center gap-2">
-              <span class="text-sm text-slate-600">Acento</span>
-              <button
-                v-for="c in palette"
-                :key="c"
-                class="h-8 w-8 rounded-full border border-slate-200 shadow-inner transition hover:-translate-y-0.5"
-                :style="{ backgroundColor: c }"
-                @click="setAccent(c)"
-              />
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-sm text-slate-600">Degradado</span>
-              <button
-                v-for="g in gradients"
-                :key="g.from"
-                class="h-10 w-14 rounded-xl border border-slate-200 shadow-inner transition hover:-translate-y-0.5"
-                :style="{ backgroundImage: `linear-gradient(120deg, ${g.from}, ${g.to})` }"
-                @click="setGradient(g.from, g.to)"
-              />
-            </div>
+            <p class="text-sm text-slate-600">Cambiar el slug redirige a la nueva URL. El tema se persiste al guardar.</p>
           </div>
         </div>
       </div>
@@ -180,29 +300,58 @@
     <section class="mx-auto max-w-6xl px-6 py-4" id="destacados">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Ofertas</p>
-          <h2 class="text-2xl font-semibold">Destacados de la semana</h2>
+          <p class="flex items-center gap-1 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-950"><Flame class="h-3.5 w-3.5 text-slate-900" /> Campaña de la semana</p>
+          <h2 class="mt-1 flex items-center gap-2 text-2xl font-extrabold text-slate-950 sm:text-3xl"><Sparkles class="h-6 w-6 text-slate-900" /> {{ featuredTitle }}</h2>
+          <p class="mt-1 text-sm font-semibold text-slate-800">{{ featuredSubtitle }}</p>
         </div>
         <NuxtLink :to="`/store/${slug}/productos`" class="text-sm font-semibold text-slate-700 hover:text-slate-900">Ver todo</NuxtLink>
       </div>
-      <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <ProductCard
-          v-for="product in featuredProducts"
+          v-for="product in paginatedFeaturedProducts"
           :key="product.id"
           :product="product"
           :accent="accentColor"
+          :highlight-buy="true"
         />
         <p v-if="!featuredProducts.length" class="text-slate-600">No hay productos destacados todavía.</p>
+      </div>
+      <div v-if="featuredProducts.length > featuredPerPage" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+        <button
+          class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+          :disabled="featuredPage === 1"
+          @click="featuredPage -= 1"
+        >
+          Anterior
+        </button>
+        <p>Destacados {{ featuredPageStart }}-{{ featuredPageEnd }} de {{ featuredProducts.length }}</p>
+        <button
+          class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+          :disabled="featuredPage === featuredTotalPages"
+          @click="featuredPage += 1"
+        >
+          Siguiente
+        </button>
       </div>
     </section>
 
     <section class="mx-auto max-w-6xl px-6 py-10" id="catalogo">
       <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Catálogo completo</p>
-          <h2 class="text-2xl font-semibold text-slate-900">Explora todos los productos</h2>
+          <p class="flex items-center gap-1 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-950"><Tags class="h-3.5 w-3.5 text-slate-900" /> Vitrina principal</p>
+          <h2 class="mt-1 flex items-center gap-2 text-2xl font-extrabold text-slate-950 sm:text-3xl"><Sparkles class="h-6 w-6 text-slate-900" /> {{ catalogTitle }}</h2>
+          <p class="mt-1 text-sm font-semibold text-slate-800">{{ catalogSubtitle }}</p>
         </div>
         <div class="flex flex-wrap gap-3 text-sm">
+          <label class="relative min-w-[220px]">
+            <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              v-model="catalogQuery"
+              type="text"
+              placeholder="Buscar producto..."
+              class="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
+            />
+          </label>
           <select
             v-model="catalogCategory"
             class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
@@ -222,16 +371,67 @@
       </div>
 
       <div v-if="tenantStore.loading" class="mt-6 text-slate-500">Cargando productos...</div>
-      <div v-else-if="!filteredCatalog.length" class="mt-6 rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
+      <div v-else-if="!catalogRows.length" class="mt-6 rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-slate-600">
         Aún no hay productos cargados en esta tienda.
       </div>
-      <div v-else class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <ProductCard
-          v-for="product in filteredCatalog"
-          :key="product.id"
-          :product="product"
-          :accent="accentColor"
-        />
+      <div v-else class="mt-7 space-y-8">
+        <section v-for="row in paginatedCatalogRows" :key="`row-${row.category}`" :class="catalogRowClass">
+          <div class="mb-3 flex items-center justify-between">
+            <h3 class="inline-flex items-center gap-2 text-lg font-extrabold text-slate-950">
+              <span class="inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-extrabold" :style="categoryCountStyle">{{ row.products.length }}</span>
+              {{ row.category }} · Los más buscados
+            </h3>
+            <span class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Línea de categoría</span>
+          </div>
+
+          <div class="space-y-4">
+            <div v-for="brandGroup in row.brandGroups" :key="`brand-${row.category}-${brandGroup.brand}`" class="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+              <div class="mb-2 flex items-center justify-between">
+                <p class="text-sm font-bold text-slate-900">{{ brandGroup.brand }}</p>
+                <span class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{{ brandGroup.products.length }} productos</span>
+              </div>
+
+              <div class="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
+                <NuxtLink
+                  v-for="product in brandGroup.products"
+                  :key="`mini-${row.category}-${brandGroup.brand}-${product.id}`"
+                  :to="getProductPath(product)"
+                  class="group min-w-[170px] max-w-[170px] snap-start overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  :style="catalogCardStyle"
+                >
+                  <div class="relative h-28 bg-slate-100">
+                    <img :src="getProductImage(product) || '/logoPW.png'" :alt="product.name || 'Producto'" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" />
+                    <div v-if="getDiscountPercent(product) > 0" class="absolute right-0 top-0 rounded-bl-lg bg-rose-600 px-2 py-1 text-[10px] font-extrabold text-white">
+                      -{{ getDiscountPercent(product) }}%
+                    </div>
+                  </div>
+                  <div class="space-y-1 p-2.5">
+                    <p class="line-clamp-2 text-xs font-semibold leading-snug text-slate-800">{{ product.name }}</p>
+                    <p class="text-base font-extrabold" :style="priceTextStyle">{{ formatCatalogPrice(getEffectivePrice(product)) }}</p>
+                    <p v-if="getDiscountPercent(product) > 0" class="text-[11px] font-semibold text-slate-400 line-through">{{ formatCatalogPrice(Number(product?.price || 0)) }}</p>
+                  </div>
+                </NuxtLink>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div v-if="catalogRows.length > categoryRowsPerPage" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+        <button
+          class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+          :disabled="catalogPage === 1"
+          @click="catalogPage -= 1"
+        >
+          Anterior
+        </button>
+        <p>Categorías {{ catalogPageStart }}-{{ catalogPageEnd }} de {{ catalogRows.length }}</p>
+        <button
+          class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+          :disabled="catalogPage === catalogTotalPages"
+          @click="catalogPage += 1"
+        >
+          Siguiente
+        </button>
       </div>
     </section>
   </div>
@@ -239,7 +439,8 @@
 
 <script setup lang="ts">
 import ProductCard from '~/components/ProductCard.vue'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { Flame, Search, Sparkles, Tags } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { definePageMeta } from '#imports'
 import { useRuntimeConfig } from 'nuxt/app'
@@ -248,6 +449,7 @@ import { useCartStore } from '~/stores/cart'
 import { useThemeStore } from '~/stores/theme'
 import { useImages } from '~/composables/useImages'
 import { useAuthStore } from '~/stores/auth'
+import { getCatalogCategorySeedsByStoreType } from '~/constants/catalogCategorySeeds'
 
 definePageMeta({ layout: 'store', middleware: ['tenant'] })
 
@@ -264,11 +466,22 @@ const config = useRuntimeConfig()
 
 type StoreCategory = string | { name: string; slug: string }
 
-const storeForm = reactive({ name: '', slug: '', logo_url: '', description: '', about: '', contact_email: '', phone: '', address: '', branch_locations_text: '' })
+const storeForm = reactive({ name: '', slug: '', store_type: 'retail', logo_url: '', description: '', about: '', contact_email: '', phone: '', whatsapp: '', address: '', branch_locations_text: '' })
+const themeForm = reactive({ accent_color: '', gradient_from: '', gradient_to: '', banner_url: '' })
+const pendingTheme = reactive({ accent_color: '', gradient_from: '', gradient_to: '', banner_url: '' })
+const customAccent = ref('#2563eb')
 const showStoreForm = ref(false)
 const updatingStore = ref(false)
+const syncingCategories = ref(false)
 const updateMessage = ref('')
 const updateStatus = ref<'ok' | 'error'>('ok')
+type QuickMediaType = 'image' | 'video'
+type QuickMediaItem = { id: string; type: QuickMediaType; url: string }
+const quickMediaItems = ref<QuickMediaItem[]>([])
+const quickMediaDraft = ref<QuickMediaItem[]>([])
+const activeQuickMediaIndex = ref(0)
+const quickMediaInterval = ref<ReturnType<typeof setInterval> | null>(null)
+const quickMediaPicker = ref<HTMLInputElement | null>(null)
 const shouldAutoOpen = computed(() => {
   const edit = route.query.edit
   return edit === 'true' || edit === '1' || edit === 'yes'
@@ -300,8 +513,170 @@ const gradients = [
   { from: '#312e81', to: '#9333ea' },
 ]
 
+const isHexColor = (value?: string) => /^#[0-9a-fA-F]{6}$/.test(String(value || ''))
+const normalizedColor = (value?: string, fallback = '#2563eb') => (isHexColor(value) ? String(value) : fallback)
+
 const accentColor = computed(() => theme.accent || '#2563eb')
 const accentStyle = computed(() => ({ backgroundColor: accentColor.value, color: '#fff' }))
+const storeType = computed(() => String((tenantStore.data as any)?.store_type || storeForm.store_type || 'retail'))
+const typeContent = computed(() => {
+  const byType: Record<string, {
+    featuredTitle: string
+    featuredSubtitle: string
+    catalogTitle: string
+    catalogSubtitle: string
+    rowClass: string
+    shellClass: string
+    heroClass: string
+    heroPattern: string
+    heroBadgeLabel: string
+    heroBadgeClass: string
+    primaryCtaLabel: string
+    secondaryCtaLabel: string
+    chipOne: string
+    chipTwo: string
+    quickGlowClass: string
+    quickPanelClass: string
+  }> = {
+    retail: {
+      featuredTitle: 'Ofertas relámpago: precios que vuelan',
+      featuredSubtitle: 'Selección curada para comprar rápido, ahorrar más y llevarte lo mejor hoy.',
+      catalogTitle: 'Compra por categoría como en una tienda grande',
+      catalogSubtitle: 'Navega por líneas especializadas y descubre productos ganadores en cada sección.',
+      rowClass: 'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm',
+      shellClass: 'bg-slate-50',
+      heroClass: '',
+      heroPattern: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.13), transparent 42%)',
+      heroBadgeLabel: 'Retail en vivo',
+      heroBadgeClass: 'border-white/20 bg-white/10 text-white',
+      primaryCtaLabel: 'Ver catálogo',
+      secondaryCtaLabel: 'Ofertas y destacados',
+      chipOne: 'Pago seguro',
+      chipTwo: 'Envíos rápidos',
+      quickGlowClass: 'bg-white/10',
+      quickPanelClass: 'border-white/15 bg-white/10',
+    },
+    fast_food: {
+      featuredTitle: 'Combos calientes listos para pedir',
+      featuredSubtitle: 'Prioriza tiempos de despacho y productos de alta rotación por franja horaria.',
+      catalogTitle: 'Arma tu pedido por secciones del menú',
+      catalogSubtitle: 'Desde hamburguesas y papas hasta bebidas, todo ordenado para comprar en segundos.',
+      rowClass: 'rounded-2xl border border-amber-200 bg-gradient-to-b from-amber-50 to-white p-4 shadow-sm',
+      shellClass: 'bg-amber-50/40',
+      heroClass: 'from-[#2b1200] to-[#7a2f00]',
+      heroPattern: 'repeating-linear-gradient(135deg, rgba(255,158,27,0.16) 0px, rgba(255,158,27,0.16) 10px, rgba(0,0,0,0) 10px, rgba(0,0,0,0) 20px)',
+      heroBadgeLabel: 'Comida rápida',
+      heroBadgeClass: 'border-amber-200/40 bg-amber-200/20 text-amber-100',
+      primaryCtaLabel: 'Ver menú',
+      secondaryCtaLabel: 'Combos y promos',
+      chipOne: 'Despacho express',
+      chipTwo: 'Combos del día',
+      quickGlowClass: 'bg-amber-300/20',
+      quickPanelClass: 'border-amber-100/35 bg-black/20',
+    },
+    bakery: {
+      featuredTitle: 'Lo recién horneado de hoy',
+      featuredSubtitle: 'Destaca productos frescos del día y promociones por hora para subir conversiones.',
+      catalogTitle: 'Vitrina dulce por especialidad',
+      catalogSubtitle: 'Tortas, pasteles, galletas y más, agrupados para una experiencia pastelera clara.',
+      rowClass: 'rounded-2xl border border-rose-200 bg-gradient-to-b from-rose-50 to-white p-4 shadow-sm',
+      shellClass: 'bg-rose-50/40',
+      heroClass: 'from-[#3d1020] to-[#7a2d48]',
+      heroPattern: 'radial-gradient(circle at 25% 25%, rgba(255,201,217,0.22), transparent 36%), radial-gradient(circle at 80% 55%, rgba(255,235,205,0.18), transparent 44%)',
+      heroBadgeLabel: 'Pastelería artesanal',
+      heroBadgeClass: 'border-rose-200/40 bg-rose-200/20 text-rose-100',
+      primaryCtaLabel: 'Ver vitrina dulce',
+      secondaryCtaLabel: 'Novedades del horno',
+      chipOne: 'Recién horneado',
+      chipTwo: 'Pedidos por encargo',
+      quickGlowClass: 'bg-rose-300/20',
+      quickPanelClass: 'border-rose-100/30 bg-black/20',
+    },
+    pharmacy: {
+      featuredTitle: 'Promociones clave para tu bienestar',
+      featuredSubtitle: 'Exhibe productos esenciales y campañas estacionales con prioridad.',
+      catalogTitle: 'Encuentra por categoría de cuidado',
+      catalogSubtitle: 'Higiene, vitaminas, cuidado personal y más en una navegación simple y rápida.',
+      rowClass: 'rounded-2xl border border-cyan-200 bg-gradient-to-b from-cyan-50 to-white p-4 shadow-sm',
+      shellClass: 'bg-cyan-50/35',
+      heroClass: 'from-[#052a34] to-[#0b5f73]',
+      heroPattern: 'linear-gradient(90deg, rgba(179,241,255,0.12) 1px, transparent 1px), linear-gradient(180deg, rgba(179,241,255,0.08) 1px, transparent 1px)',
+      heroBadgeLabel: 'Farmacia y bienestar',
+      heroBadgeClass: 'border-cyan-200/40 bg-cyan-200/20 text-cyan-100',
+      primaryCtaLabel: 'Ver categorías de salud',
+      secondaryCtaLabel: 'Promos esenciales',
+      chipOne: 'Compra segura',
+      chipTwo: 'Entrega prioritaria',
+      quickGlowClass: 'bg-cyan-300/20',
+      quickPanelClass: 'border-cyan-100/30 bg-black/20',
+    },
+    fashion: {
+      featuredTitle: 'Looks destacados de la temporada',
+      featuredSubtitle: 'Impulsa colecciones y novedades con foco visual orientado a estilo.',
+      catalogTitle: 'Compra por línea y marca',
+      catalogSubtitle: 'Ropa, calzado y accesorios en bloques visuales inspirados en catálogos de moda.',
+      rowClass: 'rounded-2xl border border-fuchsia-200 bg-gradient-to-b from-fuchsia-50 to-white p-4 shadow-sm',
+      shellClass: 'bg-fuchsia-50/35',
+      heroClass: 'from-[#1d1029] to-[#5b2d84]',
+      heroPattern: 'radial-gradient(circle at 15% 30%, rgba(248,208,255,0.18), transparent 35%), repeating-linear-gradient(120deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 6px, transparent 6px, transparent 16px)',
+      heroBadgeLabel: 'Moda y tendencia',
+      heroBadgeClass: 'border-fuchsia-200/40 bg-fuchsia-200/20 text-fuchsia-100',
+      primaryCtaLabel: 'Ver colección',
+      secondaryCtaLabel: 'Looks destacados',
+      chipOne: 'Nuevos ingresos',
+      chipTwo: 'Drops semanales',
+      quickGlowClass: 'bg-fuchsia-300/20',
+      quickPanelClass: 'border-fuchsia-100/30 bg-black/20',
+    },
+    bookstore: {
+      featuredTitle: 'Recomendados que no te puedes perder',
+      featuredSubtitle: 'Destaca novedades, best sellers y packs para aumentar ticket promedio.',
+      catalogTitle: 'Explora por género y editorial',
+      catalogSubtitle: 'Una estantería digital ordenada para descubrir lecturas rápido.',
+      rowClass: 'rounded-2xl border border-indigo-200 bg-gradient-to-b from-indigo-50 to-white p-4 shadow-sm',
+      shellClass: 'bg-indigo-50/35',
+      heroClass: 'from-[#161b3b] to-[#2d3f8a]',
+      heroPattern: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 2px, transparent 2px, transparent 18px)',
+      heroBadgeLabel: 'Librería digital',
+      heroBadgeClass: 'border-indigo-200/40 bg-indigo-200/20 text-indigo-100',
+      primaryCtaLabel: 'Explorar estantería',
+      secondaryCtaLabel: 'Recomendados',
+      chipOne: 'Curado por género',
+      chipTwo: 'Novedades editoriales',
+      quickGlowClass: 'bg-indigo-300/20',
+      quickPanelClass: 'border-indigo-100/30 bg-black/20',
+    },
+  }
+  return byType[storeType.value] || byType.retail
+})
+const featuredTitle = computed(() => typeContent.value.featuredTitle)
+const featuredSubtitle = computed(() => typeContent.value.featuredSubtitle)
+const catalogTitle = computed(() => typeContent.value.catalogTitle)
+const catalogSubtitle = computed(() => typeContent.value.catalogSubtitle)
+const catalogRowClass = computed(() => typeContent.value.rowClass)
+const pageShellClass = computed(() => typeContent.value.shellClass)
+const heroSectionClass = computed(() => typeContent.value.heroClass)
+const heroPatternStyle = computed(() => ({ backgroundImage: typeContent.value.heroPattern }))
+const heroBadgeLabel = computed(() => typeContent.value.heroBadgeLabel)
+const heroBadgeClass = computed(() => typeContent.value.heroBadgeClass)
+const primaryCtaLabel = computed(() => typeContent.value.primaryCtaLabel)
+const secondaryCtaLabel = computed(() => typeContent.value.secondaryCtaLabel)
+const chipOne = computed(() => typeContent.value.chipOne)
+const chipTwo = computed(() => typeContent.value.chipTwo)
+const quickGlowClass = computed(() => typeContent.value.quickGlowClass)
+const quickPanelClass = computed(() => typeContent.value.quickPanelClass)
+const priceTextStyle = computed(() => ({ color: accentColor.value }))
+const categoryCountStyle = computed(() => ({ backgroundColor: `${accentColor.value}22`, color: accentColor.value }))
+const catalogCardStyle = computed(() => ({ borderColor: `${accentColor.value}33` }))
+const heroBackgroundStyle = computed(() => {
+  const banner = (tenantStore.data as any)?.banner_url || ''
+  if (!banner) return {}
+  return {
+    backgroundImage: `linear-gradient(rgba(2,6,23,0.62), rgba(2,6,23,0.72)), url(${banner})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+  }
+})
 const categoryKey = (category: StoreCategory) => (typeof category === 'string' ? category : category.slug)
 const categoryLabel = (category: StoreCategory) => (typeof category === 'string' ? category : category.name)
 const heroDescription = computed(
@@ -320,17 +695,23 @@ const canEditTheme = computed(() => {
     return storeSlug?.toString().toLowerCase() === current?.toString().toLowerCase() &&
       roles.map((r: string) => r?.toLowerCase?.()).some((r: string) => ['admin', 'owner', 'manager'].includes(r))
   })
-  return Boolean((auth.user as any)?.is_staff || ownsStore)
+  return ownsStore
 })
 
 const safeProducts = computed(() => Array.isArray(tenantStore.productos) ? tenantStore.productos : [])
 
 const featuredProducts = computed(() => {
   const all = safeProducts.value
-  return all.filter((p: any) => p?.product_of_week)
+  return all.filter((p: any) => p?.product_of_week || p?.is_featured)
 })
 
-const previewProducts = computed(() => safeProducts.value.slice(0, 4))
+const previewProducts = computed(() => safeProducts.value.slice(0, 2))
+const quickSlideCount = computed(() => 1 + quickMediaItems.value.length)
+const isProductsSlide = computed(() => activeQuickMediaIndex.value === 0)
+const activeQuickMedia = computed(() => {
+  if (isProductsSlide.value) return null
+  return quickMediaItems.value[activeQuickMediaIndex.value - 1] || null
+})
 
 const catalogCategories = computed(() => {
   const names = new Set<string>()
@@ -342,10 +723,24 @@ const catalogCategories = computed(() => {
 })
 
 const catalogCategory = ref('')
+const catalogQuery = ref('')
 const catalogSort = ref('')
+const catalogPage = ref(1)
+const categoryRowsPerPage = 4
+const featuredPage = ref(1)
+const featuredPerPage = 6
 
 const filteredCatalog = computed(() => {
   let data = safeProducts.value
+  const query = catalogQuery.value.trim().toLowerCase()
+  if (query) {
+    data = data.filter((p: any) => {
+      const name = String(p?.name || '').toLowerCase()
+      const description = String(p?.description || '').toLowerCase()
+      const category = String(p?.category?.name || p?.category || '').toLowerCase()
+      return name.includes(query) || description.includes(query) || category.includes(query)
+    })
+  }
   if (catalogCategory.value) {
     data = data.filter((p: any) => (p?.category?.name || p?.category) === catalogCategory.value)
   }
@@ -359,8 +754,242 @@ const filteredCatalog = computed(() => {
   return data
 })
 
-const setAccent = (color: string) => theme.setStoreTheme(slug.value, { accent: color })
-const setGradient = (from: string, to: string) => theme.setStoreTheme(slug.value, { gradientFrom: from, gradientTo: to })
+const catalogRows = computed(() => {
+  const grouped = new Map<string, any[]>()
+  filteredCatalog.value.forEach((product: any) => {
+    const category = String(product?.category?.name || product?.category || 'General')
+    if (!grouped.has(category)) grouped.set(category, [])
+    grouped.get(category)!.push(product)
+  })
+  return Array.from(grouped.entries())
+    .map(([category, products]) => {
+      const byBrand = new Map<string, any[]>()
+      products.forEach((product: any) => {
+        const brand = String(product?.brand || 'Otras marcas').trim() || 'Otras marcas'
+        if (!byBrand.has(brand)) byBrand.set(brand, [])
+        byBrand.get(brand)!.push(product)
+      })
+      const brandGroups = Array.from(byBrand.entries())
+        .map(([brand, items]) => ({
+          brand,
+          products: items.sort((a: any, b: any) => String(a?.name || '').localeCompare(String(b?.name || ''))),
+        }))
+        .sort((a, b) => a.brand.localeCompare(b.brand))
+      return { category, products, brandGroups }
+    })
+    .sort((a, b) => a.category.localeCompare(b.category))
+})
+
+const catalogTotalPages = computed(() => Math.max(1, Math.ceil(catalogRows.value.length / categoryRowsPerPage)))
+const paginatedCatalogRows = computed(() => {
+  const start = (catalogPage.value - 1) * categoryRowsPerPage
+  return catalogRows.value.slice(start, start + categoryRowsPerPage)
+})
+const catalogPageStart = computed(() => (catalogRows.value.length ? (catalogPage.value - 1) * categoryRowsPerPage + 1 : 0))
+const catalogPageEnd = computed(() => Math.min(catalogPage.value * categoryRowsPerPage, catalogRows.value.length))
+
+const getEffectivePrice = (product: any) => {
+  const offer = Number(product?.offer_price || 0)
+  if (offer > 0) return offer
+  return Number(product?.price || 0)
+}
+
+const getDiscountPercent = (product: any) => {
+  const price = Number(product?.price || 0)
+  const offer = Number(product?.offer_price || 0)
+  if (!price || !offer || offer >= price) return 0
+  return Math.round(((price - offer) / price) * 100)
+}
+
+const formatCatalogPrice = (value: number) =>
+  new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Number(value) || 0)
+
+const getProductPath = (product: any) => {
+  const id = product?.slug || product?.id
+  if (!id) return '/marketplace'
+  if (product?.store?.slug && !product?.store_is_marketplace) return `/store/${product.store.slug}/productos/${id}`
+  return `/marketplace/productos/${id}`
+}
+
+const featuredTotalPages = computed(() => Math.max(1, Math.ceil(featuredProducts.value.length / featuredPerPage)))
+const paginatedFeaturedProducts = computed(() => {
+  const start = (featuredPage.value - 1) * featuredPerPage
+  return featuredProducts.value.slice(start, start + featuredPerPage)
+})
+const featuredPageStart = computed(() => (featuredProducts.value.length ? (featuredPage.value - 1) * featuredPerPage + 1 : 0))
+const featuredPageEnd = computed(() => Math.min(featuredPage.value * featuredPerPage, featuredProducts.value.length))
+
+const queueAccent = (color: string) => {
+  pendingTheme.accent_color = normalizedColor(color)
+}
+
+const queueGradient = (from: string, to: string) => {
+  pendingTheme.gradient_from = normalizedColor(from, '#111827')
+  pendingTheme.gradient_to = normalizedColor(to, '#0b2358')
+}
+
+const queueCustomAccent = () => {
+  pendingTheme.accent_color = normalizedColor(customAccent.value)
+}
+
+const acceptThemePreview = () => {
+  themeForm.accent_color = normalizedColor(pendingTheme.accent_color || themeForm.accent_color)
+  themeForm.gradient_from = normalizedColor(pendingTheme.gradient_from || themeForm.gradient_from, '#111827')
+  themeForm.gradient_to = normalizedColor(pendingTheme.gradient_to || themeForm.gradient_to, '#0b2358')
+  themeForm.banner_url = pendingTheme.banner_url || ''
+  theme.setStoreTheme(slug.value, {
+    accent: themeForm.accent_color,
+    gradientFrom: themeForm.gradient_from,
+    gradientTo: themeForm.gradient_to,
+  })
+  updateStatus.value = 'ok'
+  updateMessage.value = 'Tema aplicado. Presiona "Guardar cambios de tienda" para persistir.'
+}
+
+const setQuickMediaIndex = (index: number) => {
+  const safe = Math.max(0, Math.min(index, quickSlideCount.value - 1))
+  activeQuickMediaIndex.value = safe
+}
+
+const previousQuickMedia = () => {
+  if (quickSlideCount.value <= 1) return
+  const next = (activeQuickMediaIndex.value - 1 + quickSlideCount.value) % quickSlideCount.value
+  setQuickMediaIndex(next)
+}
+
+const nextQuickMedia = () => {
+  if (quickSlideCount.value <= 1) return
+  const next = (activeQuickMediaIndex.value + 1) % quickSlideCount.value
+  setQuickMediaIndex(next)
+}
+
+const stopQuickMediaAutoplay = () => {
+  if (!quickMediaInterval.value) return
+  clearInterval(quickMediaInterval.value)
+  quickMediaInterval.value = null
+}
+
+const startQuickMediaAutoplay = () => {
+  stopQuickMediaAutoplay()
+  if (quickSlideCount.value <= 1) return
+  quickMediaInterval.value = setInterval(() => {
+    const next = (activeQuickMediaIndex.value + 1) % quickSlideCount.value
+    setQuickMediaIndex(next)
+  }, 5000)
+}
+
+const openQuickMediaPicker = () => {
+  quickMediaPicker.value?.click()
+}
+
+const detectQuickMediaType = (mime: string) => (mime.startsWith('video/') ? 'video' : 'image')
+
+const persistQuickMediaDraft = async () => {
+  if (!canEditTheme.value) return false
+  try {
+    await $fetch(`${config.public.apiBase}/stores/${slug.value}/`, {
+      method: 'PATCH',
+      body: { quick_media: sanitizeQuickMedia(quickMediaDraft.value) },
+      headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
+const onQuickMediaUpload = async (event: Event) => {
+  const input = event.target as HTMLInputElement | null
+  const files = Array.from(input?.files || [])
+  if (!files.length) return
+
+  const validFiles = files.filter((file) => file.size <= 15 * 1024 * 1024)
+  if (!validFiles.length) {
+    updateStatus.value = 'error'
+    updateMessage.value = 'Los archivos superan el límite de 15MB por elemento.'
+    if (input) input.value = ''
+    return
+  }
+
+  const availableSlots = Math.max(0, 12 - quickMediaDraft.value.length)
+  const filesToProcess = validFiles.slice(0, availableSlots)
+  if (!filesToProcess.length) {
+    updateStatus.value = 'error'
+    updateMessage.value = 'Solo puedes guardar hasta 12 elementos en Vista rápida.'
+    if (input) input.value = ''
+    return
+  }
+
+  const items = await Promise.all(
+    filesToProcess.map(
+      (file) =>
+        new Promise<QuickMediaItem>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            resolve({
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              type: detectQuickMediaType(file.type || ''),
+              url: String(reader.result || ''),
+            })
+          }
+          reader.onerror = () => reject(reader.error)
+          reader.readAsDataURL(file)
+        })
+    )
+  )
+
+  quickMediaDraft.value = [...quickMediaDraft.value, ...items]
+  quickMediaItems.value = [...quickMediaDraft.value]
+  setQuickMediaIndex(quickSlideCount.value - 1)
+  const persisted = await persistQuickMediaDraft()
+  updateStatus.value = persisted ? 'ok' : 'error'
+  updateMessage.value = persisted
+    ? 'Elemento agregado y guardado en la tienda.'
+    : 'Elemento agregado localmente, pero no se pudo guardar en servidor todavía.'
+  if (input) input.value = ''
+}
+
+const removeQuickMedia = async (id: string) => {
+  quickMediaDraft.value = quickMediaDraft.value.filter((item) => item.id !== id)
+  quickMediaItems.value = [...quickMediaDraft.value]
+  if (activeQuickMediaIndex.value >= quickSlideCount.value) {
+    setQuickMediaIndex(quickSlideCount.value - 1)
+  }
+  const persisted = await persistQuickMediaDraft()
+  updateStatus.value = persisted ? 'ok' : 'error'
+  updateMessage.value = persisted
+    ? 'Elemento eliminado y cambios guardados.'
+    : 'Elemento eliminado localmente, pero no se pudo guardar en servidor todavía.'
+}
+
+const sanitizeQuickMedia = (value: any): QuickMediaItem[] => {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((item: any) => item?.url && (item?.type === 'image' || item?.type === 'video'))
+    .slice(0, 12)
+    .map((item: any) => ({
+      id: String(item?.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+      type: item.type,
+      url: String(item.url),
+    }))
+}
+
+watch([catalogCategory, catalogSort, catalogQuery], () => {
+  catalogPage.value = 1
+})
+
+watch(filteredCatalog, () => {
+  if (catalogPage.value > catalogTotalPages.value) catalogPage.value = catalogTotalPages.value
+})
+
+watch(featuredProducts, () => {
+  if (featuredPage.value > featuredTotalPages.value) featuredPage.value = featuredTotalPages.value
+})
 
 const maybeOpenEdit = () => {
   if (shouldAutoOpen.value && canEditTheme.value) {
@@ -378,12 +1007,28 @@ const hydrateForm = () => {
   const branches = Array.isArray(data.branch_locations) ? data.branch_locations : []
   storeForm.name = data.name || ''
   storeForm.slug = data.slug || slug.value || ''
+  storeForm.store_type = data.store_type || 'retail'
   storeForm.logo_url = data.logo_url || data.logo || ''
   storeForm.description = data.description || ''
    storeForm.about = data.about || data.about_us || data.about_text || ''
   storeForm.contact_email = data.contact_email || data.email || ''
   storeForm.phone = data.phone || ''
+  storeForm.whatsapp = data.whatsapp || ''
   storeForm.address = data.address || ''
+  themeForm.accent_color = normalizedColor(data.accent_color || theme.accent, '#2563eb')
+  themeForm.gradient_from = normalizedColor(data.gradient_from || theme.gradientFrom, '#111827')
+  themeForm.gradient_to = normalizedColor(data.gradient_to || theme.gradientTo, '#0b2358')
+  themeForm.banner_url = data.banner_url || ''
+  pendingTheme.accent_color = themeForm.accent_color
+  pendingTheme.gradient_from = themeForm.gradient_from
+  pendingTheme.gradient_to = themeForm.gradient_to
+  pendingTheme.banner_url = themeForm.banner_url
+  customAccent.value = themeForm.accent_color
+  quickMediaItems.value = sanitizeQuickMedia(data.quick_media)
+  quickMediaDraft.value = [...quickMediaItems.value]
+  if (activeQuickMediaIndex.value >= quickMediaItems.value.length) {
+    setQuickMediaIndex(0)
+  }
   storeForm.branch_locations_text = branches
     .map((branch: any) => [branch?.label || '', branch?.zone || '', branch?.address || ''].join('|'))
     .join('\n')
@@ -392,12 +1037,19 @@ const hydrateForm = () => {
 type StoreUpdateResponse = {
   slug?: string
   name?: string
+  store_type?: string
   logo_url?: string
   logo?: string
   description?: string
   contact_email?: string
   about?: string
   phone?: string
+  whatsapp?: string
+  banner_url?: string
+  accent_color?: string
+  gradient_from?: string
+  gradient_to?: string
+  quick_media?: Array<{ id?: string; type?: 'image' | 'video'; url?: string }>
   address?: string
   branch_locations?: Array<{ label?: string; zone?: string; address?: string }>
   [key: string]: unknown
@@ -418,21 +1070,95 @@ const parseBranchLocations = (raw: string) =>
     })
     .filter((branch) => branch.address || branch.zone)
 
+const storeTypeLabel = (value: string) => {
+  const labels: Record<string, string> = {
+    retail: 'Retail',
+    fast_food: 'Comida rápida',
+    bakery: 'Pastelería',
+    pharmacy: 'Farmacia',
+    fashion: 'Moda',
+    bookstore: 'Librería',
+  }
+  return labels[String(value || 'retail')] || 'Retail'
+}
+
+const syncStoreTypeCategories = async (targetSlug?: string, silent = false) => {
+  if (!canEditTheme.value) return
+  syncingCategories.value = true
+  try {
+    const effectiveSlug = targetSlug || slug.value
+    const selectedType = String(storeForm.store_type || 'retail')
+    const seeds = getCatalogCategorySeedsByStoreType(selectedType)
+    const allowedSlugs = new Set(seeds.map((seed) => seed.slug))
+
+    const headers = auth.token ? { Authorization: `Bearer ${auth.token}` } : {}
+    let fetchedCategories = await $fetch<any[]>(`${config.public.apiBase}/store/${effectiveSlug}/catalogo/categories/`, {
+      headers,
+    })
+    const existingSlugs = new Set(fetchedCategories.map((cat: any) => String(cat?.slug || '').toLowerCase()))
+
+    let createdCount = 0
+    for (const seed of seeds) {
+      if (existingSlugs.has(seed.slug)) continue
+      try {
+        await $fetch(`${config.public.apiBase}/store/${effectiveSlug}/catalogo/categories/`, {
+          method: 'POST',
+          body: seed,
+          headers,
+        })
+        createdCount += 1
+      } catch {
+        // Ignoramos creaciones puntuales fallidas para no bloquear la sincronización completa.
+      }
+    }
+
+    fetchedCategories = await $fetch<any[]>(`${config.public.apiBase}/store/${effectiveSlug}/catalogo/categories/`, {
+      headers,
+    })
+    tenantStore.categories = fetchedCategories
+      .filter((cat: any) => allowedSlugs.has(String(cat?.slug || '').toLowerCase()))
+      .map((cat: any) => ({
+        name: cat?.name || cat?.slug,
+        slug: cat?.slug || cat?.name,
+      }))
+
+    if (!silent) {
+      updateStatus.value = 'ok'
+      updateMessage.value = `Categorías sincronizadas para ${storeTypeLabel(selectedType)} (${createdCount} nuevas).`
+    }
+  } catch {
+    if (!silent) {
+      updateStatus.value = 'error'
+      updateMessage.value = 'No pudimos sincronizar categorías para el tipo de tienda.'
+    }
+  } finally {
+    syncingCategories.value = false
+  }
+}
+
 const saveStore = async () => {
   if (!canEditTheme.value) return
   updatingStore.value = true
   updateMessage.value = ''
   const previousSlug = slug.value
+  const previousType = String((tenantStore.data as any)?.store_type || 'retail')
   try {
     const payload: any = {
       name: storeForm.name,
       slug: storeForm.slug,
+      store_type: storeForm.store_type,
       logo_url: storeForm.logo_url,
       description: storeForm.description,
       contact_email: storeForm.contact_email,
       about: storeForm.about,
       phone: storeForm.phone,
+      whatsapp: storeForm.whatsapp,
       address: storeForm.address,
+      banner_url: pendingTheme.banner_url || themeForm.banner_url,
+      accent_color: normalizedColor(themeForm.accent_color, '#2563eb'),
+      gradient_from: normalizedColor(themeForm.gradient_from, '#111827'),
+      gradient_to: normalizedColor(themeForm.gradient_to, '#0b2358'),
+      quick_media: sanitizeQuickMedia(quickMediaDraft.value),
       branch_locations: parseBranchLocations(storeForm.branch_locations_text),
     }
 
@@ -455,9 +1181,22 @@ const saveStore = async () => {
 
     await tenantStore.fetchTienda()
     hydrateForm()
+
+    const currentType = String(payload.store_type || 'retail')
+    if (currentType !== previousType) {
+      await syncStoreTypeCategories(nextSlug, true)
+    }
+
+    theme.setStoreTheme(tenantStore.slug || nextSlug, {
+      accent: payload.accent_color,
+      gradientFrom: payload.gradient_from,
+      gradientTo: payload.gradient_to,
+    })
     theme.applyStoreTheme(tenantStore.slug || nextSlug)
     updateStatus.value = 'ok'
-    updateMessage.value = 'Cambios guardados'
+    updateMessage.value = currentType !== previousType
+      ? 'Cambios guardados y categorías sincronizadas por tipo de tienda.'
+      : 'Cambios guardados'
     showStoreForm.value = false
   } catch (error: any) {
     updateStatus.value = 'error'
@@ -495,4 +1234,10 @@ watch(
   () => hydrateForm(),
   { immediate: true }
 )
+
+watch(quickSlideCount, () => startQuickMediaAutoplay(), { immediate: true })
+
+onBeforeUnmount(() => {
+  stopQuickMediaAutoplay()
+})
 </script>

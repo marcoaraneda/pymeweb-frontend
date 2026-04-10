@@ -43,13 +43,18 @@
             </div>
             <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <ProductCard
-                v-for="product in filteredActive"
+                v-for="product in pagedActive"
                 :key="product.id"
                 :product="product"
                 :accent="marketplaceAccent"
                 :isMarketplace="true"
                 :isMine="isMine(product)"
               />
+            </div>
+            <div v-if="activeTotalPages > 1" class="flex items-center justify-between text-xs text-slate-600">
+              <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="activePage === 1" @click="activePage -= 1">Anterior</button>
+              <span>Página {{ activePage }} / {{ activeTotalPages }}</span>
+              <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="activePage === activeTotalPages" @click="activePage += 1">Siguiente</button>
             </div>
           </div>
 
@@ -63,13 +68,18 @@
             </div>
             <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <ProductCard
-                v-for="product in filteredSold"
+                v-for="product in pagedSold"
                 :key="`sold-${product.id}`"
                 :product="product"
                 :accent="marketplaceAccent"
                 :isMarketplace="true"
                 :isMine="isMine(product)"
               />
+            </div>
+            <div v-if="soldTotalPages > 1" class="flex items-center justify-between text-xs text-slate-600">
+              <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="soldPage === 1" @click="soldPage -= 1">Anterior</button>
+              <span>Página {{ soldPage }} / {{ soldTotalPages }}</span>
+              <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="soldPage === soldTotalPages" @click="soldPage += 1">Siguiente</button>
             </div>
           </div>
         </div>
@@ -79,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRuntimeConfig } from 'nuxt/app'
 import ProductCard from '~/components/ProductCard.vue'
@@ -99,6 +109,9 @@ const searchTerm = ref('')
 const categoryFilter = ref('')
 const categories = ref<any[]>([])
 const marketplaceAccent = '#f59e0b'
+const activePage = ref(1)
+const soldPage = ref(1)
+const perPage = 12
 
 const fullName = computed(() => {
   if (!seller.value) return ''
@@ -145,6 +158,19 @@ const filteredSold = computed(() => {
   })
 })
 
+const activeTotalPages = computed(() => Math.max(1, Math.ceil(filteredActive.value.length / perPage)))
+const soldTotalPages = computed(() => Math.max(1, Math.ceil(filteredSold.value.length / perPage)))
+
+const pagedActive = computed(() => {
+  const start = (activePage.value - 1) * perPage
+  return filteredActive.value.slice(start, start + perPage)
+})
+
+const pagedSold = computed(() => {
+  const start = (soldPage.value - 1) * perPage
+  return filteredSold.value.slice(start, start + perPage)
+})
+
 const isMine = (product: any) => {
   const userId = (auth.user as any)?.id
   return Boolean(userId && product?.submitted_by === userId)
@@ -170,5 +196,18 @@ onMounted(async () => {
   theme.applyTheme()
   auth.restoreFromCookies()
   await fetchSeller()
+})
+
+watch([searchTerm, categoryFilter], () => {
+  activePage.value = 1
+  soldPage.value = 1
+})
+
+watch(filteredActive, () => {
+  if (activePage.value > activeTotalPages.value) activePage.value = activeTotalPages.value
+})
+
+watch(filteredSold, () => {
+  if (soldPage.value > soldTotalPages.value) soldPage.value = soldTotalPages.value
 })
 </script>

@@ -12,6 +12,13 @@
 
         <nav class="hidden items-center gap-3 md:flex">
           <NuxtLink
+            to="/"
+            class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
+          >
+            <House class="h-4 w-4" aria-hidden="true" />
+            Inicio
+          </NuxtLink>
+          <NuxtLink
             to="/marketplace"
             class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
           >
@@ -159,6 +166,7 @@
 
       <div v-if="showMenuMobile" class="border-t border-slate-200 bg-white/95 px-6 py-3 text-sm md:hidden">
         <div class="flex flex-col gap-2">
+          <NuxtLink to="/" class="rounded-lg px-3 py-2 hover:bg-slate-100">Inicio</NuxtLink>
           <NuxtLink to="/marketplace" class="rounded-lg px-3 py-2 hover:bg-slate-100">Marketplace</NuxtLink>
           <NuxtLink to="/tiendas" class="rounded-lg px-3 py-2 hover:bg-slate-100">Ver tiendas</NuxtLink>
           <NuxtLink
@@ -197,7 +205,7 @@ import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { useCartStore } from '~/stores/cart'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
-import { Bell, ShoppingCart, LayoutDashboard, LogIn, Store as StoreIcon, ShoppingBag } from 'lucide-vue-next'
+import { Bell, ShoppingCart, LayoutDashboard, LogIn, Store as StoreIcon, ShoppingBag, House } from 'lucide-vue-next'
 import ChatBot from '~/components/ChatBot.vue'
 import { useNotificationStore } from '~/stores/notifications'
 import { useDashboardAccess } from '~/composables/useDashboardAccess'

@@ -32,7 +32,7 @@
             v-model="selectedStore"
             class="rounded-xl border border-white/30 bg-white text-sm text-slate-900 px-3 py-2 focus:border-slate-300 focus:outline-none shadow-sm"
           >
-            <option disabled value="">Selecciona una tienda</option>
+            <option :value="MARKETPLACE_SCOPE">Marketplace</option>
             <option v-for="store in storesMine" :key="store.slug" :value="store.slug">{{ store.name }}</option>
           </select>
           <NuxtLink
@@ -59,7 +59,7 @@
         {{ loadError }}
       </div>
 
-      <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" v-if="!isMarketplaceSelected">
         <template v-if="statsLoading">
           <div v-for="n in 4" :key="n" class="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div class="h-4 w-32 rounded bg-white/20 animate-pulse" />
@@ -75,46 +75,216 @@
         </template>
       </section>
 
-      <section class="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
-        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Mis tiendas</p>
-              <h2 class="text-xl font-semibold">Accesos directos</h2>
-            </div>
-            <button
-              class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5 disabled:opacity-60"
-              :style="{ backgroundColor: theme.accent }"
-              :disabled="loading"
-              @click="refresh(true)"
-            >
-              <span v-if="loading">Actualizando...</span>
-              <span v-else>Actualizar</span>
-            </button>
-          </div>
+      <section v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-white/60">Publicaciones</p>
+          <p class="mt-2 text-2xl font-semibold text-white">{{ marketplaceOverview.total }}</p>
+          <p class="text-xs text-white/60">Total de productos publicados</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-white/60">En curso</p>
+          <p class="mt-2 text-2xl font-semibold text-white">{{ marketplaceOverview.inProgress }}</p>
+          <p class="text-xs text-white/60">Preparando, enviándose o en tránsito</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-white/60">Finalizados</p>
+          <p class="mt-2 text-2xl font-semibold text-white">{{ marketplaceOverview.completed }}</p>
+          <p class="text-xs text-white/60">Publicaciones marcadas como finalizadas</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-white/60">Valor estimado</p>
+          <p class="mt-2 text-2xl font-semibold text-white">{{ currency(marketplaceOverview.estimatedValue) }}</p>
+          <p class="text-xs text-white/60">Suma referencial de precio por stock</p>
+        </div>
+      </section>
 
-          <div v-if="loading" class="mt-4 grid gap-4 sm:grid-cols-2">
-            <div v-for="n in 2" :key="n" class="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div class="h-4 w-32 rounded bg-white/20 animate-pulse" />
-              <div class="mt-2 h-3 w-24 rounded bg-white/10 animate-pulse" />
-              <div class="mt-4 h-28 w-full rounded-xl bg-white/5 animate-pulse" />
+      <section v-if="!isMarketplaceSelected" class="grid gap-6 lg:grid-cols-2">
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Rendimiento</p>
+              <h2 class="text-xl font-semibold">Ingresos por día</h2>
             </div>
+            <span class="text-xs text-white/60">{{ storeTrendSeries.length }} días</span>
           </div>
-          <div v-else-if="storesMine.length === 0" class="mt-4 rounded-2xl border border-dashed border-white/15 bg-white/5 p-5 text-white/70">
-            Aún no tienes tiendas asignadas. Pide acceso o crea una nueva desde administración.
+          <div v-if="dailyLoading" class="mt-4 space-y-2">
+            <div v-for="n in 5" :key="`daily-skel-${n}`" class="h-6 rounded-lg bg-white/10 animate-pulse" />
           </div>
-          <div v-else class="mt-4 grid gap-4 sm:grid-cols-2">
-            <StoreCard
-              v-for="store in storesMine"
-              :key="store.slug"
-              :store="store"
-              :accent="theme.accent"
-              :canDelete="true"
-              @delete="confirmDeleteStore"
-            />
+          <div v-else-if="!storeTrendSeries.length" class="mt-4 text-sm text-white/70">Sin datos diarios para la tienda seleccionada.</div>
+          <div v-else class="mt-4 space-y-2">
+            <div v-for="item in storeTrendSeries" :key="`daily-${item.day}`" class="space-y-1">
+              <div class="flex items-center justify-between text-xs text-white/70">
+                <span>{{ formatShortDate(item.day) }}</span>
+                <span>{{ currency(item.revenue) }}</span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-white/10">
+                <div
+                  class="h-2 rounded-full"
+                  :style="{ width: `${Math.max(6, Math.round((Number(item.revenue || 0) / storeTrendMax) * 100))}%`, backgroundColor: theme.accent }"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Distribución</p>
+              <h2 class="text-xl font-semibold">Estados de pedidos</h2>
+            </div>
+            <span class="text-xs text-white/60">{{ orders.length }} pedidos</span>
+          </div>
+          <div v-if="ordersLoading" class="mt-4 space-y-2">
+            <div v-for="n in 5" :key="`status-skel-${n}`" class="h-6 rounded-lg bg-white/10 animate-pulse" />
+          </div>
+          <div v-else-if="!orderStatusSummary.length" class="mt-4 text-sm text-white/70">Sin pedidos para graficar.</div>
+          <div v-else class="mt-4 space-y-2">
+            <div v-for="item in orderStatusSummary" :key="`status-row-${item.value}`" class="space-y-1">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-white/80">{{ item.label }}</span>
+                <span class="text-white/60">{{ item.count }} ({{ item.percent }}%)</span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-white/10">
+                <div class="h-2 rounded-full" :style="{ width: `${Math.max(4, item.percent)}%`, backgroundColor: item.color }" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section v-else class="grid gap-6 lg:grid-cols-2">
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Marketplace</p>
+              <h2 class="text-xl font-semibold">Estados de publicaciones</h2>
+            </div>
+            <span class="text-xs text-white/60">{{ marketplaceOverview.total }} publicaciones</span>
+          </div>
+          <div v-if="loadingMarketplaceSubmissions" class="mt-4 space-y-2">
+            <div v-for="n in 4" :key="`mp-status-skel-${n}`" class="h-6 rounded-lg bg-white/10 animate-pulse" />
+          </div>
+          <div v-else class="mt-4 space-y-2">
+            <div v-for="item in marketplaceStatusSummary" :key="`mp-status-${item.value}`" class="space-y-1">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-white/80">{{ item.label }}</span>
+                <span class="text-white/60">{{ item.count }} ({{ item.percent }}%)</span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-white/10">
+                <div class="h-2 rounded-full" :style="{ width: `${Math.max(4, item.percent)}%`, backgroundColor: item.color }" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Actividad</p>
+              <h2 class="text-xl font-semibold">Publicaciones últimos 7 días</h2>
+            </div>
+            <span class="text-xs text-white/60">Real</span>
+          </div>
+          <div class="mt-4 space-y-2">
+            <div v-for="item in marketplaceRecentSeries" :key="`mp-day-${item.day}`" class="space-y-1">
+              <div class="flex items-center justify-between text-xs text-white/70">
+                <span>{{ formatShortDate(item.day) }}</span>
+                <span>{{ item.count }} publicaciones</span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-white/10">
+                <div
+                  class="h-2 rounded-full"
+                  :style="{ width: `${Math.max(8, Math.round((item.count / marketplaceRecentMax) * 100))}%`, backgroundColor: '#f59e0b' }"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="isMarketplaceSelected" class="grid gap-6 lg:grid-cols-1">
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Marketplace</p>
+              <h2 class="text-xl font-semibold">Mis productos de Marketplace</h2>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <select
+                v-model="marketplaceStatusFilter"
+                class="rounded-xl border border-white/20 bg-white px-3 py-2 text-sm text-slate-900"
+              >
+                <option value="">Todos los estados</option>
+                <option v-for="option in marketplaceStatusOptions" :key="`market-status-${option.value}`" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+              <button
+                class="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5 disabled:opacity-60"
+                :style="{ backgroundColor: theme.accent }"
+                :disabled="loadingMarketplaceSubmissions"
+                @click="loadMarketplaceSubmissions"
+              >
+                {{ loadingMarketplaceSubmissions ? 'Actualizando...' : 'Actualizar' }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="loadingMarketplaceSubmissions" class="mt-4 grid gap-3 sm:grid-cols-2">
+            <div v-for="n in 4" :key="`marketplace-submission-skeleton-${n}`" class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div class="h-4 w-36 rounded bg-white/20 animate-pulse" />
+              <div class="mt-2 h-3 w-24 rounded bg-white/10 animate-pulse" />
+              <div class="mt-3 h-8 w-full rounded bg-white/10 animate-pulse" />
+            </div>
+          </div>
+          <div v-else-if="!filteredMarketplaceSubmissions.length" class="mt-4 rounded-2xl border border-dashed border-white/15 bg-white/5 p-5 text-white/70">
+            No tienes productos marketplace para el estado seleccionado.
+          </div>
+          <div v-else class="mt-4 space-y-3">
+            <div
+              v-for="item in paginatedMarketplaceSubmissions"
+              :key="`marketplace-submission-${item.id}`"
+              class="rounded-2xl border border-white/10 bg-white/5 p-4"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p class="font-semibold text-white">{{ item.name }}</p>
+                  <p class="text-xs text-white/60">{{ item.slug }} • ID {{ item.id }}</p>
+                </div>
+                <span class="rounded-full px-2 py-1 text-[11px] font-semibold" :class="marketplaceStatusBadge(item.marketplace_status).classes">
+                  {{ marketplaceStatusBadge(item.marketplace_status).label }}
+                </span>
+              </div>
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <select
+                  class="rounded-lg border border-white/20 bg-white px-3 py-2 text-xs text-slate-900"
+                  :value="item.marketplace_status || 'preparing'"
+                  @change="(e) => updateMarketplaceStatus(item.id, (e.target as HTMLSelectElement).value)"
+                >
+                  <option v-for="option in marketplaceStatusOptions" :key="`market-status-item-${item.id}-${option.value}`" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+                <NuxtLink
+                  :to="`/marketplace/productos/${item.slug}?edit=1`"
+                  class="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold text-white/80 hover:border-white/40 hover:text-white"
+                >
+                  Editar publicación
+                </NuxtLink>
+              </div>
+            </div>
+
+            <div v-if="marketplaceSubmissionsTotalPages > 1" class="flex items-center justify-between text-xs text-white/70">
+              <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="marketplaceSubmissionsPage === 1" @click="marketplaceSubmissionsPage--">Anterior</button>
+              <span>Página {{ marketplaceSubmissionsPage }} / {{ marketplaceSubmissionsTotalPages }}</span>
+              <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="marketplaceSubmissionsPage === marketplaceSubmissionsTotalPages" @click="marketplaceSubmissionsPage++">Siguiente</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="!isMarketplaceSelected" class="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
         <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
           <div class="flex items-center justify-between gap-2">
             <div>
@@ -161,9 +331,44 @@
             </button>
           </div>
         </div>
+
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-white/60">Actividad útil</p>
+              <h2 class="text-xl font-semibold">Pulso operativo</h2>
+              <p class="text-white/70">Indicadores rápidos para decisiones del día.</p>
+            </div>
+          </div>
+
+          <div class="mt-4 grid grid-cols-2 gap-2 text-xs">
+            <div class="rounded-xl bg-emerald-500/15 px-3 py-2 text-emerald-100">
+              <p class="text-[11px] uppercase">Ventas 7d</p>
+              <p class="mt-1 text-lg font-bold">{{ operationalSnapshot.orders7d }}</p>
+            </div>
+            <div class="rounded-xl bg-sky-500/15 px-3 py-2 text-sky-100">
+              <p class="text-[11px] uppercase">Ingresos 7d</p>
+              <p class="mt-1 text-lg font-bold">{{ currency(operationalSnapshot.revenue7d) }}</p>
+            </div>
+            <div class="rounded-xl bg-amber-500/15 px-3 py-2 text-amber-100">
+              <p class="text-[11px] uppercase">Pendientes</p>
+              <p class="mt-1 text-lg font-bold">{{ pendingOrders.length }}</p>
+            </div>
+            <div class="rounded-xl bg-fuchsia-500/15 px-3 py-2 text-fuchsia-100">
+              <p class="text-[11px] uppercase">Conversión</p>
+              <p class="mt-1 text-lg font-bold">{{ operationalSnapshot.conversionRate }}%</p>
+            </div>
+          </div>
+
+          <div class="mt-4 space-y-2 text-sm text-white/75">
+            <p>Mejor día: <span class="font-semibold text-white">{{ operationalSnapshot.bestDayLabel }}</span></p>
+            <p>Ticket estimado: <span class="font-semibold text-white">{{ currency(operationalSnapshot.avgTicket) }}</span></p>
+            <p>Última actualización: <span class="font-semibold text-white">{{ operationalSnapshot.updatedAt }}</span></p>
+          </div>
+        </div>
       </section>
 
-      <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
+      <section v-if="!isMarketplaceSelected" class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-white/60">Más vendidos</p>
@@ -207,7 +412,7 @@
         </div>
       </section>
 
-      <section class="grid gap-4 lg:grid-cols-2">
+      <section v-if="!isMarketplaceSelected" class="grid gap-4 lg:grid-cols-2">
         <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -245,7 +450,7 @@
                 <div class="flex items-center gap-2">
                   <span :class="['rounded-full px-2 py-0.5 text-[11px] font-semibold', statusBadge(o.status).classes]">{{ statusBadge(o.status).label }}</span>
                   <select
-                    class="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white"
+                    class="rounded-lg border border-white/20 bg-white px-2 py-1 text-[11px] text-slate-900"
                     :value="o.status"
                     @change="(e) => updateOrderStatus(o.id, (e.target as HTMLSelectElement).value)"
                   >
@@ -333,10 +538,12 @@
             <div class="mt-1 h-3 w-52 rounded bg-white/10 animate-pulse" />
           </div>
         </div>
-        <div v-else-if="!recentReviews.length" class="mt-4 text-white/70">Aún no hay reseñas registradas en tus tiendas.</div>
+        <div v-else-if="!recentReviews.length" class="mt-4 text-white/70">
+          {{ isMarketplaceSelected ? 'Aún no hay comentarios recientes vinculados a tu actividad de marketplace.' : 'Aún no hay reseñas registradas en tus tiendas.' }}
+        </div>
         <div v-else class="mt-4 space-y-3">
           <div
-            v-for="review in recentReviews"
+            v-for="review in pagedRecentReviews"
             :key="review.id + review.created_at"
             class="block rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80"
           >
@@ -361,6 +568,11 @@
             </div>
             <p class="mt-2 text-white/80">{{ review.comment }}</p>
             <p class="mt-2 text-[11px] text-white/50">{{ new Date(review.created_at).toLocaleString() }}</p>
+          </div>
+          <div class="flex items-center justify-between text-xs text-white/70" v-if="reviewsTotalPages > 1">
+            <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="reviewsPage === 1" @click="reviewsPage--">Anterior</button>
+            <span>Página {{ reviewsPage }} / {{ reviewsTotalPages }}</span>
+            <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="reviewsPage === reviewsTotalPages" @click="reviewsPage++">Siguiente</button>
           </div>
         </div>
       </section>
@@ -482,6 +694,7 @@ const theme = useThemeStore()
 const route = useRoute()
 const isDashboardRoot = computed(() => route.path === '/dashboard')
 const { dashboardLinks } = useDashboardAccess()
+const MARKETPLACE_SCOPE = 'marketplace'
 const storesMine = ref<{ id: number; name: string; slug: string }[]>([])
 const selectedStore = ref('')
 const loading = ref(true)
@@ -499,6 +712,17 @@ const deliveredPageSize = 10
 const config = useRuntimeConfig()
 const apiBase = String(config.public.apiBase || '')
 const deletingStore = ref(false)
+const marketplaceSubmissions = ref<any[]>([])
+const loadingMarketplaceSubmissions = ref(false)
+const marketplaceStatusFilter = ref('')
+const marketplaceSubmissionsPage = ref(1)
+const marketplaceSubmissionsPageSize = 8
+const marketplaceStatusOptions = [
+  { value: 'preparing', label: 'Preparando' },
+  { value: 'shipping', label: 'Enviándose' },
+  { value: 'in_transit', label: 'En tránsito' },
+  { value: 'completed', label: 'Finalizado' },
+]
 const statusOptions = [
   { value: 'pending', label: 'Pendiente' },
   { value: 'preparing', label: 'Preparando' },
@@ -569,6 +793,8 @@ const savingTicket = ref(false)
 const recentReviews = ref<ReviewFeedItem[]>([])
 const loadingReviews = ref(false)
 const REVIEW_EVENT = 'pymeweb:review-created'
+const reviewsPage = ref(1)
+const reviewsPageSize = 6
 
 type ReviewFeedItem = {
   id: number | string
@@ -582,12 +808,129 @@ type ReviewFeedItem = {
 }
 
 const barColor = (idx: number) => (idx === sparklineBars.value.length - 1 ? theme.accent : 'rgba(255,255,255,0.25)')
+const isMarketplaceSelected = computed(() => selectedStore.value === MARKETPLACE_SCOPE)
+const hasPhysicalStoreSelected = computed(() => Boolean(selectedStore.value) && !isMarketplaceSelected.value)
+
+const marketplaceOverview = computed(() => {
+  const items = marketplaceSubmissions.value || []
+  const completed = items.filter((item) => String(item.marketplace_status || 'preparing') === 'completed').length
+  const inProgress = items.filter((item) => ['preparing', 'shipping', 'in_transit'].includes(String(item.marketplace_status || 'preparing'))).length
+  const estimatedValue = items.reduce((total, item) => {
+    const unitPrice = Number(item.offer_price || item.price || 0)
+    const stock = Math.max(1, Number(item.stock_available || 0))
+    return total + unitPrice * stock
+  }, 0)
+  return {
+    total: items.length,
+    completed,
+    inProgress,
+    estimatedValue,
+  }
+})
+
+const storeTrendSeries = computed(() => dailyStats.value.slice(-10))
+const storeTrendMax = computed(() => {
+  if (!storeTrendSeries.value.length) return 1
+  return Math.max(...storeTrendSeries.value.map((item) => Number(item.revenue || 0)), 1)
+})
+
+const orderStatusPalette: Record<string, string> = {
+  pending: '#f59e0b',
+  preparing: '#f97316',
+  in_transit: '#0ea5e9',
+  delivered: '#22c55e',
+  completed: '#10b981',
+  paid: '#14b8a6',
+  cancelled: '#ef4444',
+}
+
+const orderStatusSummary = computed(() => {
+  const total = Math.max(orders.value.length, 1)
+  const grouped = statusOptions
+    .map((option) => {
+      const count = orders.value.filter((order) => String(order.status) === option.value).length
+      const percent = Math.round((count / total) * 100)
+      return {
+        value: option.value,
+        label: option.label,
+        count,
+        percent,
+        color: orderStatusPalette[option.value] || theme.accent,
+      }
+    })
+    .filter((item) => item.count > 0)
+  return grouped
+})
+
+const marketplaceStatusPalette: Record<string, string> = {
+  preparing: '#f59e0b',
+  shipping: '#0ea5e9',
+  in_transit: '#3b82f6',
+  completed: '#10b981',
+}
+
+const marketplaceStatusSummary = computed(() => {
+  const total = Math.max(marketplaceSubmissions.value.length, 1)
+  return marketplaceStatusOptions.map((option) => {
+    const count = marketplaceSubmissions.value.filter((item) => String(item.marketplace_status || 'preparing') === option.value).length
+    return {
+      value: option.value,
+      label: option.label,
+      count,
+      percent: Math.round((count / total) * 100),
+      color: marketplaceStatusPalette[option.value] || '#f59e0b',
+    }
+  })
+})
+
+const marketplaceRecentSeries = computed(() => {
+  const days: { day: string; count: number }[] = []
+  for (let offset = 6; offset >= 0; offset -= 1) {
+    const date = new Date()
+    date.setDate(date.getDate() - offset)
+    const day = date.toISOString().slice(0, 10)
+    days.push({ day, count: 0 })
+  }
+  const byDay = new Map(days.map((row) => [row.day, row]))
+  marketplaceSubmissions.value.forEach((item) => {
+    const dateSource = item.created_at || item.updated_at
+    if (!dateSource) return
+    const day = String(dateSource).slice(0, 10)
+    const row = byDay.get(day)
+    if (row) row.count += 1
+  })
+  return days
+})
+
+const marketplaceRecentMax = computed(() => {
+  if (!marketplaceRecentSeries.value.length) return 1
+  return Math.max(...marketplaceRecentSeries.value.map((row) => row.count), 1)
+})
+
+const operationalSnapshot = computed(() => {
+  const last7 = dailyStats.value.slice(-7)
+  const orders7d = last7.reduce((acc, day) => acc + Number(day.orders || 0), 0)
+  const revenue7d = last7.reduce((acc, day) => acc + Number(day.revenue || 0), 0)
+  const bestDay = [...last7].sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0))[0]
+  const conversionRate = analytics.value.totalOrders
+    ? Math.round((Number(analytics.value.paidOrders || 0) / Number(analytics.value.totalOrders || 1)) * 100)
+    : 0
+  return {
+    orders7d,
+    revenue7d,
+    conversionRate,
+    avgTicket: Number(analytics.value.avgTicket || 0),
+    bestDayLabel: bestDay ? `${formatShortDate(bestDay.day)} (${currency(bestDay.revenue)})` : 'Sin datos',
+    updatedAt: new Date().toLocaleString(),
+  }
+})
 
 const pendingOrders = computed(() => orders.value.filter((o) => ['pending', 'preparing', 'in_transit'].includes(o.status)))
 const deliveredOrders = computed(() => orders.value.filter((o) => ['completed', 'delivered', 'paid'].includes(o.status)))
 
 const pendingTotalPages = computed(() => Math.max(1, Math.ceil(pendingOrders.value.length / pendingPageSize)))
 const deliveredTotalPages = computed(() => Math.max(1, Math.ceil(deliveredOrders.value.length / deliveredPageSize)))
+const reviewsTotalPages = computed(() => Math.max(1, Math.ceil(recentReviews.value.length / reviewsPageSize)))
 
 const pendingPageOrders = computed(() => {
   const start = (pendingPage.value - 1) * pendingPageSize
@@ -597,6 +940,11 @@ const pendingPageOrders = computed(() => {
 const deliveredPageOrders = computed(() => {
   const start = (deliveredPage.value - 1) * deliveredPageSize
   return deliveredOrders.value.slice(start, start + deliveredPageSize)
+})
+
+const pagedRecentReviews = computed(() => {
+  const start = (reviewsPage.value - 1) * reviewsPageSize
+  return recentReviews.value.slice(start, start + reviewsPageSize)
 })
 
 const statusLabel = (status: string) => {
@@ -641,6 +989,31 @@ const ticketStats = computed(() => ({
   resolved: tickets.value.filter((ticket) => ticket.status === 'resolved').length,
 }))
 
+const filteredMarketplaceSubmissions = computed(() => {
+  if (!marketplaceStatusFilter.value) return marketplaceSubmissions.value
+  return marketplaceSubmissions.value.filter((item) => String(item.marketplace_status || 'preparing') === marketplaceStatusFilter.value)
+})
+
+const marketplaceSubmissionsTotalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredMarketplaceSubmissions.value.length / marketplaceSubmissionsPageSize)),
+)
+
+const paginatedMarketplaceSubmissions = computed(() => {
+  const start = (marketplaceSubmissionsPage.value - 1) * marketplaceSubmissionsPageSize
+  return filteredMarketplaceSubmissions.value.slice(start, start + marketplaceSubmissionsPageSize)
+})
+
+const marketplaceStatusBadge = (status?: string) => {
+  const normalized = String(status || 'preparing')
+  const map: Record<string, { label: string; classes: string }> = {
+    preparing: { label: 'Preparando', classes: 'bg-amber-100/70 text-amber-900' },
+    shipping: { label: 'Enviándose', classes: 'bg-sky-100/80 text-sky-900' },
+    in_transit: { label: 'En tránsito', classes: 'bg-blue-100/80 text-blue-900' },
+    completed: { label: 'Finalizado', classes: 'bg-emerald-100/70 text-emerald-900' },
+  }
+  return map[normalized] || { label: normalized, classes: 'bg-white/20 text-white' }
+}
+
 const normalizeReviewStatus = (status?: string) => String(status || 'PENDING').toUpperCase()
 
 const reviewStatusBadge = (status?: string) => {
@@ -662,6 +1035,12 @@ const formatDate = (value?: string | Date) => {
   return date.toLocaleString()
 }
 
+const formatShortDate = (value?: string) => {
+  if (!value) return '—'
+  const date = new Date(value)
+  return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })
+}
+
 const orderLink = (orderId: number) => {
   const firstStore = storesMine.value[0]
   const slug = selectedStore.value || firstStore?.slug
@@ -674,14 +1053,16 @@ const loadData = async () => {
   let success = true
   try {
     storesMine.value = await auth.fetchMyStores()
-    if (!storesMine.value.length) {
-      loadError.value = 'No tienes tiendas asignadas. Debes tener al menos una para ver el dashboard.'
-      return false
+    if (!selectedStore.value) {
+      selectedStore.value = storesMine.value.length ? storesMine.value[0].slug : MARKETPLACE_SCOPE
+    } else if (!isMarketplaceSelected.value && !storesMine.value.find((s) => s.slug === selectedStore.value)) {
+      selectedStore.value = storesMine.value.length ? storesMine.value[0].slug : MARKETPLACE_SCOPE
     }
-    if (!selectedStore.value || !storesMine.value.find((s) => s.slug === selectedStore.value)) {
-      selectedStore.value = storesMine.value[0].slug
+    if (isMarketplaceSelected.value) {
+      await Promise.all([loadMarketplaceSubmissions(), loadRecentReviews()])
+    } else {
+      await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews(), loadTickets(), loadMarketplaceSubmissions()])
     }
-    await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews(), loadTickets()])
   } catch (error) {
     console.error('No se pudo cargar el dashboard', error)
     loadError.value = 'No se pudo cargar el dashboard. Intenta actualizar.'
@@ -690,6 +1071,40 @@ const loadData = async () => {
     loading.value = false
   }
   return success
+}
+
+const loadMarketplaceSubmissions = async () => {
+  if (!auth.token) {
+    marketplaceSubmissions.value = []
+    return
+  }
+  loadingMarketplaceSubmissions.value = true
+  try {
+    marketplaceSubmissions.value = await authedFetch<any[]>(`${apiBase}/marketplace/submissions/`)
+    marketplaceSubmissionsPage.value = 1
+  } catch (error) {
+    console.warn('No se pudieron cargar productos marketplace', error)
+    marketplaceSubmissions.value = []
+  } finally {
+    loadingMarketplaceSubmissions.value = false
+  }
+}
+
+const updateMarketplaceStatus = async (productId: number, status: string) => {
+  if (!productId || !status) return
+  try {
+    const updated = await authedFetch<any>(`${apiBase}/marketplace/submissions/${productId}/`, {
+      method: 'PATCH',
+      body: { marketplace_status: status },
+    })
+    marketplaceSubmissions.value = marketplaceSubmissions.value.map((item) =>
+      item.id === productId ? { ...item, marketplace_status: updated.marketplace_status || status } : item,
+    )
+    showToast('Estado de producto marketplace actualizado', 'success')
+  } catch (error) {
+    console.error('No se pudo actualizar estado de producto marketplace', error)
+    showToast('No se pudo actualizar estado de producto marketplace', 'error')
+  }
 }
 
 const confirmDeleteStore = async (store: any) => {
@@ -748,7 +1163,7 @@ const loadOrders = async () => {
   ordersLoading.value = true
   topLoading.value = true
   orders.value = []
-  if (!auth.token || !storesMine.value.length || !selectedStore.value) {
+  if (!auth.token || !storesMine.value.length || !hasPhysicalStoreSelected.value) {
     ordersLoading.value = false
     return
   }
@@ -802,7 +1217,7 @@ const updateOrderStatus = async (orderId: number, status: string) => {
 const loadTickets = async () => {
   loadingTickets.value = true
   tickets.value = []
-  if (!auth.token || !selectedStore.value) {
+  if (!auth.token || !hasPhysicalStoreSelected.value) {
     loadingTickets.value = false
     return
   }
@@ -819,7 +1234,7 @@ const loadTickets = async () => {
 
 const goToSupport = async (ticket?: TicketItem) => {
   const query = new URLSearchParams()
-  if (selectedStore.value) query.set('store', selectedStore.value)
+  if (hasPhysicalStoreSelected.value) query.set('store', selectedStore.value)
   if (ticket?.status) query.set('status', ticket.status)
   const suffix = query.toString()
   await navigateTo(suffix ? `/dashboard/tickets?${suffix}` : '/dashboard/tickets')
@@ -830,19 +1245,36 @@ const loadRecentReviews = async (notify = false) => {
     recentReviews.value = []
     return false
   }
-  if (!selectedStore.value) return false
   loadingReviews.value = true
   let success = false
   try {
-    const targetSlugs = [selectedStore.value]
-    const aggregated: ReviewFeedItem[] = []
-    for (const slug of targetSlugs) {
-      const rows = await authedFetch<ReviewFeedItem[]>(`${apiBase}/store/${slug}/admin/resenas/reviews/`, { params: {} }).catch(() => [])
-      rows.forEach((r: any) => aggregated.push({ ...r, store_slug: slug } as any))
+    if (isMarketplaceSelected.value) {
+      const feed = await authedFetch<any>(`${apiBase}/support/notifications/feed/`).catch(() => ({ results: [] }))
+      const rows = Array.isArray(feed?.results) ? feed.results : []
+      recentReviews.value = rows
+        .filter((item: any) => item?.type === 'review_new')
+        .map((item: any, idx: number) => ({
+          id: item.id || `review-marketplace-${idx}`,
+          rating: Number(item?.meta?.rating || 0),
+          comment: String(item?.message || 'Comentario marketplace'),
+          customer_name: 'Cliente',
+          created_at: String(item?.created_at || new Date().toISOString()),
+          store_slug: String(item?.store || 'marketplace'),
+          product: item?.meta?.product,
+          status: item?.meta?.status,
+        }))
+      success = true
+    } else {
+      const targetSlugs = [selectedStore.value]
+      const aggregated: ReviewFeedItem[] = []
+      for (const slug of targetSlugs) {
+        const rows = await authedFetch<ReviewFeedItem[]>(`${apiBase}/store/${slug}/admin/resenas/reviews/`, { params: {} }).catch(() => [])
+        rows.forEach((r: any) => aggregated.push({ ...r, store_slug: slug } as any))
+      }
+      aggregated.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      recentReviews.value = aggregated.slice(0, 12)
+      success = true
     }
-    aggregated.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    recentReviews.value = aggregated.slice(0, 12)
-    success = true
   } catch (error) {
     console.warn('No se pudieron cargar reseñas', error)
     recentReviews.value = []
@@ -899,7 +1331,7 @@ const saveTicket = async () => {
 
 const loadSummary = async () => {
   if (!auth.token) return false
-  if (!selectedStore.value) return false
+  if (!hasPhysicalStoreSelected.value) return false
   const params: Record<string, any> = {}
   statsLoading.value = true
   let success = false
@@ -941,7 +1373,7 @@ const loadSummary = async () => {
 
 const loadDailyStats = async () => {
   if (!auth.token) return false
-  if (!selectedStore.value) return false
+  if (!hasPhysicalStoreSelected.value) return false
   dailyLoading.value = true
   const aggregated: Record<string, { orders: number; revenue: number }> = {}
   try {
@@ -1033,6 +1465,25 @@ watch(selectedStore, async () => {
   if (!selectedStore.value) return
   pendingPage.value = 1
   deliveredPage.value = 1
-  await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews(), loadTickets()])
+  reviewsPage.value = 1
+  if (isMarketplaceSelected.value) {
+    await Promise.all([loadMarketplaceSubmissions(), loadRecentReviews()])
+  } else {
+    await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews(), loadTickets(), loadMarketplaceSubmissions()])
+  }
+})
+
+watch(marketplaceStatusFilter, () => {
+  marketplaceSubmissionsPage.value = 1
+})
+
+watch(filteredMarketplaceSubmissions, () => {
+  if (marketplaceSubmissionsPage.value > marketplaceSubmissionsTotalPages.value) {
+    marketplaceSubmissionsPage.value = marketplaceSubmissionsTotalPages.value
+  }
+})
+
+watch(recentReviews, () => {
+  if (reviewsPage.value > reviewsTotalPages.value) reviewsPage.value = reviewsTotalPages.value
 })
 </script>

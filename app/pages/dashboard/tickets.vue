@@ -31,7 +31,7 @@
         <div v-if="loading" class="mt-4 text-white/70">Cargando...</div>
         <div v-else-if="!tickets.length" class="mt-4 rounded-2xl border border-dashed border-white/15 bg-white/5 p-4 text-white/70">No hay tickets para mostrar.</div>
         <div v-else class="mt-4 divide-y divide-white/10">
-          <article v-for="t in tickets" :key="t.id" class="py-3 flex items-start justify-between gap-3">
+          <article v-for="t in paginatedTickets" :key="t.id" class="py-3 flex items-start justify-between gap-3">
             <div class="space-y-1">
               <p class="text-sm font-semibold text-white">{{ t.title }}</p>
               <p class="text-xs text-white/60">{{ t.store_slug || 'Sin tienda' }} • {{ formatStatus(t.status) }} • Prioridad {{ t.priority }}</p>
@@ -40,13 +40,31 @@
             <span :class="['rounded-full px-3 py-1 text-[11px] font-semibold', badgeClass(t.status)]">{{ formatStatus(t.status) }}</span>
           </article>
         </div>
+
+        <div v-if="tickets.length > perPage" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-xs text-white/70">
+          <button
+            class="rounded-lg border border-white/20 px-3 py-1.5 font-semibold hover:bg-white/10 disabled:opacity-40"
+            :disabled="page === 1"
+            @click="page -= 1"
+          >
+            Anterior
+          </button>
+          <p>Mostrando {{ pageStart }}-{{ pageEnd }} de {{ tickets.length }}</p>
+          <button
+            class="rounded-lg border border-white/20 px-3 py-1.5 font-semibold hover:bg-white/10 disabled:opacity-40"
+            :disabled="page === totalPages"
+            @click="page += 1"
+          >
+            Siguiente
+          </button>
+        </div>
       </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { navigateTo, useRuntimeConfig } from 'nuxt/app'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
@@ -62,6 +80,8 @@ const loading = ref(true)
 const status = ref('')
 const storeSlug = ref('')
 const storesMine = ref<{ name: string; slug: string }[]>([])
+const page = ref(1)
+const perPage = 10
 
 const formatStatus = (value: string) => {
   const map: Record<string, string> = {
@@ -82,6 +102,14 @@ const badgeClass = (value: string) => {
   }
   return map[value] || 'bg-white/10 text-white'
 }
+
+const totalPages = computed(() => Math.max(1, Math.ceil(tickets.value.length / perPage)))
+const paginatedTickets = computed(() => {
+  const start = (page.value - 1) * perPage
+  return tickets.value.slice(start, start + perPage)
+})
+const pageStart = computed(() => (tickets.value.length ? (page.value - 1) * perPage + 1 : 0))
+const pageEnd = computed(() => Math.min(page.value * perPage, tickets.value.length))
 
 const loadTickets = async () => {
   if (!auth.token) return
@@ -116,4 +144,12 @@ onMounted(async () => {
 })
 
 watch([status, storeSlug], () => loadTickets())
+
+watch([status, storeSlug], () => {
+  page.value = 1
+})
+
+watch(tickets, () => {
+  if (page.value > totalPages.value) page.value = totalPages.value
+})
 </script>

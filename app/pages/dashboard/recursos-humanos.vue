@@ -174,7 +174,7 @@
         </div>
         <div v-if="!staff.length" class="mt-4 text-white/70">Sin datos para esta tienda.</div>
         <div v-else class="mt-4 grid gap-3">
-          <div v-for="member in staff" :key="member.user.id" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+          <div v-for="member in pagedStaff" :key="member.user.id" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p class="font-semibold text-white">{{ fullName(member.user) }}</p>
@@ -193,6 +193,11 @@
               Antigüedad: {{ formatTenure(member.created_at) }} • Último acceso: {{ formatDate(member.user.last_login) }}
             </div>
           </div>
+          <div v-if="staffTotalPages > 1" class="flex items-center justify-between text-xs text-white/70">
+            <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="staffPage === 1" @click="staffPage--">Anterior</button>
+            <span>Página {{ staffPage }} / {{ staffTotalPages }}</span>
+            <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="staffPage === staffTotalPages" @click="staffPage++">Siguiente</button>
+          </div>
         </div>
       </section>
     </div>
@@ -201,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
@@ -246,6 +251,8 @@ const lastUpdated = ref<Date | null>(null)
 const assigning = ref(false)
 const assignMessage = ref('')
 const assignError = ref(false)
+const staffPage = ref(1)
+const staffPageSize = 12
 
 const availableRoles = [
   { code: 'ADMIN', label: 'Administrador' },
@@ -305,6 +312,13 @@ const roleSummary = computed(() => {
 const recentHires = computed(() => {
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
   return staff.value.filter((m) => new Date(m.created_at).getTime() >= cutoff)
+})
+
+const staffTotalPages = computed(() => Math.max(1, Math.ceil(staff.value.length / staffPageSize)))
+
+const pagedStaff = computed(() => {
+  const start = (staffPage.value - 1) * staffPageSize
+  return staff.value.slice(start, start + staffPageSize)
 })
 
 const averageTenureDays = computed(() => {
@@ -389,6 +403,7 @@ const loadStaff = async () => {
       const bName = fullName(b.user).toLowerCase()
       return aName.localeCompare(bName)
     })
+    staffPage.value = 1
     lastUpdated.value = new Date()
   } catch (error: any) {
     const detail = error?.response?._data?.detail || 'No pudimos cargar recursos humanos.'
@@ -471,5 +486,9 @@ onMounted(async () => {
     loadError.value = 'No tienes tiendas asignadas. Debes tener al menos una para ver recursos humanos.'
   }
   theme.applyTheme()
+})
+
+watch(staff, () => {
+  if (staffPage.value > staffTotalPages.value) staffPage.value = staffTotalPages.value
 })
 </script>
