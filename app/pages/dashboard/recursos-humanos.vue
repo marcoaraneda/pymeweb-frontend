@@ -173,31 +173,117 @@
           <span class="text-xs text-white/60">Última actualización: {{ lastUpdatedLabel }}</span>
         </div>
         <div v-if="!staff.length" class="mt-4 text-white/70">Sin datos para esta tienda.</div>
-        <div v-else class="mt-4 grid gap-3">
-          <div v-for="member in pagedStaff" :key="member.user.id" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p class="font-semibold text-white">{{ fullName(member.user) }}</p>
-                <p class="text-xs text-white/60">{{ member.user.email || 'Sin email' }}</p>
+        <div v-else class="mt-4 grid gap-4 lg:grid-cols-[1fr,0.92fr]">
+          <div class="space-y-3">
+            <button
+              v-for="member in pagedStaff"
+              :key="member.user.id"
+              type="button"
+              class="w-full rounded-2xl border px-4 py-3 text-left text-sm transition"
+              :class="selectedMember?.user.id === member.user.id ? 'border-white/40 bg-white/10 shadow-lg' : 'border-white/10 bg-white/5 hover:bg-white/8'"
+              @click="selectedMember = member"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p class="font-semibold text-white">{{ fullName(member.user) }}</p>
+                  <p class="text-xs text-white/60">{{ member.user.email || 'Sin email' }}</p>
+                </div>
+                <span class="text-xs" :class="member.is_active ? 'text-emerald-200' : 'text-rose-200'">
+                  {{ member.is_active ? 'Activo' : 'Inactivo' }}
+                </span>
               </div>
-              <span class="text-xs" :class="member.is_active ? 'text-emerald-200' : 'text-rose-200'">
-                {{ member.is_active ? 'Activo' : 'Inactivo' }}
-              </span>
-            </div>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <span v-for="role in member.roles" :key="role" class="rounded-full border border-white/15 px-2 py-0.5 text-[11px] text-white/80">
-                {{ roleLabel(role) }}
-              </span>
-            </div>
-            <div class="mt-2 text-xs text-white/60">
-              Antigüedad: {{ formatTenure(member.created_at) }} • Último acceso: {{ formatDate(member.user.last_login) }}
+              <div class="mt-2 flex flex-wrap gap-2">
+                <span v-for="role in member.roles" :key="role" class="rounded-full border border-white/15 px-2 py-0.5 text-[11px] text-white/80">
+                  {{ roleLabel(role) }}
+                </span>
+              </div>
+              <div class="mt-2 text-xs text-white/60">
+                Ingreso: {{ formatDate(member.created_at) }} • Antigüedad: {{ formatTenure(member.created_at) }}
+              </div>
+            </button>
+            <div v-if="staffTotalPages > 1" class="flex items-center justify-between text-xs text-white/70">
+              <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="staffPage === 1" @click="staffPage--">Anterior</button>
+              <span>Página {{ staffPage }} / {{ staffTotalPages }}</span>
+              <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="staffPage === staffTotalPages" @click="staffPage++">Siguiente</button>
             </div>
           </div>
-          <div v-if="staffTotalPages > 1" class="flex items-center justify-between text-xs text-white/70">
-            <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="staffPage === 1" @click="staffPage--">Anterior</button>
-            <span>Página {{ staffPage }} / {{ staffTotalPages }}</span>
-            <button class="rounded-lg border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-40" :disabled="staffPage === staffTotalPages" @click="staffPage++">Siguiente</button>
-          </div>
+
+          <aside class="rounded-3xl border border-white/10 bg-slate-950/60 p-5 shadow-inner">
+            <template v-if="selectedMember">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.2em] text-white/60">Ficha laboral</p>
+                  <h3 class="mt-1 text-2xl font-semibold text-white">{{ fullName(selectedMember.user) }}</h3>
+                  <p class="text-sm text-white/60">{{ selectedMember.user.username }}</p>
+                </div>
+                <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="selectedMember.is_active ? 'bg-emerald-500/15 text-emerald-200' : 'bg-rose-500/15 text-rose-200'">
+                  {{ selectedMember.is_active ? 'Vigente' : 'Inactivo' }}
+                </span>
+              </div>
+
+              <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-[11px] uppercase tracking-[0.2em] text-white/50">RUT</p>
+                  <p class="mt-1 text-sm font-semibold text-white">{{ selectedMember.user.rut || 'No registrado' }}</p>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-[11px] uppercase tracking-[0.2em] text-white/50">Correo</p>
+                  <p class="mt-1 text-sm font-semibold text-white">{{ selectedMember.user.email || 'No registrado' }}</p>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-[11px] uppercase tracking-[0.2em] text-white/50">Teléfono</p>
+                  <p class="mt-1 text-sm font-semibold text-white">{{ selectedMember.user.phone || 'No registrado' }}</p>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-[11px] uppercase tracking-[0.2em] text-white/50">Último acceso</p>
+                  <p class="mt-1 text-sm font-semibold text-white">{{ formatDate(selectedMember.user.last_login) }}</p>
+                </div>
+              </div>
+
+              <div class="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p class="text-[11px] uppercase tracking-[0.2em] text-white/50">Dirección</p>
+                <p class="mt-1 text-sm font-semibold text-white">{{ selectedMember.user.address || 'No registrada' }}</p>
+              </div>
+
+              <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-[11px] uppercase tracking-[0.2em] text-white/50">Ingreso al cargo</p>
+                  <p class="mt-1 text-sm font-semibold text-white">{{ formatDate(selectedMember.created_at) }}</p>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-[11px] uppercase tracking-[0.2em] text-white/50">Antigüedad</p>
+                  <p class="mt-1 text-sm font-semibold text-white">{{ formatTenure(selectedMember.created_at) }}</p>
+                </div>
+              </div>
+
+              <div class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p class="text-[11px] uppercase tracking-[0.2em] text-white/50">Roles</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <span v-for="role in selectedMember.roles" :key="role" class="rounded-full border border-white/15 px-2 py-0.5 text-[11px] text-white/80">
+                    {{ roleLabel(role) }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-[11px] uppercase tracking-[0.2em] text-white/50">Email verificado</p>
+                  <p class="mt-1 text-sm font-semibold" :class="selectedMember.user.is_email_verified ? 'text-emerald-200' : 'text-amber-200'">
+                    {{ selectedMember.user.is_email_verified ? 'Sí' : 'No' }}
+                  </p>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-[11px] uppercase tracking-[0.2em] text-white/50">Teléfono verificado</p>
+                  <p class="mt-1 text-sm font-semibold" :class="selectedMember.user.is_phone_verified ? 'text-emerald-200' : 'text-amber-200'">
+                    {{ selectedMember.user.is_phone_verified ? 'Sí' : 'No' }}
+                  </p>
+                </div>
+              </div>
+            </template>
+            <div v-else class="flex h-full items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/5 p-6 text-center text-sm text-white/60">
+              Selecciona una persona para ver su ficha laboral.
+            </div>
+          </aside>
         </div>
       </section>
     </div>
@@ -226,6 +312,15 @@ type StaffUser = {
   email?: string
   is_staff?: boolean
   last_login?: string | null
+  rut?: string | null
+  address?: string
+  phone?: string
+  avatar_url?: string | null
+  profile_updated_at?: string | null
+  is_email_verified?: boolean
+  email_verified_at?: string | null
+  is_phone_verified?: boolean
+  phone_verified_at?: string | null
 }
 
 type StaffMember = {
@@ -245,6 +340,7 @@ const apiBase = String(config.public.apiBase || '')
 const stores = ref<StoreLite[]>([])
 const filters = ref({ store: '' })
 const staff = ref<StaffMember[]>([])
+const selectedMember = ref<StaffMember | null>(null)
 const loading = ref(false)
 const loadError = ref('')
 const lastUpdated = ref<Date | null>(null)
@@ -404,6 +500,7 @@ const loadStaff = async () => {
       return aName.localeCompare(bName)
     })
     staffPage.value = 1
+    selectedMember.value = staff.value[0] || null
     lastUpdated.value = new Date()
   } catch (error: any) {
     const detail = error?.response?._data?.detail || 'No pudimos cargar recursos humanos.'
@@ -490,5 +587,14 @@ onMounted(async () => {
 
 watch(staff, () => {
   if (staffPage.value > staffTotalPages.value) staffPage.value = staffTotalPages.value
+  if (selectedMember.value && !staff.value.some((member) => member.user.id === selectedMember.value?.user.id)) {
+    selectedMember.value = staff.value[0] || null
+  }
+})
+
+watch(pagedStaff, () => {
+  if (!selectedMember.value && pagedStaff.value.length) {
+    selectedMember.value = pagedStaff.value[0]
+  }
 })
 </script>
