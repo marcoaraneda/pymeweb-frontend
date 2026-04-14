@@ -316,7 +316,7 @@
               :to="selectedStore ? `/dashboard/tickets?store=${selectedStore}` : '/dashboard/tickets'"
               class="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white/80 hover:text-white hover:border-white/40"
             >
-              Ver soporte
+              Ver tickets
             </NuxtLink>
           </div>
 
