@@ -5,17 +5,17 @@
         <div class="grid gap-6 p-6 md:grid-cols-[1.1fr,0.9fr] md:p-8">
           <div class="space-y-4">
             <p class="text-xs uppercase tracking-[0.3em] text-slate-300">Centro de notificaciones</p>
-            <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Notificaciones</h1>
+            <h1 class="text-2xl font-semibold sm:text-3xl">Notificaciones</h1>
             <p class="max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">Alertas operativas de pedidos, envíos, reseñas y tickets en una vista más clara y profesional.</p>
-            <div class="flex flex-wrap gap-3">
+            <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button
-                class="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5 disabled:opacity-60"
+                class="w-full rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5 disabled:opacity-60 sm:w-auto"
                 @click="refreshFeed"
                 :disabled="refreshing"
               >
                 {{ refreshing ? 'Actualizando...' : 'Actualizar feed' }}
               </button>
-              <NuxtLink to="/dashboard" class="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10">
+              <NuxtLink to="/dashboard" class="w-full rounded-full border border-white/20 px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto">
                 Volver al dashboard
               </NuxtLink>
             </div>
@@ -45,16 +45,16 @@
             <h2 class="text-2xl font-semibold text-slate-900">Recientes</h2>
             <p class="text-sm text-slate-500">{{ unreadCount }} sin leer</p>
           </div>
-          <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-center">
-            <select v-model="typeFilter" class="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-400">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_auto_auto] xl:items-center">
+            <select v-model="typeFilter" class="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-400 sm:col-span-2 xl:col-span-1">
               <option value="all">Todos los tipos</option>
               <option v-for="t in availableTypes" :key="t" :value="t">{{ formatType(t) }}</option>
             </select>
-            <label class="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700">
+            <label class="inline-flex h-11 w-full items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 xl:w-auto">
               <input type="checkbox" v-model="onlyUnread" class="h-4 w-4 rounded border-slate-300" /> Solo sin leer
             </label>
-            <button class="h-11 rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-40" @click="markAllRead" :disabled="!feed.length">Marcar leído</button>
-            <button class="h-11 rounded-2xl border border-rose-200 px-4 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-40" @click="clearAll" :disabled="!feed.length">Limpiar</button>
+            <button class="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-40 xl:w-auto" @click="markAllRead" :disabled="!feed.length">Marcar leído</button>
+            <button class="h-11 w-full rounded-2xl border border-rose-200 px-4 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-40 xl:w-auto" @click="clearAll" :disabled="!feed.length">Limpiar</button>
           </div>
         </div>
 
