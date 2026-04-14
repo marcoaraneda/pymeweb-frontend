@@ -35,6 +35,7 @@
               <div>
                 <h2 class="text-lg font-semibold text-slate-900">{{ item.name }}</h2>
                 <p class="text-sm text-slate-600">${{ item.price }} unidad</p>
+                <p v-if="item.optionsSummary" class="mt-1 text-xs text-slate-500">{{ item.optionsSummary }}</p>
               </div>
 
               <div class="flex flex-wrap items-center gap-3">
@@ -96,6 +97,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { definePageMeta } from '#imports'
 import { useCartStore } from '~/stores/cart'
 import { useTenantStore } from '~/stores/tenant'
@@ -106,6 +108,8 @@ definePageMeta({ layout: 'store' })
 const cart = useCartStore()
 const tenantStore = useTenantStore()
 const theme = useThemeStore()
+const route = useRoute()
+const slug = String(route.params.slug || '')
 
 const accentColor = computed(() => theme.accent || '#2563eb')
 const accentStyle = computed(() => ({ backgroundColor: accentColor.value, color: '#fff' }))
@@ -119,8 +123,10 @@ const onQtyInput = (event: Event, item: any) => {
 }
 
 onMounted(() => {
+  cart.setContext(slug)
+  tenantStore.setSlug(slug)
   cart.loadFromStorage()
   theme.loadFromStorage()
-  theme.applyStoreTheme(tenantStore.slug)
+  theme.applyStoreTheme(slug)
 })
 </script>

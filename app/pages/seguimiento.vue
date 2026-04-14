@@ -47,12 +47,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useThemeStore } from '~/stores/theme'
 
 const config = useRuntimeConfig()
 const theme = useThemeStore()
+const route = useRoute()
 
 const trackingCode = ref('')
 const loading = ref(false)
@@ -106,4 +108,11 @@ const searchTracking = async () => {
     loading.value = false
   }
 }
+
+onMounted(async () => {
+  const prefilled = String(route.query.code || '').trim()
+  if (!prefilled) return
+  trackingCode.value = prefilled
+  await searchTracking()
+})
 </script>

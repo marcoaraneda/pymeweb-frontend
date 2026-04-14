@@ -13,13 +13,13 @@
             <p class="text-xs uppercase tracking-[0.3em] text-white/70">ASISTENTE VIRTUAL</p>
             <p class="text-lg font-bold truncate">AURORA</p>
             <p class="text-[11px] text-white/80 truncate">Resuelvo tus dudas al instante.</p>
-            <span v-if="assistantBusy" class="text-[11px] text-blue-200 mt-1 animate-pulse">Escribiendo...</span>
+            <span v-if="assistantBusy" class="text-[11px] text-blue-200 mt-1 animate-pulse">{{ busyLabel }}</span>
           </div>
         </div>
         <button v-if="messages.length > 1" @click="clearChat" class="ml-2 text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full text-white border border-white/20 transition">Vaciar chat</button>
       </div>
       
-      <div class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+      <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
         <div v-if="messages.length === 1 && !assistantBusy" class="mb-3">
           <div class="text-xs text-slate-500 mb-2">Preguntas rápidas:</div>
           <div class="flex flex-wrap gap-2">
@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { MessageCircle, X } from 'lucide-vue-next'
 import { useChat } from '~/composables/useChat'
 
@@ -77,6 +77,7 @@ const assistantAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=Aurora&bac
 const { sendMessage } = useChat()
 const isOpen = ref(false)
 const userInput = ref('')
+const messagesContainer = ref<HTMLElement | null>(null)
 const initialBotMessage: ChatMessage = { id: 1, role: 'bot', text: `¡Hola! Soy ${assistantName}, tu asistente virtual Aurora. Puedo recomendarte tiendas, comparar precios o contarte qué conviene comprar hoy.` }
 const messages = ref<ChatMessage[]>([initialBotMessage])
 // Vaciar chat y restaurar mensaje inicial
@@ -89,12 +90,26 @@ const typingTimers = new Set<number>()
 
 const assistantBusy = computed(() => isThinking.value || isTyping.value)
 const busyLabel = computed(() =>
-  isThinking.value ? `${assistantName} está revisando los catálogos...` : `${assistantName} está escribiendo su respuesta`
+  isThinking.value ? 'Escribiendo...' : `${assistantName} está escribiendo su respuesta`
 )
+
+const wait = (ms: number) => new Promise<void>((resolve) => {
+  const timer = window.setTimeout(() => {
+    typingTimers.delete(timer)
+    resolve()
+  }, ms)
+  typingTimers.add(timer)
+})
 
 const stopTypingTimers = () => {
   typingTimers.forEach((timer) => window.clearTimeout(timer))
   typingTimers.clear()
+}
+
+const scrollToLatest = async () => {
+  await nextTick()
+  if (!messagesContainer.value) return
+  messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
 }
 
 onBeforeUnmount(() => {
@@ -130,15 +145,31 @@ const handleSend = async () => {
   const question = userInput.value.trim()
   if (!question || assistantBusy.value) return
   messages.value.push({ id: Date.now(), role: 'user', text: question })
+  scrollToLatest()
   userInput.value = ''
   isThinking.value = true
   try {
+    await wait(2200)
     const response = await sendMessage(question)
     isThinking.value = false
     await typeBotResponse(response.answer)
+    scrollToLatest()
   } catch (error) {
     isThinking.value = false
     await typeBotResponse('No pude responder ahora, intenta de nuevo en un momento.')
+    scrollToLatest()
   }
 }
+
+watch(isOpen, (open) => {
+  if (open) scrollToLatest()
+})
+
+watch(
+  () => messages.value.length,
+  () => {
+    if (!isOpen.value) return
+    scrollToLatest()
+  }
+)
 </script>

@@ -1,33 +1,29 @@
 <template>
-  <div class="min-h-screen bg-slate-50 text-slate-900">
+  <div
+    class="min-h-screen overflow-x-hidden bg-slate-50 text-slate-900"
+    :class="{ 'premium-shell': !isDashboardRoute }"
+  >
     <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/85 backdrop-blur">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-3 py-3 sm:px-5 sm:py-4">
         <NuxtLink to="/" class="flex items-center gap-3 font-semibold text-slate-900">
           <img src="/logoPW.png" alt="Pymeweb" class="h-9 w-9 rounded-full object-contain" />
-          <div>
-            <p class="leading-none">Pymeweb</p>
-            <p class="text-xs text-slate-500">Marketplace multi-tienda</p>
+          <div class="hidden lg:block">
+            <p class="layout-brand-title leading-none">Pymeweb</p>
+            <p class="layout-brand-subtitle text-xs text-slate-500">Marketplace multi-tienda</p>
           </div>
         </NuxtLink>
 
-        <nav class="hidden items-center gap-3 md:flex">
+        <nav class="hidden items-center gap-2 xl:gap-3 md:flex">
           <NuxtLink
             to="/"
-            class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
+            :class="mainNavClassFor('/', true)"
           >
             <House class="h-4 w-4" aria-hidden="true" />
             Inicio
           </NuxtLink>
           <NuxtLink
-            to="/marketplace"
-            class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
-          >
-            <StoreIcon class="h-4 w-4" aria-hidden="true" />
-            Marketplace
-          </NuxtLink>
-          <NuxtLink
             to="/tiendas"
-            class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
+            :class="mainNavClassFor('/tiendas')"
           >
             <ShoppingBag class="h-4 w-4" aria-hidden="true" />
             Ver tiendas
@@ -35,15 +31,22 @@
           <NuxtLink
             v-if="isHydrated && auth.isAuthenticated && hasDashboardAccess"
             :to="defaultDashboardRoute"
-            class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
+            :class="mainNavClassFor(defaultDashboardRoute)"
             @click.prevent="goDashboard"
           >
             <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
             Dashboard
           </NuxtLink>
+          <NuxtLink
+            to="/marketplace"
+            :class="mainNavClassFor('/marketplace')"
+          >
+            <StoreIcon class="h-4 w-4" aria-hidden="true" />
+            Marketplace
+          </NuxtLink>
         </nav>
 
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 lg:gap-3">
           <NuxtLink
             v-if="isMarketplaceRoute"
             to="/marketplace/carrito"
@@ -61,27 +64,31 @@
             </span>
           </NuxtLink>
           <button
-            class="md:hidden rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 glass-btn"
+            class="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-800 glass-btn"
+            aria-label="Abrir menu"
             @click.stop="showMenuMobile = !showMenuMobile"
           >
-            Menú
+            <span class="flex flex-col items-center justify-center gap-1" aria-hidden="true">
+              <span class="h-[2px] w-5 rounded bg-slate-800" />
+              <span class="h-[2px] w-5 rounded bg-slate-800" />
+              <span class="h-[2px] w-5 rounded bg-slate-800" />
+            </span>
           </button>
           
 
           <NuxtLink
             v-if="!isHydrated || !auth.isAuthenticated"
             to="/login"
-            class="inline-flex items-center gap-2 rounded-2xl border border-slate-900/20 bg-slate-900/5 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-900/10"
+            class="layout-main-nav-btn hidden h-10 min-w-[120px] shrink-0 items-center justify-center gap-2 rounded-2xl border border-[#0f274f]/20 bg-[#0f274f]/5 px-3 text-xs font-semibold text-[#0f274f] transition hover:bg-[#0f274f]/10 md:inline-flex lg:h-11 lg:min-w-[144px] lg:px-4 lg:text-sm"
           >
             <LogIn class="h-4 w-4" aria-hidden="true" />
             Iniciar sesión
           </NuxtLink>
 
-          <div v-else-if="isHydrated" class="relative flex items-center gap-3" ref="menuRef">
+          <div v-else-if="isHydrated" class="relative flex items-center gap-2 lg:gap-3" ref="menuRef">
             <div class="relative inline-flex items-center">
               <button
-                class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm glass-btn"
-                aria-label="Notificaciones"
+                class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm glass-btn"
                 ref="notifBtnRef"
                 @click.stop="showNotifications = !showNotifications"
               >
@@ -97,7 +104,7 @@
                 <div v-if="showNotifications">
                   <div class="fixed inset-0 z-[99999]" @click="showNotifications = false"></div>
                   <div
-                    class="fixed w-64 rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-lg z-[100000]"
+                    class="fixed z-[100000] w-[min(20rem,calc(100vw-1rem))] rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-lg max-h-[min(26rem,calc(100vh-6rem))] overflow-hidden"
                     :style="notifMenuStyle"
                   >
                     <div class="flex items-center justify-between">
@@ -135,7 +142,7 @@
               </teleport>
             </div>
             <button
-              class="flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-800 glass-btn"
+              class="layout-main-nav-btn hidden h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-2xl px-2 text-sm font-semibold text-slate-800 glass-btn md:flex lg:w-40 lg:px-4"
               @click.stop="showMenu = !showMenu"
             >
               <span
@@ -150,25 +157,55 @@
               >
                 {{ initials }}
               </span>
-              <span>{{ auth.user?.username || 'Perfil' }}</span>
+              <span class="hidden min-w-0 flex-1 truncate lg:block">{{ auth.user?.username || 'Perfil' }}</span>
             </button>
             <div
               v-if="showMenu"
-              class="absolute right-0 top-full mt-2 w-48 rounded-xl border border-slate-200 bg-white py-2 text-sm shadow-lg"
+              class="absolute right-0 top-full z-[100001] mt-2 w-[min(18rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] rounded-xl border border-slate-200 bg-white py-2 text-sm shadow-lg max-h-[calc(100vh-7rem)] overflow-y-auto"
             >
-              <NuxtLink to="/seguimiento" class="block px-3 py-2 text-slate-700 hover:bg-slate-50">Ver seguimiento</NuxtLink>
-              <NuxtLink to="/profile" class="block px-3 py-2 text-slate-700 hover:bg-slate-50">Editar perfil</NuxtLink>
-              <button class="block w-full px-3 py-2 text-left text-red-600 hover:bg-slate-50" @click="auth.logout()">Cerrar sesión</button>
+              <NuxtLink to="/seguimiento" class="flex items-center gap-3 px-4 py-2.5 text-slate-700 hover:bg-slate-50 transition">
+                <Eye class="h-4 w-4 flex-shrink-0" />
+                <span>Seguimiento</span>
+              </NuxtLink>
+              <NuxtLink v-if="myMarketplaceProfilePath" :to="myMarketplaceProfilePath" class="flex items-center gap-3 px-4 py-2.5 text-slate-700 hover:bg-slate-50 transition">
+                <StoreIcon class="h-4 w-4 flex-shrink-0" />
+                <span>Perfil Marketplace</span>
+              </NuxtLink>
+              <NuxtLink to="/profile" class="flex items-center gap-3 px-4 py-2.5 text-slate-700 hover:bg-slate-50 transition">
+                <User class="h-4 w-4 flex-shrink-0" />
+                <span>Editar perfil</span>
+              </NuxtLink>
+              <button class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-red-600 hover:bg-red-50 transition" @click="auth.logout()">
+                <LogOut class="h-4 w-4 flex-shrink-0" />
+                <span>Cerrar sesión</span>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="showMenuMobile" class="border-t border-slate-200 bg-white/95 px-6 py-3 text-sm md:hidden">
-        <div class="flex flex-col gap-2">
-          <NuxtLink to="/" class="rounded-lg px-3 py-2 hover:bg-slate-100">Inicio</NuxtLink>
-          <NuxtLink to="/marketplace" class="rounded-lg px-3 py-2 hover:bg-slate-100">Marketplace</NuxtLink>
-          <NuxtLink to="/tiendas" class="rounded-lg px-3 py-2 hover:bg-slate-100">Ver tiendas</NuxtLink>
+      <div v-if="showMenuMobile" class="border-t border-slate-200 bg-white/95 px-4 py-4 text-sm md:hidden">
+        <div class="mx-auto flex max-w-2xl flex-col gap-3">
+          <div v-if="isHydrated && auth.isAuthenticated" class="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+              <span v-if="avatarUrl" class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-white">
+                <img :key="avatarUrl" :src="avatarUrl" alt="Avatar" class="h-full w-full object-cover" />
+              </span>
+              <span v-else class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold uppercase text-white">
+                {{ initials }}
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-semibold text-slate-900">{{ auth.user?.username || 'Perfil' }}</p>
+                <p class="truncate text-xs text-slate-500">{{ myMarketplaceProfilePath ? 'Perfil marketplace activo' : 'Sesión iniciada' }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-2">
+          <NuxtLink to="/" class="rounded-lg px-3 py-2 text-[#0f274f] hover:bg-[#0f274f]/10">Inicio</NuxtLink>
+          <NuxtLink to="/tiendas" class="rounded-lg px-3 py-2 text-[#0f274f] hover:bg-[#0f274f]/10">Ver tiendas</NuxtLink>
+          <NuxtLink v-if="isHydrated && auth.isAuthenticated && hasDashboardAccess" :to="defaultDashboardRoute" class="rounded-lg px-3 py-2 text-[#0f274f] hover:bg-[#0f274f]/10" @click.prevent="goDashboard">Dashboard</NuxtLink>
+          <NuxtLink to="/marketplace" class="rounded-lg px-3 py-2 text-[#0f274f] hover:bg-[#0f274f]/10">Marketplace</NuxtLink>
           <NuxtLink
             v-if="isMarketplaceRoute"
             to="/marketplace/carrito"
@@ -178,11 +215,12 @@
             Carrito marketplace
           </NuxtLink>
           <div class="my-2 border-t border-slate-200" />
-          <NuxtLink v-if="isHydrated && auth.isAuthenticated && hasDashboardAccess" :to="defaultDashboardRoute" class="rounded-lg px-3 py-2 hover:bg-slate-100" @click.prevent="goDashboard">Dashboard</NuxtLink>
           <NuxtLink v-if="isHydrated && auth.isAuthenticated" to="/seguimiento" class="rounded-lg px-3 py-2 hover:bg-slate-100">Ver seguimiento</NuxtLink>
+          <NuxtLink v-if="isHydrated && auth.isAuthenticated && myMarketplaceProfilePath" :to="myMarketplaceProfilePath" class="rounded-lg px-3 py-2 hover:bg-slate-100">Ver perfil marketplace</NuxtLink>
           <NuxtLink v-if="isHydrated && auth.isAuthenticated" to="/profile" class="rounded-lg px-3 py-2 hover:bg-slate-100">Editar perfil</NuxtLink>
           <button v-if="isHydrated && auth.isAuthenticated" class="rounded-lg px-3 py-2 text-left text-red-600 hover:bg-slate-100" @click="handleLogout">Cerrar sesión</button>
           <NuxtLink v-if="!isHydrated || !auth.isAuthenticated" to="/login" class="rounded-lg px-3 py-2 hover:bg-slate-100">Iniciar sesión</NuxtLink>
+          </div>
         </div>
       </div>
     </header>
@@ -205,7 +243,7 @@ import { useAuthStore } from '~/stores/auth'
 import { useThemeStore } from '~/stores/theme'
 import { useCartStore } from '~/stores/cart'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
-import { Bell, ShoppingCart, LayoutDashboard, LogIn, Store as StoreIcon, ShoppingBag, House } from 'lucide-vue-next'
+import { Bell, ShoppingCart, LayoutDashboard, LogIn, Store as StoreIcon, ShoppingBag, House, Eye, User, LogOut } from 'lucide-vue-next'
 import ChatBot from '~/components/ChatBot.vue'
 import { useNotificationStore } from '~/stores/notifications'
 import { useDashboardAccess } from '~/composables/useDashboardAccess'
@@ -226,6 +264,7 @@ const handleMarketplaceCartClick = () => {
 const config = useRuntimeConfig()
 const route = useRoute()
 const router = useRouter()
+const isDashboardRoute = computed(() => route.path === '/dashboard' || route.path.startsWith('/dashboard/'))
 const showMenu = ref(false)
 const showMenuMobile = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
@@ -237,9 +276,20 @@ const avatarUrl = computed(() => {
   const joiner = base.includes('?') ? '&' : '?'
   return `${base}${joiner}v=${encodeURIComponent(version)}`
 })
+const myMarketplaceProfilePath = computed(() => {
+  const id = (auth.user as any)?.id
+  return id ? `/marketplace/vendedores/${id}` : ''
+})
 const initials = computed(() => (auth.user?.username || 'U').slice(0, 2).toUpperCase())
 const accentColor = computed(() => theme.accent || '#2563eb')
 const isMarketplaceRoute = computed(() => route.path.startsWith('/marketplace'))
+const mainNavBaseClass = 'layout-main-nav-btn inline-flex h-10 min-w-[112px] shrink-0 items-center justify-center gap-2 rounded-2xl border px-3 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 lg:h-11 lg:min-w-[136px] lg:px-4 lg:text-sm'
+const mainNavClassFor = (targetPath: string, exact = false) => {
+  const isActive = exact ? route.path === targetPath : route.path === targetPath || route.path.startsWith(`${targetPath}/`)
+  return isActive
+    ? `${mainNavBaseClass} border-[#0f274f] bg-[#0f274f] text-white hover:bg-[#103264]`
+    : `${mainNavBaseClass} border-[#0f274f]/20 bg-white text-[#0f274f] hover:bg-[#0f274f]/5`
+}
 type NotificationItem = { type: string; message: string; count: number; store?: string }
 type DashboardSummary = { notifications?: NotificationItem[] }
 const notificationStore = useNotificationStore()
@@ -249,6 +299,7 @@ const unreadNotifications = computed(() => notificationStore.unread)
 const notificationsCount = computed(() => notificationStore.totalUnread)
 const showNotifications = ref(false)
 const isHydrated = ref(false)
+let notificationsPoller: ReturnType<typeof setInterval> | null = null
 
 const handleOutside = (event: MouseEvent) => {
   if (!menuRef.value) return
@@ -264,8 +315,10 @@ const loadNotifications = async () => {
     return
   }
   try {
-    // API de notificaciones no disponible aún; evita 404 en consola
-    notificationStore.setUnread([])
+    const data = await $fetch<DashboardSummary>(`${config.public.apiBase}/support/dashboard/summary/`, {
+      headers: { Authorization: `Bearer ${auth.token}` },
+    })
+    notificationStore.setUnread(data?.notifications || [])
   } catch (error) {
     console.warn('No se pudieron cargar notificaciones', error)
     notificationStore.setUnread([])
@@ -277,14 +330,20 @@ const positionNotifMenu = async () => {
   await nextTick()
   if (notifBtnRef.value) {
     const rect = notifBtnRef.value.getBoundingClientRect()
-    notifMenuStyle.value = `top: ${rect.bottom + 8}px; left: ${rect.left}px;`
+    if (window.innerWidth < 640) {
+      const menuWidth = Math.max(260, window.innerWidth - 16)
+      notifMenuStyle.value = `top: ${Math.max(12, rect.bottom + 8)}px; left: 8px; width: ${menuWidth}px;`
+      return
+    }
+    const menuWidth = Math.min(320, window.innerWidth - 16)
+    const maxLeft = Math.max(8, window.innerWidth - menuWidth - 8)
+    const left = Math.min(Math.max(8, rect.left), maxLeft)
+    notifMenuStyle.value = `top: ${rect.bottom + 8}px; left: ${left}px; width: ${menuWidth}px;`
   }
 }
 
 const clearNotifications = () => {
-  notificationStore.markAllAsRead()
-  notificationStore.clearHistory()
-  notificationStore.setUnread([])
+  notificationStore.dismissAll()
   showNotifications.value = false
 }
 
@@ -314,6 +373,11 @@ onMounted(async () => {
   theme.loadFromStorage()
   theme.resetToBase()
   await loadNotifications()
+  if (import.meta.client) {
+    notificationsPoller = setInterval(() => {
+      loadNotifications()
+    }, 30000)
+  }
   isHydrated.value = true
   document.addEventListener('click', handleOutside)
   window.addEventListener('resize', positionNotifMenu)
@@ -331,6 +395,10 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleOutside)
   window.removeEventListener('resize', positionNotifMenu)
+  if (notificationsPoller) {
+    clearInterval(notificationsPoller)
+    notificationsPoller = null
+  }
 })
 
 watch(

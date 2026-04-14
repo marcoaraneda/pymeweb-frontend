@@ -15,22 +15,70 @@
             </div>
             <div>
               <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Vendedor</p>
-              <h1 class="text-2xl font-bold text-slate-900">{{ seller.username }}</h1>
+              <h1 class="flex items-center gap-2 text-2xl font-bold text-slate-900">
+                <span>{{ seller.username }}</span>
+                <BadgeCheck v-if="seller.is_verified" class="h-5 w-5 text-red-600" aria-label="Verificado" />
+              </h1>
               <p class="text-sm text-slate-600">{{ fullName }}</p>
+              <div class="mt-1 flex flex-wrap items-center gap-2" aria-label="Calificación de vendedor">
+                <button
+                  v-for="star in [1, 2, 3, 4, 5]"
+                  :key="`seller-star-${star}`"
+                  type="button"
+                  class="text-xl leading-none"
+                  :class="star <= displayRating ? 'text-amber-500' : 'text-slate-300'"
+                  :disabled="!canRateSeller || savingRating"
+                  @click="rateSeller(star)"
+                >
+                  {{ star <= displayRating ? '★' : '☆' }}
+                </button>
+                <span class="text-xs text-slate-500">{{ ratingLabel }}</span>
+              </div>
             </div>
           </div>
 
-          <div class="flex flex-wrap gap-3">
-            <select v-model="categoryFilter" class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-inner">
-              <option value="">Todas las categorías</option>
-              <option v-for="cat in categories" :key="cat.slug || cat.id" :value="cat.slug || cat.id">{{ cat.name }}</option>
-            </select>
-            <input
-              v-model="searchTerm"
-              type="text"
-              placeholder="Buscar producto por nombre"
-              class="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none md:w-64"
-            />
+          <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <article class="rounded-xl border border-amber-100 bg-amber-50 p-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-amber-800">Ventas cerradas</p>
+              <p class="mt-2 text-2xl font-bold text-amber-950">{{ Number(salesSummary.total_orders || 0) }}</p>
+              <p class="text-xs text-amber-800/80">Pedidos completados o entregados</p>
+            </article>
+            <article class="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-emerald-800">Unidades vendidas</p>
+              <p class="mt-2 text-2xl font-bold text-emerald-950">{{ Number(salesSummary.total_units || 0) }}</p>
+              <p class="text-xs text-emerald-800/80">Sumadas desde historial de ventas</p>
+            </article>
+            <article class="rounded-xl border border-sky-100 bg-sky-50 p-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-sky-800">Ingresos</p>
+              <p class="mt-2 text-2xl font-bold text-sky-950">{{ formatClp(salesSummary.gross_sales || 0) }}</p>
+              <p class="text-xs text-sky-800/80">Total vendido en marketplace</p>
+            </article>
+            <article class="rounded-xl border border-violet-100 bg-violet-50 p-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-violet-800">Ventas en proceso</p>
+              <p class="mt-2 text-2xl font-bold text-violet-950">{{ Number(salesSummary.in_progress_orders || 0) }}</p>
+              <p class="text-xs text-violet-800/80">Pedidos pendientes, preparando o en transito</p>
+            </article>
+          </div>
+
+          <div class="filter-panel">
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-[220px_minmax(0,1fr)] xl:items-end">
+              <label class="space-y-1">
+                <span class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Categoría</span>
+                <select v-model="categoryFilter" class="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none">
+                  <option value="">Todas las categorías</option>
+                  <option v-for="cat in categories" :key="cat.slug || cat.id" :value="cat.slug || cat.id">{{ cat.name }}</option>
+                </select>
+              </label>
+              <label class="space-y-1">
+                <span class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Buscar</span>
+                <input
+                  v-model="searchTerm"
+                  type="text"
+                  placeholder="Buscar producto por nombre"
+                  class="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 shadow-inner focus:border-slate-400 focus:outline-none"
+                />
+              </label>
+            </div>
           </div>
 
           <div class="space-y-3">
@@ -82,6 +130,82 @@
               <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="soldPage === soldTotalPages" @click="soldPage += 1">Siguiente</button>
             </div>
           </div>
+
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold text-slate-900">Ventas en proceso</h2>
+              <span class="text-sm text-slate-500">{{ salesInProgressHistory.length }} movimientos</span>
+            </div>
+            <div v-if="!salesInProgressHistory.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-slate-600">
+              No hay ventas marketplace en proceso para este vendedor.
+            </div>
+            <div v-else class="space-y-2">
+              <article
+                v-for="item in pagedSalesInProgressHistory"
+                :key="`inprogress-${item.order_id}-${item.product_id}`"
+                class="rounded-xl border border-slate-200 bg-white p-4"
+              >
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-900">{{ item.product_name }}</p>
+                    <p class="text-xs text-slate-500">Pedido #{{ item.order_id }} · Comprador: {{ item.buyer_name || 'Cliente' }}</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-sm font-semibold text-slate-900">{{ formatClp(item.subtotal || 0) }}</p>
+                    <p class="text-xs text-slate-500">{{ formatOrderStatus(item.status) }}</p>
+                  </div>
+                </div>
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1">Cantidad: {{ item.quantity }}</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1">Unitario: {{ formatClp(item.unit_price || 0) }}</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1">{{ formatDate(item.created_at) }}</span>
+                </div>
+              </article>
+            </div>
+            <div v-if="inProgressTotalPages > 1" class="flex items-center justify-between text-xs text-slate-600">
+              <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="inProgressPage === 1" @click="inProgressPage -= 1">Anterior</button>
+              <span>Página {{ inProgressPage }} / {{ inProgressTotalPages }}</span>
+              <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="inProgressPage === inProgressTotalPages" @click="inProgressPage += 1">Siguiente</button>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold text-slate-900">Historial de ventas marketplace</h2>
+              <span class="text-sm text-slate-500">{{ salesHistory.length }} ventas</span>
+            </div>
+            <div v-if="!salesHistory.length" class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-slate-600">
+              Este vendedor todavia no registra ventas cerradas en marketplace.
+            </div>
+            <div v-else class="space-y-2">
+              <article
+                v-for="item in pagedSalesHistory"
+                :key="`${item.order_id}-${item.product_id}`"
+                class="rounded-xl border border-slate-200 bg-white p-4"
+              >
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-900">{{ item.product_name }}</p>
+                    <p class="text-xs text-slate-500">Pedido #{{ item.order_id }} · Comprador: {{ item.buyer_name || 'Cliente' }}</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-sm font-semibold text-slate-900">{{ formatClp(item.subtotal || 0) }}</p>
+                    <p class="text-xs text-slate-500">{{ formatOrderStatus(item.status) }}</p>
+                  </div>
+                </div>
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1">Cantidad: {{ item.quantity }}</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1">Unitario: {{ formatClp(item.unit_price || 0) }}</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1">{{ formatDate(item.created_at) }}</span>
+                </div>
+              </article>
+            </div>
+            <div v-if="salesTotalPages > 1" class="flex items-center justify-between text-xs text-slate-600">
+              <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="salesPage === 1" @click="salesPage -= 1">Anterior</button>
+              <span>Página {{ salesPage }} / {{ salesTotalPages }}</span>
+              <button class="rounded-lg border border-slate-200 px-3 py-1 hover:bg-slate-50 disabled:opacity-40" :disabled="salesPage === salesTotalPages" @click="salesPage += 1">Siguiente</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -95,6 +219,7 @@ import { useRuntimeConfig } from 'nuxt/app'
 import ProductCard from '~/components/ProductCard.vue'
 import { useThemeStore } from '~/stores/theme'
 import { useAuthStore } from '~/stores/auth'
+import { BadgeCheck } from 'lucide-vue-next'
 
 const route = useRoute()
 const config = useRuntimeConfig()
@@ -112,6 +237,45 @@ const marketplaceAccent = '#f59e0b'
 const activePage = ref(1)
 const soldPage = ref(1)
 const perPage = 12
+const salesPage = ref(1)
+const salesPerPage = 8
+const inProgressPage = ref(1)
+const inProgressPerPage = 8
+const savingRating = ref(false)
+
+const salesSummary = computed(() => seller.value?.sales_summary || {
+  total_orders: 0,
+  total_units: 0,
+  gross_sales: 0,
+  in_progress_orders: 0,
+  in_progress_units: 0,
+  in_progress_amount: 0,
+})
+const salesHistory = computed(() => seller.value?.sales_history || [])
+const salesInProgressHistory = computed(() => seller.value?.sales_in_progress_history || [])
+const ratingSummary = computed(() => seller.value?.rating_summary || { average: 0, count: 0 })
+const myRating = computed(() => Number(seller.value?.my_rating || 0))
+const averageRating = computed(() => Number(ratingSummary.value.average || 0))
+const displayRating = computed(() => (myRating.value > 0 ? myRating.value : Math.round(averageRating.value)))
+const sellerNumericId = computed(() => Number(seller.value?.id || sellerId || 0))
+const currentUserId = computed(() => Number((auth.user as any)?.id || 0))
+const canRateSeller = computed(() => Boolean(auth.isAuthenticated && currentUserId.value && sellerNumericId.value && currentUserId.value !== sellerNumericId.value))
+const ratingLabel = computed(() => {
+  const count = Number(ratingSummary.value.count || 0)
+  const avg = Number(averageRating.value || 0)
+  if (!count) return 'Sin calificaciones todavía'
+  return `${avg.toFixed(1)} (${count} calificaciones)`
+})
+const salesTotalPages = computed(() => Math.max(1, Math.ceil(salesHistory.value.length / salesPerPage)))
+const pagedSalesHistory = computed(() => {
+  const start = (salesPage.value - 1) * salesPerPage
+  return salesHistory.value.slice(start, start + salesPerPage)
+})
+const inProgressTotalPages = computed(() => Math.max(1, Math.ceil(salesInProgressHistory.value.length / inProgressPerPage)))
+const pagedSalesInProgressHistory = computed(() => {
+  const start = (inProgressPage.value - 1) * inProgressPerPage
+  return salesInProgressHistory.value.slice(start, start + inProgressPerPage)
+})
 
 const fullName = computed(() => {
   if (!seller.value) return ''
@@ -176,6 +340,66 @@ const isMine = (product: any) => {
   return Boolean(userId && product?.submitted_by === userId)
 }
 
+const rateSeller = async (rating: number) => {
+  if (!canRateSeller.value || savingRating.value) return
+  if (rating < 1 || rating > 5) return
+  savingRating.value = true
+  try {
+    const token = auth.token
+    if (!token) return
+    const response = await $fetch<any>(`${config.public.apiBase}/marketplace/sellers/${sellerId}/rating/`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: { rating },
+    })
+    if (!seller.value) return
+    seller.value = {
+      ...seller.value,
+      my_rating: response?.my_rating || rating,
+      rating_summary: response?.rating_summary || seller.value.rating_summary,
+    }
+  } catch (err) {
+    console.warn('No se pudo guardar calificación de vendedor', err)
+  } finally {
+    savingRating.value = false
+  }
+}
+
+const formatClp = (value: number | string) =>
+  new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Number(value) || 0)
+
+const formatDate = (value: string) => {
+  if (!value) return ''
+  try {
+    return new Date(value).toLocaleString('es-CL', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return value
+  }
+}
+
+const formatOrderStatus = (status: string) => {
+  const labels: Record<string, string> = {
+    pending: 'Pendiente',
+    preparing: 'Preparando',
+    in_transit: 'En transito',
+    delivered: 'Entregado',
+    completed: 'Completado',
+    cancelled: 'Cancelado',
+  }
+  return labels[status] || status
+}
+
 const fetchSeller = async () => {
   loading.value = true
   error.value = ''
@@ -194,13 +418,21 @@ const fetchSeller = async () => {
 onMounted(async () => {
   theme.loadFromStorage()
   theme.applyTheme()
-  auth.restoreFromCookies()
+  await auth.initializeSession().catch(() => null)
   await fetchSeller()
 })
 
 watch([searchTerm, categoryFilter], () => {
   activePage.value = 1
   soldPage.value = 1
+})
+
+watch(salesHistory, () => {
+  if (salesPage.value > salesTotalPages.value) salesPage.value = salesTotalPages.value
+})
+
+watch(salesInProgressHistory, () => {
+  if (inProgressPage.value > inProgressTotalPages.value) inProgressPage.value = inProgressTotalPages.value
 })
 
 watch(filteredActive, () => {

@@ -1,11 +1,11 @@
 <template>
-  <div class="min-h-screen bg-slate-50 text-slate-900">
+  <div class="premium-shell min-h-screen bg-slate-50 text-slate-900">
     <header class="relative z-50 overflow-visible border-b border-slate-200 bg-white/85 backdrop-blur">
       <div class="pointer-events-none absolute inset-0" aria-hidden="true">
         <div class="absolute -left-12 top-6 h-40 w-40 rounded-full" :style="gradientStyle" />
         <div class="absolute -right-10 -bottom-6 h-48 w-48 rounded-full" :style="gradientStyle" />
       </div>
-      <div class="relative mx-auto flex max-w-7xl items-center justify-between gap-5 px-6 py-4">
+      <div class="relative mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <div class="flex flex-shrink-0 items-center gap-3">
           <div class="relative z-30">
             <button
@@ -67,7 +67,7 @@
             <span v-if="canEditBrand" class="absolute inset-0 flex items-center justify-center bg-black/40 text-[11px] font-semibold text-white opacity-0 transition hover:opacity-100">Cambiar</span>
           </button>
           <input ref="logoFileInput" type="file" accept="image/*" class="hidden" @change="onLogoFileChange" />
-          <div>
+          <div class="hidden xl:block">
             <NuxtLink :to="`/store/${slug}`" class="text-xl font-semibold leading-tight text-slate-900 hover:underline">
               {{ brandName }}
             </NuxtLink>
@@ -75,22 +75,22 @@
           </div>
         </div>
 
-        <nav class="hidden flex-1 flex-nowrap items-center justify-center gap-3 md:flex overflow-x-auto">
+        <nav class="hidden flex-1 flex-nowrap items-center justify-center gap-2 overflow-x-auto md:flex">
           <template v-if="hasStoreContext">
             <div class="flex flex-nowrap items-center gap-3">
-              <NuxtLink :to="`/store/${slug}`" :class="navButtonClass">
+              <NuxtLink :to="`/store/${slug}`" :class="navButtonClassFor(`/store/${slug}`, true)" :style="navButtonStyleFor(`/store/${slug}`, true)">
                 <Home class="h-4 w-4" aria-hidden="true" />
                 Inicio
               </NuxtLink>
-              <NuxtLink :to="`/store/${slug}/productos`" :class="navButtonClass">
+              <NuxtLink :to="`/store/${slug}/productos`" :class="navButtonClassFor(`/store/${slug}/productos`)" :style="navButtonStyleFor(`/store/${slug}/productos`)">
                 <ShoppingBag class="h-4 w-4" aria-hidden="true" />
                 Productos
               </NuxtLink>
-              <NuxtLink :to="`/store/${slug}/acerca`" :class="navButtonClass">
+              <NuxtLink :to="`/store/${slug}/acerca`" :class="navButtonClassFor(`/store/${slug}/acerca`)" :style="navButtonStyleFor(`/store/${slug}/acerca`)">
                 <Info class="h-4 w-4" aria-hidden="true" />
                 Acerca de
               </NuxtLink>
-              <NuxtLink :to="`/store/${slug}/soporte`" :class="navButtonClass">
+              <NuxtLink :to="`/store/${slug}/soporte`" :class="navButtonClassFor(`/store/${slug}/soporte`)" :style="navButtonStyleFor(`/store/${slug}/soporte`)">
                 <Headset class="h-4 w-4" aria-hidden="true" />
                 Soporte
               </NuxtLink>
@@ -99,8 +99,15 @@
         </nav>
 
         <div class="flex flex-shrink-0 flex-nowrap items-center gap-3">
-          <button class="md:hidden rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 glass-btn" @click.stop="showMobileNav = !showMobileNav">Menú</button>
+          <button
+            class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm transition hover:bg-slate-50 md:hidden"
+            aria-label="Abrir navegación"
+            @click.stop="showMobileNav = !showMobileNav"
+          >
+            <Menu class="h-5 w-5" aria-hidden="true" />
+          </button>
           <NuxtLink
+            v-if="storeCartEnabled"
             :to="`/store/${slug}/carrito`"
             class="relative flex h-10 w-10 items-center justify-center rounded-xl text-white shadow"
             :style="{ backgroundColor: accentColor }"
@@ -118,10 +125,11 @@
           <NuxtLink
             v-if="!isHydrated || !auth.isAuthenticated"
             to="/login"
-            :class="navButtonClass"
+            :class="navButtonClassFor('/login', true)"
+            :style="navButtonStyleFor('/login', true)"
           >
             <LogIn class="h-4 w-4" aria-hidden="true" />
-            Iniciar sesión
+            <span class="hidden xl:inline">Iniciar sesión</span>
           </NuxtLink>
           <div v-if="isHydrated && auth.isAuthenticated" class="flex flex-nowrap items-center gap-2 md:gap-3">
             <div class="relative flex items-center">
@@ -181,9 +189,13 @@
                 </div>
               </teleport>
             </div>
-            <NuxtLink
-              to="/profile"
-              :class="[navButtonClass, 'h-11 whitespace-nowrap']"
+            <button
+              ref="accountBtnRef"
+              type="button"
+              :class="[navButtonClassFor('/profile'), 'h-11 whitespace-nowrap']"
+              :style="navButtonStyleFor('/profile')"
+              aria-label="Abrir menú de perfil"
+              @click.stop="toggleAccountMenu"
             >
               <span
                 v-if="avatarUrl"
@@ -192,69 +204,92 @@
                 <img :key="avatarUrl" :src="avatarUrl" alt="Avatar" class="h-full w-full object-cover" />
               </span>
               <span v-else class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs uppercase">{{ userInitials }}</span>
-              <span class="max-w-[120px] truncate">{{ auth.user?.username || 'Perfil' }}</span>
-            </NuxtLink>
+              <span class="hidden max-w-[120px] truncate xl:inline">{{ auth.user?.username || 'Perfil' }}</span>
+            </button>
+            <teleport to="body">
+              <div v-if="showAccountMenu">
+                <div class="fixed inset-0 z-[99999]" @click="showAccountMenu = false"></div>
+                <div
+                  class="fixed z-[100000] w-56 rounded-2xl border border-slate-200 bg-white py-2 text-sm shadow-lg"
+                  :style="accountMenuStyle"
+                  @click.stop
+                >
+                  <NuxtLink to="/profile" class="flex items-center gap-3 px-4 py-2.5 text-slate-700 hover:bg-slate-50" @click="showAccountMenu = false">
+                    <UserRound class="h-4 w-4" aria-hidden="true" />
+                    <span>Editar perfil</span>
+                  </NuxtLink>
+                  <NuxtLink to="/seguimiento" class="flex items-center gap-3 px-4 py-2.5 text-slate-700 hover:bg-slate-50" @click="showAccountMenu = false">
+                    <Truck class="h-4 w-4" aria-hidden="true" />
+                    <span>Ver seguimiento</span>
+                  </NuxtLink>
+                  <button type="button" class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-red-600 hover:bg-red-50" @click="showAccountMenu = false; handleLogout()">
+                    <LogOut class="h-4 w-4" aria-hidden="true" />
+                    <span>Cerrar sesión</span>
+                  </button>
+                </div>
+              </div>
+            </teleport>
           </div>
         </div>
       </div>
 
-      <div v-if="showMobileNav" class="md:hidden border-t border-slate-200 bg-white/95 px-6 py-3 text-sm">
+      <div v-if="showMobileNav" class="border-t border-slate-200 bg-white/95 px-4 py-3 text-sm sm:px-6 md:hidden">
         <div class="flex flex-col gap-4">
           <div class="space-y-2">
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">General</p>
-            <NuxtLink to="/" :class="mobileButtonClass">
+            <NuxtLink to="/" :class="mobileButtonClassFor('/', true)" :style="mobileButtonStyleFor('/', true)">
               <Home class="h-4 w-4" aria-hidden="true" />
               <span>Menú principal</span>
             </NuxtLink>
-            <NuxtLink to="/marketplace" :class="mobileButtonClass">
+            <NuxtLink to="/marketplace" :class="mobileButtonClassFor('/marketplace')" :style="mobileButtonStyleFor('/marketplace')">
               <StoreIcon class="h-4 w-4" aria-hidden="true" />
               <span>Marketplace</span>
             </NuxtLink>
           </div>
           <div v-if="hasStoreContext" class="space-y-2">
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Esta tienda</p>
-            <NuxtLink :to="`/store/${slug}`" :class="mobileButtonClass">
+            <NuxtLink :to="`/store/${slug}`" :class="mobileButtonClassFor(`/store/${slug}`, true)" :style="mobileButtonStyleFor(`/store/${slug}`, true)">
               <Home class="h-4 w-4" aria-hidden="true" />
               <span>Inicio</span>
             </NuxtLink>
-            <NuxtLink :to="`/store/${slug}/productos`" :class="mobileButtonClass">
+            <NuxtLink :to="`/store/${slug}/productos`" :class="mobileButtonClassFor(`/store/${slug}/productos`)" :style="mobileButtonStyleFor(`/store/${slug}/productos`)">
               <ShoppingBag class="h-4 w-4" aria-hidden="true" />
               <span>Productos</span>
             </NuxtLink>
-            <NuxtLink :to="`/store/${slug}/acerca`" :class="mobileButtonClass">
+            <NuxtLink :to="`/store/${slug}/acerca`" :class="mobileButtonClassFor(`/store/${slug}/acerca`)" :style="mobileButtonStyleFor(`/store/${slug}/acerca`)">
               <Info class="h-4 w-4" aria-hidden="true" />
               <span>Acerca de</span>
             </NuxtLink>
-            <NuxtLink :to="`/store/${slug}/soporte`" :class="mobileButtonClass">
+            <NuxtLink :to="`/store/${slug}/soporte`" :class="mobileButtonClassFor(`/store/${slug}/soporte`)" :style="mobileButtonStyleFor(`/store/${slug}/soporte`)">
               <Headset class="h-4 w-4" aria-hidden="true" />
               <span>Soporte</span>
             </NuxtLink>
-            <NuxtLink :to="`/store/${slug}/carrito`" :class="mobileButtonClass">
+            <NuxtLink v-if="storeCartEnabled" :to="`/store/${slug}/carrito`" :class="mobileButtonClassFor(`/store/${slug}/carrito`)" :style="mobileButtonStyleFor(`/store/${slug}/carrito`)">
               <ShoppingCart class="h-4 w-4" aria-hidden="true" />
               <span>Carrito</span>
             </NuxtLink>
           </div>
           <div class="space-y-2">
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Cuenta</p>
-            <NuxtLink v-if="isHydrated && auth.isAuthenticated && hasDashboardAccess" :to="defaultDashboardRoute" :class="mobileButtonClass">
+            <NuxtLink v-if="isHydrated && auth.isAuthenticated && hasDashboardAccess" :to="defaultDashboardRoute" :class="mobileButtonClassFor(defaultDashboardRoute)" :style="mobileButtonStyleFor(defaultDashboardRoute)">
               <LayoutDashboard class="h-4 w-4" aria-hidden="true" />
               <span>Dashboard</span>
             </NuxtLink>
-            <NuxtLink v-if="isHydrated && auth.isAuthenticated" to="/profile" :class="mobileButtonClass">
+            <NuxtLink v-if="isHydrated && auth.isAuthenticated" to="/profile" :class="mobileButtonClassFor('/profile')" :style="mobileButtonStyleFor('/profile')">
               <UserRound class="h-4 w-4" aria-hidden="true" />
               <span>Perfil</span>
             </NuxtLink>
-            <NuxtLink v-if="isHydrated && auth.isAuthenticated" to="/seguimiento" :class="mobileButtonClass">
+            <NuxtLink v-if="isHydrated && auth.isAuthenticated" to="/seguimiento" :class="mobileButtonClassFor('/seguimiento')" :style="mobileButtonStyleFor('/seguimiento')">
               <Truck class="h-4 w-4" aria-hidden="true" />
               <span>Ver seguimiento</span>
             </NuxtLink>
-            <NuxtLink v-else to="/login" :class="mobileButtonClass">
+            <NuxtLink v-else to="/login" :class="mobileButtonClassFor('/login', true)" :style="mobileButtonStyleFor('/login', true)">
               <LogIn class="h-4 w-4" aria-hidden="true" />
               <span>Iniciar sesión</span>
             </NuxtLink>
             <button
               v-if="isHydrated && auth.isAuthenticated"
-              :class="[mobileButtonClass, 'text-red-600']"
+              :class="mobileDangerButtonClass"
               @click="handleLogout"
             >
               <LogOut class="h-4 w-4" aria-hidden="true" />
@@ -278,6 +313,8 @@ const notifBtnRef = ref<HTMLElement | null>(null)
 const notifMenuStyle = ref('')
 const menuBtnRef = ref<HTMLElement | null>(null)
 const menuGeneralStyle = ref('')
+const accountBtnRef = ref<HTMLElement | null>(null)
+const accountMenuStyle = ref('')
 
 const toggleNotifications = async () => {
   showNotifications.value = !showNotifications.value
@@ -297,6 +334,20 @@ const toggleGeneralMenu = async () => {
     if (menuBtnRef.value) {
       const rect = menuBtnRef.value.getBoundingClientRect()
       menuGeneralStyle.value = `top: ${rect.bottom + 8}px; left: ${rect.left}px;` // 8px de separación
+    }
+  }
+}
+
+const toggleAccountMenu = async () => {
+  showAccountMenu.value = !showAccountMenu.value
+  if (showAccountMenu.value) {
+    await nextTick()
+    if (accountBtnRef.value) {
+      const rect = accountBtnRef.value.getBoundingClientRect()
+      const menuWidth = 224
+      const maxLeft = Math.max(8, window.innerWidth - menuWidth - 8)
+      const left = Math.min(Math.max(8, rect.right - menuWidth), maxLeft)
+      accountMenuStyle.value = `top: ${rect.bottom + 8}px; left: ${left}px;`
     }
   }
 }
@@ -338,6 +389,12 @@ const { defaultDashboardRoute, hasStores: hasDashboardAccess } = useDashboardAcc
 const brandName = computed(() => tenantStore.data?.name || 'Tu tienda')
 const brandInitials = computed(() => (brandName.value || 'T')[0]?.toUpperCase?.() || 'T')
 const brandLogo = computed(() => tenantStore.data?.logo_url || tenantStore.data?.logo?.url || tenantStore.data?.logo || '')
+const cartAllowedByType = computed(() => ['fast_food', 'bakery'].includes(String((tenantStore.data as any)?.store_type || 'retail')))
+const storeCartEnabled = computed(() => {
+  const value = (tenantStore.data as any)?.cart_enabled
+  const hasToggle = value === undefined || value === null ? true : Boolean(value)
+  return cartAllowedByType.value && hasToggle
+})
 const avatarUrl = computed(() => {
   const base = auth.user?.avatar_url
   if (!base) return null
@@ -352,12 +409,43 @@ const gradientStyle = computed(() => ({ backgroundImage: `linear-gradient(120deg
 const hasStoreContext = computed(() => Boolean(slug.value))
 const showMobileNav = ref(false)
 const showGeneralMenu = ref(false)
-const navButtonClass = 'inline-flex h-11 min-w-[140px] items-center justify-center gap-2 rounded-2xl border border-slate-900/15 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 whitespace-nowrap'
-const mobileButtonClass = 'flex w-full items-center gap-3 rounded-2xl border border-slate-900/10 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm'
+const showAccountMenu = ref(false)
+const navButtonBaseClass = 'inline-flex h-11 min-w-[104px] items-center justify-center gap-2 rounded-2xl border px-3 text-[13px] font-semibold shadow-sm transition hover:-translate-y-0.5 whitespace-nowrap xl:px-4 xl:text-sm'
+const navButtonClassFor = (targetPath: string, exact = false) => {
+  const isActive = exact ? route.path === targetPath : route.path === targetPath || route.path.startsWith(`${targetPath}/`)
+  return isActive
+    ? `${navButtonBaseClass} text-white`
+    : `${navButtonBaseClass} border-slate-900/15 bg-white text-slate-900 hover:bg-slate-50`
+}
+const navButtonStyleFor = (targetPath: string, exact = false) => {
+  const isActive = exact ? route.path === targetPath : route.path === targetPath || route.path.startsWith(`${targetPath}/`)
+  if (!isActive) return {}
+  return {
+    borderColor: accentColor.value,
+    backgroundColor: accentColor.value,
+  }
+}
+const mobileButtonBaseClass = 'flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold shadow-sm transition'
+const mobileDangerButtonClass = `${mobileButtonBaseClass} border-red-200 bg-white text-red-600`
+const mobileButtonClassFor = (targetPath: string, exact = false) => {
+  const isActive = exact ? route.path === targetPath : route.path === targetPath || route.path.startsWith(`${targetPath}/`)
+  return isActive
+    ? `${mobileButtonBaseClass} text-white`
+    : `${mobileButtonBaseClass} border-slate-900/10 bg-white text-slate-900`
+}
+const mobileButtonStyleFor = (targetPath: string, exact = false) => {
+  const isActive = exact ? route.path === targetPath : route.path === targetPath || route.path.startsWith(`${targetPath}/`)
+  if (!isActive) return {}
+  return {
+    borderColor: accentColor.value,
+    backgroundColor: accentColor.value,
+  }
+}
 const notificationStore = useNotificationStore()
 const notifications = computed(() => notificationStore.unread)
 const notificationsCount = computed(() => notificationStore.totalUnread)
 const showNotifications = ref(false)
+let notificationsPoller: ReturnType<typeof setInterval> | null = null
 const isHydrated = ref(false)
 const logoFileInput = ref<HTMLInputElement | null>(null)
 const uploadingLogo = ref(false)
@@ -433,9 +521,7 @@ const loadNotifications = async () => {
 }
 
 const clearNotifications = () => {
-  notificationStore.markAllAsRead()
-  notificationStore.clearHistory()
-  notificationStore.setUnread([])
+  notificationStore.dismissAll()
   showNotifications.value = false
 }
 
@@ -499,16 +585,26 @@ const openLogoPrompt = async () => {
 
 onMounted(async () => {
   await auth.initializeSession()
+  notificationStore.loadReadIds()
   applyThemeForSlug()
   cart.loadFromStorage()
   cart.setContext(slug.value)
   await ensureStoreData()
   await loadNotifications()
+  if (import.meta.client) {
+    notificationsPoller = setInterval(() => {
+      loadNotifications()
+    }, 30000)
+  }
   isHydrated.value = true
 })
 
 onBeforeUnmount(() => {
   theme.resetToBase()
+  if (notificationsPoller) {
+    clearInterval(notificationsPoller)
+    notificationsPoller = null
+  }
 })
 
 watch(
@@ -532,6 +628,7 @@ watch(
     showMobileNav.value = false
     showNotifications.value = false
     showGeneralMenu.value = false
+    showAccountMenu.value = false
   }
 )
 </script>

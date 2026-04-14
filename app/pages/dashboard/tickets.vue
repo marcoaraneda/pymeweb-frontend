@@ -131,10 +131,14 @@ const loadTickets = async () => {
 }
 
 onMounted(async () => {
-  if (!auth.isAuthenticated) {
+  if (!auth.token) {
+    auth.restoreFromCookies()
+  }
+  if (!auth.token) {
     await navigateTo('/login')
     return
   }
+  await auth.initializeSession().catch(() => null)
   const routeStatus = String(route.query.status || '').trim()
   const routeStore = String(route.query.store || '').trim()
   if (routeStatus) status.value = routeStatus

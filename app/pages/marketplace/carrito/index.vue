@@ -111,6 +111,7 @@ const checkoutError = ref('')
 const checkoutRetryCooldown = ref(0)
 const cartSyncNotice = ref('')
 const cartReady = ref(false)
+const defaultPaymentMethod = ref<any | null>(null)
 let checkoutRetryTimer: ReturnType<typeof setInterval> | null = null
 
 const stopCheckoutCooldown = () => {
@@ -145,6 +146,16 @@ onMounted(async () => {
   await auth.initializeSession().catch(() => null)
   cart.loadFromStorage()
   cart.setContext('marketplace')
+  try {
+    if (auth.token) {
+      const methods = await $fetch<any[]>(`${config.public.apiBase}/payments/profile-methods/`, {
+        headers: { Authorization: `Bearer ${auth.token}` },
+      })
+      defaultPaymentMethod.value = (methods || []).find((m) => m.is_default) || (methods || [])[0] || null
+    }
+  } catch {
+    defaultPaymentMethod.value = null
+  }
   await syncCartPrices()
   cartReady.value = true
 })
@@ -221,8 +232,8 @@ const handleCheckout = async () => {
     }))
     // Datos mínimos de cliente (puedes expandir esto si hay formulario)
     const customer = auth.user ? {
-      name: auth.user.first_name || auth.user.username || 'Cliente',
-      email: auth.user.email || 'cliente@pymeweb.local',
+      name: defaultPaymentMethod.value?.account_holder_name || auth.user.first_name || auth.user.username || 'Cliente',
+      email: defaultPaymentMethod.value?.account_email || auth.user.email || 'cliente@pymeweb.local',
       phone: '000000000',
       address: 'Marketplace',
     } : {
@@ -253,17 +264,33 @@ const handleCheckout = async () => {
         backoffMs: 10_000,
       },
     )
-    // Si la orden requiere pago, iniciar flujo Webpay simulado
+    // Si la orden requiere pago, intentar PayPal y usar Webpay como fallback.
     if (order && order.id) {
       try {
-        // Iniciar pago Webpay (simulado)
-        const payment = await $fetch(`${config.public.apiBase}/orders/${order.id}/webpay/init/`, {
+        const paypal = await $fetch<{ approve_url?: string; detail?: string }>(
+          `${config.public.apiBase}/orders/${order.id}/paypal/init/`,
+          {
+            method: 'POST',
+            credentials: 'include',
+            body: {
+              return_url: `${window.location.origin}/marketplace/orden?id=${order.id}`,
+              cancel_url: `${window.location.origin}/marketplace/carrito`,
+            },
+            timeout: 6000,
+          },
+        )
+
+        if (paypal?.approve_url) {
+          window.location.href = paypal.approve_url
+          return
+        }
+
+        const payment = await $fetch<{ url?: string; token?: string }>(`${config.public.apiBase}/orders/${order.id}/webpay/init/`, {
           method: 'POST',
           credentials: 'include',
           timeout: 5000,
         })
-        if (payment && payment.url && payment.token) {
-          // Crear y enviar formulario a Webpay (modo test)
+        if (payment?.url && payment?.token) {
           const formWebpay = document.createElement('form')
           formWebpay.method = 'POST'
           formWebpay.action = payment.url
@@ -275,12 +302,10 @@ const handleCheckout = async () => {
           document.body.appendChild(formWebpay)
           formWebpay.submit()
         } else {
-          // Si no hay pago, redirigir directo a la boleta
           cart.clearCart()
           window.location.href = `/marketplace/orden?id=${order.id}`
         }
       } catch {
-        // Si falla el pago, redirigir igual a la boleta
         cart.clearCart()
         window.location.href = `/marketplace/orden?id=${order.id}`
       }

@@ -22,6 +22,7 @@ export default defineNuxtConfig({
       cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
       cloudinaryUploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET || '',
       cloudinaryUploadUrl: process.env.CLOUDINARY_UPLOAD_URL || '',
+      googleClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
     }
   },
 
@@ -29,6 +30,7 @@ export default defineNuxtConfig({
     head: {
       title: 'Pymeweb - Gestión Digital para PYMEs',
       meta: [
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
         { name: 'description', content: 'Plataforma integral de gestión' },
         { name: 'referrer', content: 'no-referrer' },
         // CSP: ajusta dominios externos si usas CDNs, fuentes o mapas
@@ -36,12 +38,14 @@ export default defineNuxtConfig({
           'http-equiv': 'Content-Security-Policy',
           content: [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",
-            "style-src 'self' 'unsafe-inline'",
+            "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "font-src 'self' data: https://fonts.gstatic.com",
             "img-src 'self' data: https:",
+            "frame-src 'self' https://accounts.google.com",
             "worker-src 'self' blob:",
             // Permite API y websockets de desarrollo
-            `connect-src 'self' ${process.env.API_BASE || 'http://127.0.0.1:8000'} http://localhost:8000 http://127.0.0.1:8000 http://192.168.18.61:8000 ws://localhost:* ws://127.0.0.1:* ws://192.168.18.61:* https://api.cloudinary.com`,
+            `connect-src 'self' ${process.env.API_BASE || 'http://127.0.0.1:8000'} http://localhost:8000 http://127.0.0.1:8000 http://192.168.18.61:8000 ws://localhost:* ws://127.0.0.1:* ws://192.168.18.61:* https://api.cloudinary.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com`,
             // Añade dominios externos requeridos via NUXT_CSP_EXTRA (espacio-separados)
             process.env.NUXT_CSP_EXTRA ? `connect-src 'self' ${process.env.API_BASE || 'http://127.0.0.1:8000'} ${process.env.NUXT_CSP_EXTRA}` : null,
           ].filter(Boolean).join('; ')

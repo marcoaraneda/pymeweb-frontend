@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-screen bg-slate-100">
+  <div class="premium-shell flex h-screen bg-slate-100">
     
     <!-- SIDEBAR -->
     <aside class="w-64 bg-gradient-to-b from-blue-700 to-blue-900 text-white p-6">
@@ -32,6 +32,11 @@
           <CircleHelp class="h-4 w-4" aria-hidden="true" />
           FAQ
         </NuxtLink>
+
+        <NuxtLink :to="`/store/${slug}/admin/pagos`" class="nav-link flex items-center gap-2">
+          <Wallet class="h-4 w-4" aria-hidden="true" />
+          Pagos
+        </NuxtLink>
       </nav>
     </aside>
 
@@ -47,7 +52,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTenantStore } from '~/stores/tenant'
-import { Package, Tag, Star, Palette, CircleHelp } from 'lucide-vue-next'
+import { Package, Tag, Star, Palette, CircleHelp, Wallet } from 'lucide-vue-next'
 
 const route = useRoute()
 const tenant = useTenantStore()

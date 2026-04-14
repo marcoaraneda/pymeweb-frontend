@@ -16,6 +16,10 @@
           </span>
         </div>
 
+        <div v-if="paymentNotice" class="mx-8 mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {{ paymentNotice }}
+        </div>
+
         <div class="grid gap-6 px-8 py-6 md:grid-cols-2">
           <div class="space-y-3">
             <h2 class="text-sm font-semibold text-slate-700">Datos del comprador</h2>
@@ -40,6 +44,8 @@
               <div>
                 <p class="font-semibold text-slate-900">{{ item.product_name }}</p>
                 <p class="text-xs text-slate-500">Cant. {{ item.quantity }}</p>
+                <p v-if="item.options_summary" class="text-xs text-slate-500">{{ item.options_summary }}</p>
+                <p v-else-if="item.addons?.length" class="text-xs text-slate-500">Agregados: {{ item.addons.map((a: any) => a?.name).filter(Boolean).join(', ') }}</p>
               </div>
               <p class="text-right text-slate-600">{{ currency(item.price) }}</p>
               <p class="text-right font-semibold text-slate-900">{{ currency(item.price * item.quantity) }}</p>
@@ -89,9 +95,11 @@ const theme = useThemeStore()
 
 const slug = computed(() => route.params.slug as string)
 const orderId = computed(() => route.query.order as string | undefined)
+const paypalToken = computed(() => route.query.token as string | undefined)
 
 const order = ref<any>(null)
 const loading = ref(true)
+const paymentNotice = ref('')
 
 const currency = (value: number) =>
   new Intl.NumberFormat('es-CL', {
@@ -133,6 +141,26 @@ onMounted(async () => {
     theme.loadFromStorage()
     theme.applyStoreTheme(slug.value)
     if (!orderId.value) return
+
+    if (paypalToken.value) {
+      try {
+        const capture = await $fetch<any>(`${config.public.apiBase}/orders/${orderId.value}/paypal/capture/`, {
+          method: 'POST',
+          body: { paypal_order_id: paypalToken.value },
+          credentials: 'include',
+        })
+        if (capture?.ok) {
+          paymentNotice.value = capture?.already_captured
+            ? 'Pago PayPal confirmado anteriormente.'
+            : 'Pago PayPal confirmado correctamente.'
+        } else {
+          paymentNotice.value = 'No se pudo confirmar el pago PayPal. Revisa el estado de tu pedido.'
+        }
+      } catch {
+        paymentNotice.value = 'No se pudo confirmar el pago PayPal. Revisa el estado de tu pedido.'
+      }
+    }
+
     order.value = await $fetch(`${config.public.apiBase}/orders/${orderId.value}/`)
   } catch (e) {
     order.value = null

@@ -8,6 +8,9 @@
       <div v-if="loading" class="text-slate-500">Cargando orden...</div>
       <div v-else-if="error" class="text-red-600">{{ error }}</div>
       <div v-else>
+        <div v-if="paymentNotice" class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {{ paymentNotice }}
+        </div>
         <div class="mb-4 space-y-1">
           <p class="text-sm text-slate-600 font-bold">Orden #{{ order.id }}</p>
           <p class="text-sm text-slate-600">Fecha: {{ formatDate(order.created_at) }}</p>
@@ -86,6 +89,7 @@ const config = useRuntimeConfig()
 const order = ref<any>(null)
 const loading = ref(true)
 const error = ref('')
+const paymentNotice = ref('')
 
 function printBoleta() {
   globalThis.print()
@@ -116,6 +120,27 @@ onMounted(async () => {
   error.value = ''
   try {
     const id = route.query.id
+
+    const paypalToken = String(route.query.token || '')
+    if (id && paypalToken) {
+      try {
+        const capture = await $fetch<any>(`${config.public.apiBase}/orders/${id}/paypal/capture/`, {
+          method: 'POST',
+          body: { paypal_order_id: paypalToken },
+          credentials: 'include',
+        })
+        if (capture?.ok) {
+          paymentNotice.value = capture?.already_captured
+            ? 'Pago PayPal confirmado anteriormente.'
+            : 'Pago PayPal confirmado correctamente.'
+        } else {
+          paymentNotice.value = 'No se pudo confirmar PayPal. Revisa el estado de la orden.'
+        }
+      } catch {
+        paymentNotice.value = 'No se pudo confirmar PayPal. Revisa el estado de la orden.'
+      }
+    }
+
     order.value = await $fetch(`${config.public.apiBase}/orders/${id}/`)
   } catch (e: any) {
     error.value = e?.data?.detail || e?.message || 'No se pudo cargar la orden.'

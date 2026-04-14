@@ -1,77 +1,100 @@
 <template>
-  <div class="min-h-screen bg-slate-50 px-4 py-10">
-    <div class="mx-auto max-w-4xl space-y-6">
-      <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Centro</p>
-          <h1 class="text-3xl font-bold text-slate-900">Notificaciones</h1>
-          <p class="text-slate-600">Alertas operativas de pedidos, envíos y reseñas.</p>
-        </div>
-        <div class="flex flex-wrap gap-3">
-          <button
-            class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-300"
-            @click="refreshFeed"
-            :disabled="refreshing"
-          >
-            {{ refreshing ? 'Actualizando...' : 'Actualizar' }}
-          </button>
-          <NuxtLink to="/dashboard" class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-300">
-            Volver al dashboard
-          </NuxtLink>
+  <div class="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.08),_transparent_32%),linear-gradient(180deg,_#f8fafc_0%,_#fff_100%)] px-4 py-8 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-6xl space-y-6">
+      <div class="overflow-hidden rounded-[32px] border border-slate-200 bg-slate-950 text-white shadow-[0_24px_60px_-30px_rgba(15,23,42,0.45)]">
+        <div class="grid gap-6 p-6 md:grid-cols-[1.1fr,0.9fr] md:p-8">
+          <div class="space-y-4">
+            <p class="text-xs uppercase tracking-[0.3em] text-slate-300">Centro de notificaciones</p>
+            <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Notificaciones</h1>
+            <p class="max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">Alertas operativas de pedidos, envíos, reseñas y tickets en una vista más clara y profesional.</p>
+            <div class="flex flex-wrap gap-3">
+              <button
+                class="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5 disabled:opacity-60"
+                @click="refreshFeed"
+                :disabled="refreshing"
+              >
+                {{ refreshing ? 'Actualizando...' : 'Actualizar feed' }}
+              </button>
+              <NuxtLink to="/dashboard" class="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10">
+                Volver al dashboard
+              </NuxtLink>
+            </div>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3">
+            <article class="rounded-3xl bg-white/10 p-4 backdrop-blur">
+              <p class="text-xs uppercase tracking-[0.22em] text-slate-300">Sin leer</p>
+              <p class="mt-2 text-3xl font-semibold text-white">{{ unreadCount }}</p>
+            </article>
+            <article class="rounded-3xl bg-white/10 p-4 backdrop-blur">
+              <p class="text-xs uppercase tracking-[0.22em] text-slate-300">Totales</p>
+              <p class="mt-2 text-3xl font-semibold text-white">{{ feed.length }}</p>
+            </article>
+            <article class="rounded-3xl bg-white/10 p-4 backdrop-blur">
+              <p class="text-xs uppercase tracking-[0.22em] text-slate-300">Filtradas</p>
+              <p class="mt-2 text-3xl font-semibold text-white">{{ filteredFeed.length }}</p>
+            </article>
+          </div>
         </div>
       </div>
 
-      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div class="flex flex-wrap items-center justify-between gap-3">
+      <section class="rounded-[32px] border border-slate-200 bg-white p-5 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.22)] sm:p-6">
+        <div class="flex flex-col gap-4 border-b border-slate-100 pb-4 lg:flex-row lg:items-end lg:justify-between">
           <div class="space-y-1">
-            <h2 class="text-lg font-semibold text-slate-900">Recientes</h2>
+            <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Feed</p>
+            <h2 class="text-2xl font-semibold text-slate-900">Recientes</h2>
             <p class="text-sm text-slate-500">{{ unreadCount }} sin leer</p>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <select v-model="typeFilter" class="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+          <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-center">
+            <select v-model="typeFilter" class="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-400">
               <option value="all">Todos los tipos</option>
               <option v-for="t in availableTypes" :key="t" :value="t">{{ formatType(t) }}</option>
             </select>
-            <label class="flex items-center gap-2 text-sm text-slate-700">
+            <label class="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700">
               <input type="checkbox" v-model="onlyUnread" class="h-4 w-4 rounded border-slate-300" /> Solo sin leer
             </label>
-            <button class="text-sm font-semibold text-slate-700 underline" @click="markAllRead" :disabled="!feed.length">Marcar todo leído</button>
-            <button class="text-sm text-rose-600 underline" @click="clearAll" :disabled="!feed.length">Limpiar</button>
+            <button class="h-11 rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-40" @click="markAllRead" :disabled="!feed.length">Marcar leído</button>
+            <button class="h-11 rounded-2xl border border-rose-200 px-4 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-40" @click="clearAll" :disabled="!feed.length">Limpiar</button>
           </div>
         </div>
 
-        <div v-if="!filteredFeed.length" class="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+        <div v-if="!filteredFeed.length" class="mt-5 rounded-[24px] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
           No hay notificaciones para este filtro.
         </div>
 
-        <ul v-else class="mt-4 space-y-3">
+        <ul v-else class="mt-5 space-y-3">
           <li
             v-for="item in paginatedFeed"
             :key="item.id"
-            class="rounded-xl border border-slate-200 bg-slate-50 p-4"
+            class="group rounded-[24px] border border-slate-200 bg-slate-50 p-4 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
           >
-            <div class="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p class="text-sm font-semibold text-slate-900">{{ item.message }}</p>
-                <p class="text-xs text-slate-500">{{ formatType(item.type) }} • {{ item.store || 'tienda' }}</p>
-              </div>
-              <div class="flex items-center gap-2 text-xs text-slate-500">
-                <span>{{ formatDate(item.created_at) }}</span>
-                <button
-                  class="rounded-full px-3 py-1 text-[11px] font-semibold"
-                  :class="item.read ? 'bg-slate-200 text-slate-700' : 'bg-emerald-100 text-emerald-700'"
-                  @click="toggleRead(item)"
-                >
-                  {{ item.read ? 'Leída' : 'Marcar leída' }}
-                </button>
+            <div class="flex items-start gap-4">
+              <div class="mt-1 h-3 w-3 rounded-full" :class="item.read ? 'bg-slate-300' : 'bg-emerald-500'" />
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div class="min-w-0">
+                    <p class="text-sm font-semibold text-slate-900">{{ item.message }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ formatType(item.type) }} • {{ item.store || 'tienda' }}</p>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <span>{{ formatDate(item.created_at) }}</span>
+                    <button
+                      class="rounded-full px-3 py-1 text-[11px] font-semibold transition"
+                      :class="item.read ? 'bg-slate-200 text-slate-700' : 'bg-emerald-100 text-emerald-700'"
+                      @click="toggleRead(item)"
+                    >
+                      {{ item.read ? 'Leída' : 'Marcar leída' }}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </li>
         </ul>
 
-        <div v-if="filteredFeed.length > perPage" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+        <div v-if="filteredFeed.length > perPage" class="mt-5 flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between">
           <button
-            class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+            class="rounded-xl border border-slate-200 px-3 py-2 font-semibold transition hover:bg-slate-50 disabled:opacity-40"
             :disabled="page === 1"
             @click="page -= 1"
           >
@@ -79,7 +102,7 @@
           </button>
           <p>Mostrando {{ pageStart }}-{{ pageEnd }} de {{ filteredFeed.length }}</p>
           <button
-            class="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:opacity-40"
+            class="rounded-xl border border-slate-200 px-3 py-2 font-semibold transition hover:bg-slate-50 disabled:opacity-40"
             :disabled="page === totalPages"
             @click="page += 1"
           >

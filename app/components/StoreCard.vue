@@ -1,6 +1,6 @@
 <template>
   <div
-    class="group relative cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+    class="group relative cursor-pointer overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
     @click="goToStore"
     @keydown.enter.prevent="goToStore"
     @keydown.space.prevent="goToStore"
@@ -29,7 +29,7 @@
         <img src="/tailwind-trash.svg" alt="Eliminar" class="h-5 w-5 text-red-500" style="filter: invert(27%) sepia(99%) saturate(7492%) hue-rotate(357deg) brightness(97%) contrast(119%);" />
       </button>
       <div class="flex items-center gap-3">
-        <div class="h-12 w-12 overflow-hidden rounded-xl bg-slate-100 shadow-inner ring-1 ring-slate-200">
+        <div class="h-12 w-12 overflow-hidden rounded-xl bg-blue-100 shadow-inner ring-1 ring-blue-200">
           <img v-if="logo" :src="logo" alt="Logo" class="h-full w-full object-cover" />
           <div v-else class="flex h-full w-full items-center justify-center text-xl" :style="badgeStyle">🏪</div>
         </div>
@@ -56,6 +56,8 @@ import { computed } from 'vue'
 import { navigateTo } from 'nuxt/app'
 import { ChevronRight, Heart } from 'lucide-vue-next'
 import { useFavorites } from '~/composables/useFavorites'
+import { recordStoreVisit } from '~/composables/useStoreVisits'
+import { useAuthStore } from '~/stores/auth'
 
 type Store = { id: number; name: string; slug: string; logo_url?: string; logo?: string | { url?: string } }
 
@@ -70,9 +72,11 @@ const logo = computed(() => props.store.logo_url || (typeof props.store.logo ===
 const canDelete = computed(() => Boolean(props.canDelete))
 
 const { isStoreFavorite, toggleStoreFavorite } = useFavorites()
+const auth = useAuthStore()
 
 const handleDelete = () => emit('delete', props.store)
 const goToStore = async () => {
+  recordStoreVisit(props.store.slug, (auth.user as any)?.id)
   await navigateTo(`/store/${props.store.slug}`)
 }
 </script>

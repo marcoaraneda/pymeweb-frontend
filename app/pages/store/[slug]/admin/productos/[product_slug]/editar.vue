@@ -36,12 +36,14 @@
               <input v-model.number="form.price" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <div class="space-y-2">
-              <label class="text-sm text-slate-600">Precio oferta (opcional)</label>
+              <label class="text-sm text-slate-600">Precio oferta por unidad (opcional)</label>
               <input v-model.number="form.offer_price" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+              <p class="text-xs text-slate-500">Ej: 1990 para mostrar un pack como 3x1990.</p>
             </div>
             <div class="space-y-2 sm:col-span-2">
-              <label class="text-sm text-slate-600">Cantidad mínima para activar oferta</label>
+              <label class="text-sm text-slate-600">Cantidad mínima para oferta</label>
               <input v-model.number="form.offer_min_qty" type="number" min="1" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+              <p class="text-xs text-slate-500">Ej: 3 para activar la oferta desde 3 unidades.</p>
             </div>
           </div>
           <div class="grid gap-4 sm:grid-cols-2">
@@ -84,7 +86,7 @@
           <div class="flex flex-wrap gap-4">
             <label class="inline-flex items-center gap-2 text-sm text-slate-700">
               <input v-model="form.is_featured" type="checkbox" />
-              Producto destacado
+              Oferta destacada (palomita)
             </label>
             <label class="inline-flex items-center gap-2 text-sm text-slate-700">
               <input v-model="form.product_of_week" type="checkbox" />
@@ -130,6 +132,60 @@
             <label class="text-sm text-slate-600">Imagen (URL)</label>
             <input v-model="form.image_url" type="url" placeholder="https://..." class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             <p class="text-xs text-slate-500">Se envía a Cloudinary y se guarda como imagen principal.</p>
+          </div>
+          <div class="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div class="flex items-center justify-between">
+              <p class="text-sm font-semibold text-slate-800">Galería adicional</p>
+              <span class="text-xs font-semibold text-slate-500">{{ galleryPreview.length }}/{{ MAX_GALLERY_IMAGES }}</span>
+            </div>
+            <p class="text-xs text-slate-500">Puedes agregar hasta {{ MAX_GALLERY_IMAGES }} imágenes en total (incluye la principal).</p>
+
+            <div class="grid gap-3 sm:grid-cols-[1fr,auto]">
+              <input
+                v-model="galleryUrlInput"
+                type="url"
+                placeholder="https://..."
+                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                :disabled="!canAddMoreImages"
+              />
+              <button
+                class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                :disabled="!canAddMoreImages"
+                @click="addGalleryUrl"
+              >
+                Agregar URL
+              </button>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                <input type="file" accept="image/*" class="hidden" :disabled="!canAddMoreImages || uploadingGallery" @change="onGalleryFileSelect" />
+                <span>{{ uploadingGallery ? 'Subiendo...' : 'Subir imagen' }}</span>
+              </label>
+              <span v-if="!canAddMoreImages" class="text-xs font-semibold text-amber-700">Máximo de imágenes alcanzado.</span>
+            </div>
+
+            <div v-if="galleryPreview.length" class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+              <div
+                v-for="(image, index) in galleryPreview"
+                :key="`${image}-${index}`"
+                class="group relative overflow-hidden rounded-lg border border-slate-200 bg-white"
+              >
+                <img :src="image" :alt="`Imagen ${index + 1}`" class="h-20 w-full object-cover" />
+                <button
+                  v-if="index >= existingImageUrls.length"
+                  type="button"
+                  class="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs font-bold text-white group-hover:inline-flex"
+                  @click="removePendingImage(index - existingImageUrls.length)"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <p v-if="galleryMessage" class="text-xs" :class="galleryStatus === 'error' ? 'text-red-600' : 'text-emerald-700'">
+              {{ galleryMessage }}
+            </p>
           </div>
         </div>
 
@@ -197,6 +253,13 @@ const form = reactive({
   stock_available: 0,
   stock_minimum: 0,
 })
+const MAX_GALLERY_IMAGES = 5
+const existingImageUrls = ref<string[]>([])
+const pendingExtraImages = ref<string[]>([])
+const galleryUrlInput = ref('')
+const uploadingGallery = ref(false)
+const galleryMessage = ref('')
+const galleryStatus = ref<'ok' | 'error'>('ok')
 
 const saving = ref(false)
 const deleting = ref(false)
@@ -213,6 +276,13 @@ sizeOptions.forEach((size) => {
 
 const accentStyle = computed(() => ({ backgroundColor: theme.accent, color: '#fff' }))
 const categories = ref<any[]>([])
+const cloudinaryUploadUrl = computed(() => {
+  if (config.public.cloudinaryUploadUrl) return config.public.cloudinaryUploadUrl
+  if (config.public.cloudinaryCloudName) return `https://api.cloudinary.com/v1_1/${config.public.cloudinaryCloudName}/upload`
+  return ''
+})
+const galleryPreview = computed(() => [...existingImageUrls.value, ...pendingExtraImages.value].slice(0, MAX_GALLERY_IMAGES))
+const canAddMoreImages = computed(() => galleryPreview.value.length < MAX_GALLERY_IMAGES)
 const selectedCategoryName = computed(() => {
   const selected = categories.value.find((cat: any) => String(cat.id) === String(form.category))
   return String(selected?.name || '').toLowerCase()
@@ -348,7 +418,9 @@ const load = async () => {
     form.product_of_week = data.product_of_week
     form.is_active = data.is_active
     form.is_marketplace = data.is_marketplace
-    form.image_url = data.images?.[0]?.image || ''
+    existingImageUrls.value = (data?.images || []).map((img: any) => img?.image).filter(Boolean).slice(0, MAX_GALLERY_IMAGES)
+    pendingExtraImages.value = []
+    form.image_url = existingImageUrls.value[0] || data.image_url || ''
     form.category = data.category?.id || ''
     form.stock_available = data.stock_available ?? 0
     form.stock_minimum = data.stock_minimum ?? 0
@@ -417,6 +489,9 @@ const save = async () => {
     }
 
     if (form.image_url) payload.image_url = form.image_url
+    if (pendingExtraImages.value.length) {
+      payload.extra_images = pendingExtraImages.value.slice(0, Math.max(0, MAX_GALLERY_IMAGES - existingImageUrls.value.length))
+    }
     if (form.category) payload.category = form.category
 
     await authedFetch(`${config.public.apiBase}/store/${slug}/admin/catalogo/products/${form.id}/`, {
@@ -427,10 +502,90 @@ const save = async () => {
     messageType.value = 'ok'
     await navigateTo({ path: backPath.value })
   } catch (error: any) {
-    message.value = error?.response?._data || 'No pudimos actualizar el producto'
+    message.value = getErrorMessage(error)
     messageType.value = 'error'
   } finally {
     saving.value = false
+  }
+}
+
+const getErrorMessage = (error: any) => {
+  const payload = error?.response?._data
+  if (typeof payload === 'string') return payload
+  if (Array.isArray(payload)) return payload.join(', ')
+  if (payload && typeof payload === 'object') return Object.values(payload).flat().join(', ')
+  return error?.message || 'No se pudo completar la acción'
+}
+
+const isValidUrl = (value: string) => {
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+const addGalleryUrl = () => {
+  galleryMessage.value = ''
+  const url = galleryUrlInput.value.trim()
+  if (!url) return
+  if (!isValidUrl(url)) {
+    galleryStatus.value = 'error'
+    galleryMessage.value = 'Ingresa una URL válida para la imagen.'
+    return
+  }
+  if (!canAddMoreImages.value) {
+    galleryStatus.value = 'error'
+    galleryMessage.value = `Máximo ${MAX_GALLERY_IMAGES} imágenes por producto.`
+    return
+  }
+  pendingExtraImages.value.push(url)
+  galleryUrlInput.value = ''
+  galleryStatus.value = 'ok'
+  galleryMessage.value = 'Imagen agregada. Guarda cambios para aplicar.'
+}
+
+const removePendingImage = (index: number) => {
+  if (index < 0 || index >= pendingExtraImages.value.length) return
+  pendingExtraImages.value.splice(index, 1)
+}
+
+const uploadToCloudinary = async (file: File) => {
+  if (!cloudinaryUploadUrl.value || !config.public.cloudinaryUploadPreset) {
+    throw new Error('Configura Cloudinary para subir imágenes')
+  }
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('upload_preset', config.public.cloudinaryUploadPreset)
+  formData.append('folder', 'upload/product')
+  return await $fetch<any>(cloudinaryUploadUrl.value, { method: 'POST', body: formData })
+}
+
+const onGalleryFileSelect = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target?.files?.[0]
+  if (!file) return
+  if (!canAddMoreImages.value) {
+    galleryStatus.value = 'error'
+    galleryMessage.value = `Máximo ${MAX_GALLERY_IMAGES} imágenes por producto.`
+    target.value = ''
+    return
+  }
+  uploadingGallery.value = true
+  galleryMessage.value = ''
+  try {
+    const uploaded = await uploadToCloudinary(file)
+    if (!uploaded?.secure_url) throw new Error('No se pudo obtener URL de la imagen')
+    pendingExtraImages.value.push(uploaded.secure_url)
+    galleryStatus.value = 'ok'
+    galleryMessage.value = 'Imagen subida. Guarda cambios para aplicar.'
+  } catch (error: any) {
+    galleryStatus.value = 'error'
+    galleryMessage.value = getErrorMessage(error)
+  } finally {
+    uploadingGallery.value = false
+    if (target) target.value = ''
   }
 }
 

@@ -53,16 +53,27 @@
           ></textarea>
 
           <div class="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="grid gap-3 sm:grid-cols-2">
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div class="space-y-1">
                 <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Precio</label>
                 <input v-model.number="form.price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" required />
                 <p class="text-xs text-slate-500">Requerido: mayor a 0.</p>
               </div>
               <div class="space-y-1">
-                <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Precio oferta</label>
+                <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Precio oferta por unidad</label>
                 <input v-model.number="form.offer_price" type="number" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                <p class="text-xs text-slate-500">Ej: 1990 para mostrar un pack como 3x1990.</p>
               </div>
+              <div class="space-y-1">
+                <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Cantidad mínima para oferta</label>
+                <input v-model.number="form.offer_min_qty" type="number" min="1" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                <p class="text-xs text-slate-500">Ej: 3 para que la oferta aplique desde 3 unidades.</p>
+              </div>
+            </div>
+            <div v-if="form.offer_price" class="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
+              <p class="text-xs uppercase tracking-[0.2em] text-emerald-700">Vista previa</p>
+              <p class="font-semibold">{{ offerPackLabel }}</p>
+              <p class="text-xs text-emerald-800">Total {{ formatClp(offerPackTotal) }} por pack de {{ offerMinQty }} unidades.</p>
             </div>
             <div class="grid gap-3 sm:grid-cols-2">
               <div class="space-y-1">
@@ -293,6 +304,7 @@ const form = reactive({
   description: '',
   price: 0,
   offer_price: null as number | null,
+  offer_min_qty: 1,
   category: '' as string | number,
   image_url: '',
   stock_available: 0,
@@ -359,6 +371,11 @@ const isStoreOwner = computed(() => {
   })
 })
 const availableCategories = computed(() => categories.value || [])
+const storeType = computed(() => String((tenantStore.data as any)?.store_type || 'retail'))
+const defaultCategory = computed(() => {
+  if (storeType.value !== 'fast_food') return null
+  return availableCategories.value.find((cat: any) => String(cat?.slug || '').toLowerCase() === 'agregados') || null
+})
 
 const selectedCategoryLabel = computed(() => {
   if (!form.category) return 'General'
@@ -379,6 +396,15 @@ const isValidForm = computed(() => {
   return Boolean(form.name.trim() && Number(form.price) > 0)
 })
 
+const offerMinQty = computed(() => Math.max(1, Number(form.offer_min_qty) || 1))
+const offerPackTotal = computed(() => Number(form.offer_price || 0) * offerMinQty.value)
+const offerPackLabel = computed(() => {
+  const offerUnitPrice = Number(form.offer_price || 0)
+  if (!offerUnitPrice || offerUnitPrice <= 0) return ''
+  return offerMinQty.value > 1 ? `${offerMinQty.value}x ${offerUnitPrice}` : `${offerUnitPrice}`
+})
+const formatClp = (value: number) => new Intl.NumberFormat('es-CL', { maximumFractionDigits: 0 }).format(Math.round(Number(value) || 0))
+
 const canSubmit = computed(() => isValidForm.value && isStoreOwner.value && !saving.value && !uploadingImage.value)
 
 const parseTagsInput = (value: string) =>
@@ -393,6 +419,9 @@ const loadCategories = async () => {
     tenantStore.setSlug(slug)
     categoriesError.value = ''
     categories.value = await $fetch(`${config.public.apiBase}/store/${slug}/catalogo/categories/`)
+    if (!form.category && defaultCategory.value?.id != null) {
+      form.category = defaultCategory.value.id
+    }
   } catch (error) {
     categoriesError.value = getErrorMessage(error) || 'No pudimos cargar categorías'
     categories.value = []
@@ -485,6 +514,11 @@ const createProduct = async () => {
       return
     }
   }
+  if (form.offer_min_qty != null && Number(form.offer_min_qty) < 1) {
+    message.value = 'La cantidad mínima de oferta debe ser al menos 1'
+    messageStatus.value = 'error'
+    return
+  }
   if (form.stock_available != null && Number(form.stock_available) < 0) {
     message.value = 'El stock no puede ser negativo'
     messageStatus.value = 'error'
@@ -532,6 +566,7 @@ const createProduct = async () => {
     description: form.description?.trim?.() || '',
     price: Number(form.price),
     offer_price: form.offer_price != null ? Number(form.offer_price) : null,
+    offer_min_qty: Math.max(1, Number(form.offer_min_qty) || 1),
     is_active: true,
     is_marketplace: false,
     stock_available: Number(form.stock_available) || 0,

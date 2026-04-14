@@ -1,5 +1,13 @@
 <template>
-  <div v-if="product" class="mx-auto max-w-5xl space-y-10 px-4 py-10">
+  <div v-if="product" class="relative mx-auto max-w-5xl space-y-10 px-4 py-10">
+    <NuxtLink
+      v-if="isStoreOwner"
+      :to="`/store/${route.params.slug}/admin/productos/${route.params.product_slug}/editar`"
+      class="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+      aria-label="Editar producto"
+    >
+      <Pencil class="h-4 w-4" aria-hidden="true" />
+    </NuxtLink>
     <div class="grid gap-10 md:grid-cols-[1.05fr,0.95fr]">
       <div class="space-y-3">
       <div
@@ -26,7 +34,7 @@
           Ver grande
         </button>
         <button
-          v-if="isStoreOwner"
+          v-if="showInlineOwnerControls"
           type="button"
           class="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-800 shadow"
           @click.stop="startEdit('image')"
@@ -48,7 +56,7 @@
           <img :src="image" :alt="`Miniatura ${index + 1}`" class="h-full w-full object-cover" />
         </button>
         <button
-          v-if="isStoreOwner"
+          v-if="showInlineOwnerControls"
           type="button"
           class="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-slate-500 transition hover:-translate-y-0.5 hover:border-slate-400 hover:text-slate-700"
           @click="triggerGalleryPicker"
@@ -58,7 +66,7 @@
         <input ref="galleryPicker" type="file" accept="image/*" class="hidden" @change="onFileSelectGallery" />
       </div>
       <div
-        v-if="isStoreOwner && editing.image"
+        v-if="showInlineOwnerControls && editing.image"
         class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3"
       >
         <label class="text-sm font-semibold text-slate-700">URL de imagen principal</label>
@@ -99,7 +107,7 @@
         </div>
       </div>
 
-      <div v-if="isStoreOwner" class="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
+      <div v-if="showInlineOwnerControls" class="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
         <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
           <input v-model="form.product_of_week" type="checkbox" class="h-4 w-4 accent-amber-600" />
           <span>Mostrar en Destacados de la semana</span>
@@ -154,7 +162,7 @@
         <span v-if="product.is_marketplace" class="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-800">Marketplace</span>
         <span v-if="product.product_of_week" class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Producto de la semana</span>
         <button
-          v-if="isStoreOwner && !editing.category"
+          v-if="showInlineOwnerControls && !editing.category"
           type="button"
           class="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
           @click="startEdit('category')"
@@ -185,7 +193,7 @@
           </div>
         </div>
         <button
-          v-if="isStoreOwner && !editing.name"
+          v-if="showInlineOwnerControls && !editing.name"
           type="button"
           class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
           @click="startEdit('name')"
@@ -214,7 +222,7 @@
             </div>
           </div>
           <button
-            v-if="isStoreOwner && !editing.description"
+            v-if="showInlineOwnerControls && !editing.description"
             type="button"
             class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
             @click="startEdit('description')"
@@ -232,7 +240,7 @@
               <p class="text-xs text-slate-500">Se guarda usando el ID numérico del catálogo.</p>
             </div>
             <button
-              v-if="isStoreOwner"
+              v-if="showInlineOwnerControls"
               type="button"
               class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-100"
               @click="openCategoryPanel"
@@ -262,22 +270,26 @@
 
       <div class="flex flex-col gap-3">
         <div class="flex items-center gap-3 text-2xl font-bold" v-if="!editing.price">
-          <span v-if="product.offer_price" class="text-slate-400 line-through text-xl">{{ formatClp(product.price) }}</span>
-          <span :class="product.offer_price ? 'text-red-600' : 'text-black'">{{ formatClp(displayPrice) }}</span>
-          <span v-if="product.offer_price && Number(product.offer_min_qty || 1) > 1" class="rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">
-            Desde {{ Number(product.offer_min_qty) }} unidades
-          </span>
-          <button
-            v-if="isStoreOwner"
-            type="button"
-            class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 text-sm shadow-sm hover:bg-slate-50"
-            @click="startEdit('price')"
-            aria-label="Editar precios"
-          >
-            <Pencil class="h-4 w-4" aria-hidden="true" />
-          </button>
+          <div class="grid flex-1 gap-3 sm:grid-cols-[1.15fr,0.85fr]">
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p class="text-xs uppercase tracking-[0.18em] text-slate-500">Oferta</p>
+              <p v-if="product.offer_price" class="mt-2 text-2xl font-semibold text-slate-900">{{ offerPackLabel }}</p>
+              <p v-if="product.offer_price && offerMinQty > 1" class="mt-1 text-sm font-medium text-slate-600">
+                Total {{ formatClp(offerPackTotal) }} para {{ offerMinQty }} unidades
+              </p>
+              <p v-else-if="product.offer_price" class="mt-1 text-sm font-medium text-slate-600">Precio promocional por unidad</p>
+              <p v-else class="mt-2 text-2xl font-semibold text-slate-900">{{ formatClp(displayPrice) }}</p>
+            </div>
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-left">
+              <p class="text-xs uppercase tracking-[0.18em] text-emerald-700">Descuento</p>
+              <p v-if="product.offer_price" class="mt-2 text-xl font-semibold text-emerald-900">{{ formatClp(offerUnitPrice) }} c/u</p>
+              <p v-if="product.offer_price" class="mt-1 text-sm text-emerald-800">Antes {{ formatClp(normalUnitPrice) }} c/u</p>
+              <p v-if="product.offer_price" class="mt-1 text-xs font-semibold text-emerald-700">Ahorro {{ discountBadge }}</p>
+            </div>
+          </div>
+          <span class="inline-flex h-9 w-9" aria-hidden="true"></span>
         </div>
-        <div v-else class="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div v-else-if="showInlineOwnerControls" class="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div class="grid gap-3 sm:grid-cols-2">
             <div class="space-y-1">
               <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Precio</label>
@@ -314,7 +326,7 @@
           <span class="text-slate-600" v-if="isStoreOwner">(Base: {{ availableStock }} | Mínimo: {{ form.stock_minimum }})</span>
         </div>
         <button
-          v-if="isStoreOwner && !editing.stock"
+          v-if="showInlineOwnerControls && !editing.stock"
           type="button"
           class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
           @click="startEdit('stock')"
@@ -342,7 +354,7 @@
         <p class="text-xs text-slate-500">Solo se muestran tallas con stock.</p>
       </div>
 
-      <div v-if="editing.stock" class="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div v-if="showInlineOwnerControls && editing.stock" class="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="grid gap-3 sm:grid-cols-2">
           <div class="space-y-1">
             <label class="text-xs uppercase tracking-[0.2em] text-slate-500">Stock base</label>
@@ -370,7 +382,7 @@
         <div class="flex items-center justify-between gap-2">
           <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Etiquetas</p>
           <button
-            v-if="isStoreOwner && !editing.tags"
+            v-if="showInlineOwnerControls && !editing.tags"
             type="button"
             class="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             @click="startEdit('tags')"
@@ -454,7 +466,7 @@
         </div>
       </div>
 
-      <div v-if="isStoreOwner && (isClothing || isTech || isShoes)" class="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div v-if="showInlineOwnerControls && (isClothing || isTech || isShoes)" class="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Info adicional según categoría</p>
@@ -594,14 +606,14 @@
 
       <div class="flex flex-wrap gap-3 pt-2">
         <button
-          @click="cart.addProduct(product)"
+          @click="addToCartFromDetail"
           class="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow transition"
           :class="{ 'cursor-not-allowed opacity-60': !canAddToCart }"
           :disabled="!canAddToCart"
           :style="{ backgroundColor: accentColor }"
         >
           <ShoppingCart class="h-4 w-4" aria-hidden="true" />
-          {{ canAddToCart ? 'Agregar al carrito' : 'Sin stock' }}
+          {{ storeCartEnabled ? (canAddToCart ? 'Agregar al carrito' : 'Sin stock') : 'Carrito deshabilitado' }}
         </button>
         <NuxtLink
           v-if="product.store?.slug"
@@ -633,6 +645,7 @@
           :key="item.id"
           :product="item"
           :accent="accentColor"
+          :disable-cart="!storeCartEnabled"
           :hide-stock="true"
         />
       </div>
@@ -889,6 +902,7 @@ const isStoreOwner = computed(() => {
     return m?.store?.slug === storeSlug && roles.some((r: string) => ['admin', 'owner', 'manager'].includes(r))
   })
 })
+const showInlineOwnerControls = computed(() => false)
 const galleryImages = computed(() => {
   if (!product.value) return [placeholderImage]
   const raw = (product.value.images || [])
@@ -1009,16 +1023,45 @@ const availableStock = computed(() => {
   const value = Number(product.value?.stock_available ?? 0)
   return Number.isFinite(value) ? value : 0
 })
+const storeCartEnabled = computed(() => {
+  const type = String(product.value?.store?.store_type || 'retail')
+  const cartAllowedByType = ['fast_food', 'bakery'].includes(type)
+  const value = product.value?.store?.cart_enabled
+  const hasToggle = value === undefined || value === null ? true : Boolean(value)
+  return cartAllowedByType && hasToggle
+})
 const displayPrice = computed(() => {
-  if (product.value?.offer_price && Number(product.value?.offer_min_qty || 1) <= 1) {
+  if (product.value?.offer_price != null) {
     return Number(product.value.offer_price)
   }
   return Number(product.value?.price || 0)
 })
+const normalUnitPrice = computed(() => Number(product.value?.price || 0))
+const offerMinQty = computed(() => Math.max(1, Number(product.value?.offer_min_qty || 1)))
+const offerUnitPrice = computed(() => Number(product.value?.offer_price || 0))
+const offerPackTotal = computed(() => offerUnitPrice.value * offerMinQty.value)
+const offerPackLabel = computed(() => {
+  if (!product.value?.offer_price) return ''
+  return offerMinQty.value > 1
+    ? `${offerMinQty.value}x ${formatClp(offerUnitPrice.value)}`
+    : formatClp(offerUnitPrice.value)
+})
+const discountPercent = computed(() => {
+  const price = Number(product.value?.price || 0)
+  const offer = Number(product.value?.offer_price || 0)
+  if (!price || !offer || offer >= price) return 0
+  return Math.round(((price - offer) / price) * 100)
+})
+const discountBadge = computed(() => (discountPercent.value > 0 ? `${discountPercent.value}%` : ''))
 const formatClp = (value: number | string) =>
   new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value) || 0)
 const stockDescriptor = computed(() => describeStock(availableStock.value))
-const canAddToCart = computed(() => availableStock.value > 0 && (!isClothing.value || Boolean(selectedSize.value)))
+const canAddToCart = computed(() => storeCartEnabled.value && availableStock.value > 0 && (!isClothing.value || Boolean(selectedSize.value)))
+
+const addToCartFromDetail = () => {
+  if (!canAddToCart.value) return
+  cart.addProduct(product.value)
+}
 const displayTags = computed(() => {
   const tags = (product.value?.tags || [])
     .map((t: any) => (typeof t === 'string' ? t : t?.name || t?.label || ''))
@@ -1044,6 +1087,14 @@ watch(
     if (!selectedSize.value || !sizes.includes(selectedSize.value)) {
       selectedSize.value = sizes[0]
     }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [route.params.slug, route.params.product_slug],
+  () => {
+    void ensureProductLoadedByRoute()
   },
   { immediate: true }
 )
@@ -1138,23 +1189,39 @@ const refreshProduct = async () => {
     data = await getProductBySlug(requestedIdentifier)
   } catch (error) {
     const requestedId = Number(requestedIdentifier)
-    if (!Number.isFinite(requestedId)) {
-      throw error
+    if (Number.isFinite(requestedId)) {
+      const catalogResponse: any = await getProducts()
+      const catalogList = Array.isArray(catalogResponse) ? catalogResponse : catalogResponse?.results || []
+      const matchedById = (catalogList || []).find((item: any) => Number(item?.id) === requestedId)
+      if (matchedById) {
+        data = matchedById?.slug ? await getProductBySlug(matchedById.slug) : matchedById
+      }
     }
 
-    const catalogResponse: any = await getProducts()
-    const catalogList = Array.isArray(catalogResponse) ? catalogResponse : catalogResponse?.results || []
-    const matchedById = (catalogList || []).find((item: any) => Number(item?.id) === requestedId)
-    if (!matchedById) {
-      throw error
+    if (!data) {
+      const storeSlug = String(route.params.slug || tenantStore.slug || '')
+      data = await $fetch(`${config.public.apiBase}/store/${storeSlug}/catalogo/products/${requestedIdentifier}/`)
     }
-
-    data = matchedById?.slug ? await getProductBySlug(matchedById.slug) : matchedById
   }
 
   product.value = data
   hydrateForm(data)
   await fetchRelatedProducts()
+}
+
+async function ensureProductLoadedByRoute() {
+  if (product.value) return
+  const storeSlug = String(route.params.slug || tenantStore.slug || '')
+  const productSlug = String(route.params.product_slug || '')
+  if (!storeSlug || !productSlug) return
+  try {
+    const data: any = await $fetch(`${config.public.apiBase}/store/${storeSlug}/catalogo/products/${productSlug}/`)
+    product.value = data
+    hydrateForm(data)
+    await fetchRelatedProducts()
+  } catch (error) {
+    console.error('No se pudo cargar el producto por ruta', error)
+  }
 }
 
 const fetchRelatedProducts = async () => {
@@ -1649,22 +1716,44 @@ watch(
 )
 
 onMounted(async () => {
-  try {
-    const slug = route.params.slug as string
-    auth.restoreFromCookies()
-    if (auth.token && !auth.user) {
+  const slug = route.params.slug as string
+  auth.restoreFromCookies()
+  if (auth.token && !auth.user) {
+    try {
       await auth.fetchProfile()
+    } catch (e) {
+      console.warn('No se pudo cargar el perfil en detalle de producto', e)
     }
-    tenantStore.setSlug(slug)
-    theme.loadFromStorage()
-    theme.applyStoreTheme(slug)
+  }
+
+  tenantStore.setSlug(slug)
+  theme.loadFromStorage()
+  theme.applyStoreTheme(slug)
+
+  try {
     await tenantStore.fetchTienda()
+  } catch (e) {
+    console.warn('No se pudo cargar la tienda para el detalle de producto', e)
+  }
+
+  try {
     await loadCategories()
+  } catch (e) {
+    console.warn('No se pudieron cargar categorías en el detalle de producto', e)
+  }
+
+  try {
     await refreshProduct()
-    await fetchReviews()
-    activeImageIndex.value = 0
   } catch (e) {
     console.error('Error cargando producto', e)
   }
+
+  try {
+    await fetchReviews()
+  } catch (e) {
+    console.warn('No se pudieron cargar reseñas', e)
+  }
+
+  activeImageIndex.value = 0
 })
 </script>

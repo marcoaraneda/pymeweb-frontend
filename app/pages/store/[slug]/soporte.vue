@@ -221,10 +221,14 @@ const submit = async () => {
 }
 
 onMounted(async () => {
-  if (!auth.isAuthenticated) {
+  if (!auth.token) {
+    auth.restoreFromCookies()
+  }
+  if (!auth.token) {
     await navigateTo('/login')
     return
   }
+  await auth.initializeSession().catch(() => null)
   await loadTickets()
 })
 

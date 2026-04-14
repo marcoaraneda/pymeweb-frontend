@@ -9,10 +9,18 @@ type UserProfile = {
   username: string
   email: string
   rut?: string | null
+  address?: string | null
+  phone?: string | null
   first_name?: string
   last_name?: string
   avatar_url?: string | null
   avatar_updated_at?: string | null
+  is_email_verified?: boolean
+  email_verified_at?: string | null
+  is_phone_verified?: boolean
+  phone_verified_at?: string | null
+  is_google_verified?: boolean
+  google_verified_at?: string | null
   is_staff?: boolean
   memberships?: Array<{ store: StoreLite; roles: string[] }>
 }

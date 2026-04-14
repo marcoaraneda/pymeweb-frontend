@@ -16,7 +16,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   auth.restoreFromCookies()
   if (!auth.token) {
-    auth.logout({ redirectTo: loginPath })
     return navigateTo(loginPath)
   }
 
@@ -26,7 +25,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
   if (!auth.token || !profile) {
-    auth.logout({ redirectTo: loginPath })
     return navigateTo(loginPath)
   }
 })

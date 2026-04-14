@@ -12,6 +12,14 @@ export type NotificationFeedItem = {
 
 const READ_KEY = 'notification-read-ids'
 
+const stableNotificationId = (item: { id?: string; type?: string; message?: string; store?: string | null }, index: number) => {
+  if (item?.id) return String(item.id)
+  const type = String(item?.type || 'notification').trim().toLowerCase()
+  const message = String(item?.message || '').trim().toLowerCase()
+  const store = String(item?.store || 'global').trim().toLowerCase()
+  return `summary-${type}-${store}-${message}-${index}`
+}
+
 export const useNotificationStore = defineStore('notifications', {
   state: () => ({
     feed: [] as NotificationFeedItem[],
@@ -48,7 +56,7 @@ export const useNotificationStore = defineStore('notifications', {
     setUnread(items: NotificationFeedItem[] | { type: string; message: string; count?: number }[]) {
       const now = new Date().toISOString()
       const normalized: NotificationFeedItem[] = (items || []).map((n, idx) => ({
-        id: (n as any).id || `${now}-${idx}-${n.type}`,
+        id: stableNotificationId(n as any, idx),
         type: (n as any).type,
         message: (n as any).message,
         created_at: now,
@@ -59,7 +67,7 @@ export const useNotificationStore = defineStore('notifications', {
     },
     // Compat: antiguo clearHistory
     clearHistory() {
-      this.clearAll()
+      this.dismissAll()
     },
     setFeed(items: NotificationFeedItem[]) {
       this.feed = (items || []).map((item) => ({ ...item, read: this.readIds.has(item.id) }))
@@ -75,10 +83,12 @@ export const useNotificationStore = defineStore('notifications', {
       this.saveReadIds()
       this.feed = this.feed.map((n) => ({ ...n, read: true }))
     },
-    clearAll() {
+    dismissAll() {
+      this.markAllRead()
       this.feed = []
-      this.readIds = new Set()
-      this.saveReadIds()
+    },
+    clearAll() {
+      this.dismissAll()
     },
   },
 })

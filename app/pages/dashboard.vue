@@ -96,6 +96,26 @@
           <p class="mt-2 text-2xl font-semibold text-white">{{ currency(marketplaceOverview.estimatedValue) }}</p>
           <p class="text-xs text-white/60">Suma referencial de precio por stock</p>
         </div>
+        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-white/60">Ventas cerradas</p>
+          <p class="mt-2 text-2xl font-semibold text-white">{{ marketplaceSellerSummary.totalOrders }}</p>
+          <p class="text-xs text-white/60">Pedidos completados o entregados</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-white/60">Unidades vendidas</p>
+          <p class="mt-2 text-2xl font-semibold text-white">{{ marketplaceSellerSummary.totalUnits }}</p>
+          <p class="text-xs text-white/60">Total de unidades vendidas</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-white/60">Ingresos reales</p>
+          <p class="mt-2 text-2xl font-semibold text-white">{{ currency(marketplaceSellerSummary.grossSales) }}</p>
+          <p class="text-xs text-white/60">Ventas cerradas de tu perfil</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p class="text-xs uppercase tracking-[0.2em] text-white/60">Ventas en proceso</p>
+          <p class="mt-2 text-2xl font-semibold text-white">{{ marketplaceSellerSummary.inProgressOrders }}</p>
+          <p class="text-xs text-white/60">Pendiente, preparando o en tránsito</p>
+        </div>
       </section>
 
       <section v-if="!isMarketplaceSelected" class="grid gap-6 lg:grid-cols-2">
@@ -445,6 +465,9 @@
                 <span class="text-xs text-white/60">{{ formatDate(o.created_at) }}</span>
               </div>
               <p class="text-xs text-white/60">{{ o.store_slug || 'tienda' }}</p>
+              <NuxtLink :to="trackingLink(o)" class="mt-1 inline-flex items-center rounded-full border border-sky-300/40 bg-sky-400/10 px-2 py-0.5 text-[11px] font-semibold text-sky-100 hover:bg-sky-400/20">
+                Tracking: {{ trackingCodeFor(o) }}
+              </NuxtLink>
               <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <span class="font-semibold" :style="{ color: theme.accent }">{{ currency(o.total) }}</span>
                 <div class="flex items-center gap-2">
@@ -499,6 +522,9 @@
                 <span class="text-xs text-white/60">{{ formatDate(o.created_at) }}</span>
               </div>
               <p class="text-xs text-white/60">{{ o.store_slug || 'tienda' }}</p>
+              <NuxtLink :to="trackingLink(o)" class="mt-1 inline-flex items-center rounded-full border border-emerald-300/40 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/20">
+                Tracking: {{ trackingCodeFor(o) }}
+              </NuxtLink>
               <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <span class="font-semibold" :style="{ color: theme.accent }">{{ currency(o.total) }}</span>
                 <span :class="['rounded-full px-2 py-0.5 text-[11px] font-semibold', statusBadge(o.status).classes]">{{ statusBadge(o.status).label }}</span>
@@ -714,6 +740,8 @@ const apiBase = String(config.public.apiBase || '')
 const deletingStore = ref(false)
 const marketplaceSubmissions = ref<any[]>([])
 const loadingMarketplaceSubmissions = ref(false)
+const marketplaceSellerProfile = ref<any | null>(null)
+const loadingMarketplaceSellerProfile = ref(false)
 const marketplaceStatusFilter = ref('')
 const marketplaceSubmissionsPage = ref(1)
 const marketplaceSubmissionsPageSize = 8
@@ -825,6 +853,16 @@ const marketplaceOverview = computed(() => {
     completed,
     inProgress,
     estimatedValue,
+  }
+})
+
+const marketplaceSellerSummary = computed(() => {
+  const summary = marketplaceSellerProfile.value?.sales_summary || {}
+  return {
+    totalOrders: Number(summary.total_orders || 0),
+    totalUnits: Number(summary.total_units || 0),
+    grossSales: Number(summary.gross_sales || 0),
+    inProgressOrders: Number(summary.in_progress_orders || 0),
   }
 })
 
@@ -1047,6 +1085,18 @@ const orderLink = (orderId: number) => {
   return slug ? `/store/${slug}/admin/orders/${orderId}` : '#'
 }
 
+const trackingCodeFor = (order: any) => {
+  const tracking = String(order?.tracking_code || '').trim()
+  if (tracking) return tracking
+  const id = Number(order?.id || 0)
+  return id > 0 ? `ORD-${id}` : 'Sin codigo'
+}
+
+const trackingLink = (order: any) => {
+  const code = encodeURIComponent(trackingCodeFor(order))
+  return `/seguimiento?code=${code}`
+}
+
 const loadData = async () => {
   loading.value = true
   loadError.value = ''
@@ -1054,14 +1104,14 @@ const loadData = async () => {
   try {
     storesMine.value = await auth.fetchMyStores()
     if (!selectedStore.value) {
-      selectedStore.value = storesMine.value.length ? storesMine.value[0].slug : MARKETPLACE_SCOPE
-    } else if (!isMarketplaceSelected.value && !storesMine.value.find((s) => s.slug === selectedStore.value)) {
-      selectedStore.value = storesMine.value.length ? storesMine.value[0].slug : MARKETPLACE_SCOPE
+      selectedStore.value = (storesMine.value && storesMine.value.length > 0) ? storesMine.value[0]!.slug : MARKETPLACE_SCOPE
+    } else if (!isMarketplaceSelected.value && !(storesMine.value && storesMine.value.find((s) => s.slug === selectedStore.value))) {
+      selectedStore.value = (storesMine.value && storesMine.value.length > 0) ? storesMine.value[0]!.slug : MARKETPLACE_SCOPE
     }
     if (isMarketplaceSelected.value) {
-      await Promise.all([loadMarketplaceSubmissions(), loadRecentReviews()])
+      await Promise.all([loadMarketplaceSubmissions(), loadMarketplaceSellerProfile(), loadRecentReviews()])
     } else {
-      await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews(), loadTickets(), loadMarketplaceSubmissions()])
+      await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews(), loadTickets(), loadMarketplaceSubmissions(), loadMarketplaceSellerProfile()])
     }
   } catch (error) {
     console.error('No se pudo cargar el dashboard', error)
@@ -1087,6 +1137,23 @@ const loadMarketplaceSubmissions = async () => {
     marketplaceSubmissions.value = []
   } finally {
     loadingMarketplaceSubmissions.value = false
+  }
+}
+
+const loadMarketplaceSellerProfile = async () => {
+  const userId = (auth.user as any)?.id
+  if (!userId) {
+    marketplaceSellerProfile.value = null
+    return
+  }
+  loadingMarketplaceSellerProfile.value = true
+  try {
+    marketplaceSellerProfile.value = await $fetch<any>(`${apiBase}/marketplace/sellers/${userId}/`)
+  } catch (error) {
+    console.warn('No se pudo cargar perfil marketplace para dashboard', error)
+    marketplaceSellerProfile.value = null
+  } finally {
+    loadingMarketplaceSellerProfile.value = false
   }
 }
 
@@ -1467,9 +1534,9 @@ watch(selectedStore, async () => {
   deliveredPage.value = 1
   reviewsPage.value = 1
   if (isMarketplaceSelected.value) {
-    await Promise.all([loadMarketplaceSubmissions(), loadRecentReviews()])
+    await Promise.all([loadMarketplaceSubmissions(), loadMarketplaceSellerProfile(), loadRecentReviews()])
   } else {
-    await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews(), loadTickets(), loadMarketplaceSubmissions()])
+    await Promise.all([loadOrders(), loadSummary(), loadDailyStats(), loadRecentReviews(), loadTickets(), loadMarketplaceSubmissions(), loadMarketplaceSellerProfile()])
   }
 })
 

@@ -30,13 +30,14 @@
               <input v-model.number="form.price" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <div class="space-y-2">
-              <label class="text-sm text-slate-600">Precio oferta (opcional)</label>
+              <label class="text-sm text-slate-600">Precio oferta por unidad (opcional)</label>
               <input v-model.number="form.offer_price" type="number" min="0" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+              <p class="text-xs text-slate-500">Ej: 1990 para mostrar un pack como 3x1990.</p>
             </div>
             <div class="space-y-2 sm:col-span-2">
-              <label class="text-sm text-slate-600">Cantidad mínima para activar oferta</label>
+              <label class="text-sm text-slate-600">Cantidad mínima para oferta</label>
               <input v-model.number="form.offer_min_qty" type="number" min="1" step="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-              <p class="text-xs text-slate-500">Si es 1, la oferta se aplica desde la primera unidad.</p>
+              <p class="text-xs text-slate-500">Ej: 3 para activar la oferta desde 3 unidades.</p>
             </div>
           </div>
           <div class="space-y-2">
@@ -83,7 +84,7 @@
           <div class="flex flex-wrap gap-4">
             <label class="inline-flex items-center gap-2 text-sm text-slate-700">
               <input v-model="form.is_featured" type="checkbox" />
-              Producto destacado
+              Oferta destacada (palomita)
             </label>
             <label class="inline-flex items-center gap-2 text-sm text-slate-700">
               <input v-model="form.product_of_week" type="checkbox" />
@@ -136,6 +137,7 @@ const theme = useThemeStore()
 const tenantStore = useTenantStore()
 
 const slug = route.params.slug as string
+const storeType = computed(() => String((tenantStore.data as any)?.store_type || 'retail'))
 
 const form = reactive({
   name: '',
@@ -170,6 +172,10 @@ sizeOptions.forEach((size) => {
 const selectedCategoryName = computed(() => {
   const selected = categories.value.find((cat: any) => String(cat.id) === String(form.category))
   return String(selected?.name || '').toLowerCase()
+})
+const defaultCategory = computed(() => {
+  if (storeType.value !== 'fast_food') return null
+  return categories.value.find((cat: any) => String(cat?.slug || '').toLowerCase() === 'agregados') || null
 })
 const isShoesCategory = computed(() => /calzado|zapat|shoe|sneaker/.test(selectedCategoryName.value))
 const isClothingCategory = computed(() => /ropa|vest|camis|pantal|polera|poleron|polerón/.test(selectedCategoryName.value))
@@ -259,6 +265,9 @@ const loadCategories = async () => {
     }
 
     categories.value = fetchedCategories.filter((cat: any) => allowedSlugs.has(String(cat?.slug || '').toLowerCase()))
+    if (!form.category && defaultCategory.value?.id != null) {
+      form.category = defaultCategory.value.id
+    }
   } catch (error) {
     categories.value = []
   }

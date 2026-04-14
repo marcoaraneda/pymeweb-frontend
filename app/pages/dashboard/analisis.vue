@@ -157,9 +157,11 @@
           <div v-else class="mt-4 space-y-3">
             <div v-for="item in paymentMethods" :key="item.payment_type_code + '-' + item.response_code" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
               <div class="flex items-center justify-between">
-                <p class="font-semibold text-white">{{ item.payment_type_code || 'N/A' }}</p>
-                <span class="text-xs text-white/60">Resp {{ item.response_code ?? '—' }}</span>
+                <p class="font-semibold text-white">{{ formatPaymentMethodLabel(item.payment_type_code) }}</p>
+                <span v-if="item.is_configured_method" class="text-xs text-white/60">{{ formatPayoutStatus(item.payout_verification_status) }}</span>
+                <span v-else class="text-xs text-white/60">Resp {{ item.response_code ?? '—' }}</span>
               </div>
+              <p v-if="item.is_configured_method" class="text-xs text-white/60">Cuenta receptora {{ item.payout_account_email || 'configurada sin correo' }}</p>
               <p class="text-xs text-white/60">Intentos {{ item.attempts }} • Aprobados {{ item.paid }}</p>
               <p class="text-sm font-semibold" :style="{ color: theme.accent }">{{ money(item.amount) }}</p>
             </div>
@@ -401,7 +403,7 @@ const insights = computed(() => {
     },
     {
       label: 'Mejor metodo pago',
-      value: bestPayment?.payment_type_code || '—',
+      value: bestPayment ? formatPaymentMethodLabel(bestPayment.payment_type_code) : '—',
       note: bestPayment ? `${bestPayment.rate}% aprobacion` : 'Sin datos',
     },
     {
@@ -452,6 +454,30 @@ const barColor = (idx: number) => (idx === chartBars.value.length - 1 ? theme.ac
 
 const money = (value: number) =>
   new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(Number(value) || 0)
+
+const formatPaymentMethodLabel = (value: string) => {
+  const raw = String(value || '').toUpperCase()
+  if (!raw) return 'N/A'
+  if (raw.startsWith('PAYOUT_PAYPAL')) return 'Cuenta receptora PayPal'
+  if (raw.startsWith('PAYOUT_BANK_TRANSFER')) return 'Cuenta receptora Transferencia'
+  const map: Record<string, string> = {
+    VDC: 'Tarjeta debito',
+    VN: 'Tarjeta credito',
+    SI: 'Cuotas sin interes',
+    S2: 'Cuotas comercio',
+    NC: 'N cuotas',
+  }
+  return map[raw] || raw
+}
+
+const formatPayoutStatus = (statusCode: string) => {
+  const map: Record<string, string> = {
+    verified: 'Cuenta verificada',
+    pending: 'Pendiente de verificacion',
+    rejected: 'Verificacion rechazada',
+  }
+  return map[String(statusCode || '').toLowerCase()] || 'Cuenta receptora'
+}
 
 const formatPeriod = (value: string) => {
   if (!value) return '—'
